@@ -1,0 +1,13 @@
+DEFAULT_WRF_HOME = '/mnt/disks/wrf-mod/'
+DEFAULT_GFS_DATA_URL = 'ftp://ftpprd.ncep.noaa.gov/pub/data/nccf/com/gfs/prod/gfs.YYYYMMDDCC/'
+DEFAULT_GFS_DATA_INV = 'gfs.tCCz.pgrb2.RRRR.fFFF'
+
+DEFAULT_THREAD_COUNT = 4
+DEFAULT_RETRIES = 5
+DEFAULT_DELAY_S = 5
+
+DEFAULT_CYCLE = '00'
+DEFAULT_RES = '0p50'
+DEFAULT_PERIOD = 3
+DEFAULT_STEP = 3
+
