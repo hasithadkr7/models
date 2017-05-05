@@ -1,7 +1,11 @@
 import argparse
 import datetime as dt
+import glob
 import logging
 import logging.config
+
+import shutil
+
 import constants as constants
 import os
 
@@ -21,7 +25,7 @@ def set_logging_config(log_home):
     logging_config = dict(
         version=1,
         formatters={
-            'f': {'format': '%(asctime)s %(name)-12s %(levelname)-8s %(message)s'}
+            'f': {'format': '%(asctime)s %(threadName)s %(module)s %(levelname)s %(message)s'}
         },
         handlers={
             'h': {'class': 'logging.StreamHandler',
@@ -51,7 +55,7 @@ def create_dir_if_not_exists(path):
 
 
 def get_gfs_dir(wrf_home=constants.DEFAULT_WRF_HOME):
-    return create_dir_if_not_exists(os.path.join(wrf_home, 'data', 'GFS'))
+    return create_dir_if_not_exists(os.path.join(wrf_home, 'DATA', 'GFS'))
 
 
 def get_output_dir(wrf_home=constants.DEFAULT_WRF_HOME):
@@ -89,13 +93,18 @@ def main():
                                       get_gfs_dir(wrf_home), '20170501', constants.DEFAULT_CYCLE, '001',
                                       constants.DEFAULT_RES)
     print get_gfs_inventory_dest_list(constants.DEFAULT_GFS_DATA_URL, constants.DEFAULT_GFS_DATA_INV,
-                                                dt.datetime.strptime('2017-05-01', '%Y-%m-%d'),
-                                                constants.DEFAULT_PERIOD,
-                                                constants.DEFAULT_STEP,
-                                                constants.DEFAULT_CYCLE,
-                                                constants.DEFAULT_RES,
-                                                get_gfs_dir(wrf_home))
+                                      dt.datetime.strptime('2017-05-01', '%Y-%m-%d'),
+                                      constants.DEFAULT_PERIOD,
+                                      constants.DEFAULT_STEP,
+                                      constants.DEFAULT_CYCLE,
+                                      constants.DEFAULT_RES,
+                                      get_gfs_dir(wrf_home))
 
 
 if __name__ == "__main__":
     main()
+
+
+def cleanup_dir(gfs_dir):
+    shutil.rmtree(gfs_dir)
+    os.makedirs(gfs_dir)

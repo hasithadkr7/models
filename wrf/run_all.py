@@ -1,13 +1,11 @@
 #!/bin/python
 import sys
 import os
-import execution.utils as utils
 import datetime as dt
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-import wrf.execution.constants as constants
-import wrf.execution.utils
+import wrf.execution.utils as utils
 
-from wrf.execution.executor import WrfExecutor
+import wrf.execution.executor as wrf_exec
 
 
 def main():
@@ -20,8 +18,7 @@ def main():
 
     utils.set_logging_config(utils.get_logs_dir(wrf_home))
 
-    wrf_exec = WrfExecutor(wrf_home, start_date, end_date, period)
-    wrf_exec.wrf_run_all()
+    wrf_exec.wrf_run_all(wrf_home, start_date, end_date, period)
 
 
 if __name__ == "__main__":
