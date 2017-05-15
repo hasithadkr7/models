@@ -171,7 +171,7 @@ def run_em_real(wrf_home, start_date, procs):
     utils.delete_files_with_prefix(em_real_dir, 'rsl*')
 
     # Linking met_em.*
-    utils.run_subprocess('ln -sf %s/met_em.d0* %s/' % (utils.get_wps_dir(wrf_home), em_real_dir))
+    utils.run_subprocess('ln -sf %smet_em.d0* .' % utils.get_wps_dir(wrf_home), cwd=em_real_dir)
 
     # Starting real.exe
     utils.run_subprocess('mpirun -np %d ./real.exe' % procs, cwd=em_real_dir)
@@ -197,7 +197,7 @@ def run_wrf(wrf_home, start_date, procs=constants.DEFAULT_PROCS,
     check_gfs_data_availability(wrf_home, start_date, inv, period, step, cycle, res)
 
     replace_namelist_wps(wrf_home, start_date, end_date)
-    run_wps(wrf_home, start_date)
+    # run_wps(wrf_home, start_date)
 
     replace_namelist_input(wrf_home, start_date, end_date)
     run_em_real(wrf_home, start_date, procs)
@@ -205,7 +205,7 @@ def run_wrf(wrf_home, start_date, procs=constants.DEFAULT_PROCS,
 
 def wrf_run_all(wrf_home, start_date, end_date, period):
     logging.info('Downloading GFS Data')
-    download_gfs_data(start_date, utils.get_gfs_dir(wrf_home), period=period)
+    # download_gfs_data(start_date, utils.get_gfs_dir(wrf_home), period=period)
 
     logging.info('Running WRF')
     run_wrf(wrf_home, start_date, period=period)
