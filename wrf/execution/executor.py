@@ -117,11 +117,11 @@ def run_wps(wrf_home, start_date):
     utils.delete_files_with_prefix(wps_dir, 'met_em*')
 
     # Linking VTable
-    utils.run_subprocess('ln -sf %s/ungrib/Variable_Tables/Vtable.NAM %s/Vtable' % (wps_dir, wps_dir))
+    utils.run_subprocess('ln -sf ungrib/Variable_Tables/Vtable.NAM Vtable', cwd=wps_dir)
 
     # Running link_grib.csh
     utils.run_subprocess(
-        'csh %s/link_grib.csh %s/%s' % (wps_dir, utils.get_gfs_dir(wrf_home), start_date.strftime('%Y%m%d')))
+        'csh link_grib.csh %s/%s' % (utils.get_gfs_dir(wrf_home), start_date.strftime('%Y%m%d')), cwd=wps_dir)
 
     # Starting ungrib.exe
     utils.run_subprocess('./ungrib.exe', cwd=wps_dir)
