@@ -9,7 +9,6 @@ import shutil
 import time
 import ntpath
 
-
 import os
 import subprocess
 
@@ -137,15 +136,22 @@ def cleanup_dir(gfs_dir):
     os.makedirs(gfs_dir)
 
 
-def delete_files_with_prefix(directory, prefix):
-    for filename in glob.glob(os.path.join(directory, prefix)):
+def delete_files_with_prefix(src_dir, prefix):
+    for filename in glob.glob(os.path.join(src_dir, prefix)):
         os.remove(filename)
 
 
-def move_files_with_prefix(directory, prefix, dest):
-    create_dir_if_not_exists(dest)
-    for filename in glob.glob(os.path.join(directory, prefix)):
-        os.rename(filename, os.path.join(dest, ntpath.basename(filename)))
+def move_files_with_prefix(src_dir, prefix, dest_dir):
+    create_dir_if_not_exists(dest_dir)
+    for filename in glob.glob(os.path.join(src_dir, prefix)):
+        os.rename(filename, os.path.join(dest_dir, ntpath.basename(filename)))
+
+
+def create_symlink_with_prefix(src_dir, prefix, dest_dir, dest_file=None):
+    for filename in glob.glob(os.path.join(src_dir, prefix)):
+        if dest_file is None:
+            dest_file = ntpath.basename(filename)
+        os.symlink(filename, os.path.join(dest_dir, dest_file))
 
 
 def run_subprocess(cmd, cwd=None):

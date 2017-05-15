@@ -171,7 +171,8 @@ def run_em_real(wrf_home, start_date, procs):
     utils.delete_files_with_prefix(em_real_dir, 'rsl*')
 
     # Linking met_em.*
-    utils.run_subprocess('ln -sf %smet_em.d0* .' % utils.get_wps_dir(wrf_home), cwd=em_real_dir)
+    # utils.run_subprocess('ln -sf %smet_em.d0* .' % utils.get_wps_dir(wrf_home), cwd=em_real_dir)
+    utils.create_symlink_with_prefix(utils.get_wps_dir(wrf_home), 'met_em.d*', em_real_dir)
 
     # Starting real.exe
     utils.run_subprocess('mpirun -np %d ./real.exe' % procs, cwd=em_real_dir)
