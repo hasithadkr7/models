@@ -1,12 +1,12 @@
+import datetime as dt
 import logging
-import os
+import sys
 import threading
 import time
-import datetime as dt
+
+import os
 import pkg_resources
-import subprocess
 import wget
-import sys
 
 from wrf.execution import constants, utils, exceptions
 
@@ -107,6 +107,13 @@ def check_gfs_data_availability(wrf_home, start_date, inv, period, step, cycle, 
     logging.info('GFS data available')
 
 
+def check_geogrid_output(wps_dir):
+    for i in range(1, 4):
+        if not os.path.exists(os.path.join(wps_dir, 'geo_em.d%02d.nc' % i)):
+            return False
+    return True
+
+
 def run_wps(wrf_home, start_date):
     logging.info('Running WPS...')
     wps_dir = utils.get_wps_dir(wrf_home)
@@ -117,7 +124,9 @@ def run_wps(wrf_home, start_date):
     utils.delete_files_with_prefix(wps_dir, 'met_em*')
 
     # Linking VTable
-    utils.run_subprocess('ln -sf ungrib/Variable_Tables/Vtable.NAM Vtable', cwd=wps_dir)
+    if not os.path.exists(os.path.join(wps_dir, 'Vtable')):
+        logging.info('Creating Vtable symlink')
+        os.symlink(os.path.join(wps_dir, 'ungrib/Variable_Tables/Vtable.NAM'), os.path.join(wps_dir, 'Vtable'))
 
     # Running link_grib.csh
     utils.run_subprocess(
@@ -127,7 +136,9 @@ def run_wps(wrf_home, start_date):
     utils.run_subprocess('./ungrib.exe', cwd=wps_dir)
 
     # Starting geogrid.exe'
-    utils.run_subprocess('./geogrid.exe', cwd=wps_dir)
+    if not check_geogrid_output(wps_dir):
+        logging.info('Geogrid output not available')
+        utils.run_subprocess('./geogrid.exe', cwd=wps_dir)
 
     # Starting metgrid.exe'
     utils.run_subprocess('./metgrid.exe', cwd=wps_dir)
@@ -171,7 +182,7 @@ def run_em_real(wrf_home, start_date, procs):
     utils.delete_files_with_prefix(em_real_dir, 'rsl*')
 
     # Linking met_em.*
-    # utils.run_subprocess('ln -sf %smet_em.d0* .' % utils.get_wps_dir(wrf_home), cwd=em_real_dir)
+    logging.info('Creating met_em.d* symlinks')
     utils.create_symlink_with_prefix(utils.get_wps_dir(wrf_home), 'met_em.d*', em_real_dir)
 
     # Starting real.exe
@@ -198,7 +209,7 @@ def run_wrf(wrf_home, start_date, procs=constants.DEFAULT_PROCS,
     check_gfs_data_availability(wrf_home, start_date, inv, period, step, cycle, res)
 
     replace_namelist_wps(wrf_home, start_date, end_date)
-    # run_wps(wrf_home, start_date)
+    run_wps(wrf_home, start_date)
 
     replace_namelist_input(wrf_home, start_date, end_date)
     run_em_real(wrf_home, start_date, procs)
@@ -206,7 +217,7 @@ def run_wrf(wrf_home, start_date, procs=constants.DEFAULT_PROCS,
 
 def wrf_run_all(wrf_home, start_date, end_date, period):
     logging.info('Downloading GFS Data')
-    # download_gfs_data(start_date, utils.get_gfs_dir(wrf_home), period=period)
+    download_gfs_data(start_date, utils.get_gfs_dir(wrf_home), period=period)
 
     logging.info('Running WRF')
     run_wrf(wrf_home, start_date, period=period)
