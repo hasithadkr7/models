@@ -124,13 +124,13 @@ def run_wps(wrf_home, start_date):
         'csh %s/link_grib.csh %s/%s' % (wps_dir, utils.get_gfs_dir(wrf_home), start_date.strftime('%Y%m%d')))
 
     # Starting ungrib.exe
-    utils.run_subprocess('./%s/ungrib.exe' % wps_dir)
+    utils.run_subprocess('%s/ungrib.exe' % wps_dir)
 
     # Starting geogrid.exe'
-    utils.run_subprocess('./%s/geogrid.exe' % wps_dir)
+    utils.run_subprocess('%s/geogrid.exe' % wps_dir)
 
     # Starting metgrid.exe'
-    utils.run_subprocess('./%s/metgrid.exe' % wps_dir)
+    utils.run_subprocess('%s/metgrid.exe' % wps_dir)
 
 
 def replace_namelist_wps(wrf_home, start_date, end_date):
