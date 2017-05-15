@@ -147,11 +147,9 @@ def move_files_with_prefix(src_dir, prefix, dest_dir):
         os.rename(filename, os.path.join(dest_dir, ntpath.basename(filename)))
 
 
-def create_symlink_with_prefix(src_dir, prefix, dest_dir, dest_file=None):
+def create_symlink_with_prefix(src_dir, prefix, dest_dir):
     for filename in glob.glob(os.path.join(src_dir, prefix)):
-        if dest_file is None:
-            dest_file = ntpath.basename(filename)
-        os.symlink(filename, os.path.join(dest_dir, dest_file))
+        os.symlink(filename, os.path.join(dest_dir, ntpath.basename(filename)))
 
 
 def run_subprocess(cmd, cwd=None):
