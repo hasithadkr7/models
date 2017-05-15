@@ -148,12 +148,12 @@ def move_files_with_prefix(directory, prefix, dest):
         os.rename(filename, os.path.join(dest, ntpath.basename(filename)))
 
 
-def run_subprocess(cmd):
+def run_subprocess(cmd, cwd=None):
     logging.info('Running subprocess %s' % cmd)
     start_t = time.time()
     output = ''
     try:
-        output = subprocess.check_output(shlex.split(cmd), stderr=subprocess.STDOUT)
+        output = subprocess.check_output(shlex.split(cmd), stderr=subprocess.STDOUT, cwd=cwd)
     except subprocess.CalledProcessError as e:
         logging.error('Exception in subprocess %s! Error code %d' % (cmd, e.returncode))
         logging.error(e.output)
@@ -161,7 +161,7 @@ def run_subprocess(cmd):
     finally:
         elapsed_t = time.time() - start_t
         logging.info('Subprocess %s finished in %f s' % (cmd, elapsed_t))
-        logging.debug('stdout and stderr of %s\n%s' % (cmd, output))
+        logging.info('stdout and stderr of %s\n%s' % (cmd, output))
     return output
 
 

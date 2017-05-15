@@ -124,13 +124,13 @@ def run_wps(wrf_home, start_date):
         'csh %s/link_grib.csh %s/%s' % (wps_dir, utils.get_gfs_dir(wrf_home), start_date.strftime('%Y%m%d')))
 
     # Starting ungrib.exe
-    utils.run_subprocess('%s/ungrib.exe' % wps_dir)
+    utils.run_subprocess('./ungrib.exe', cwd=wps_dir)
 
     # Starting geogrid.exe'
-    utils.run_subprocess('%s/geogrid.exe' % wps_dir)
+    utils.run_subprocess('./geogrid.exe', cwd=wps_dir)
 
     # Starting metgrid.exe'
-    utils.run_subprocess('%s/metgrid.exe' % wps_dir)
+    utils.run_subprocess('./metgrid.exe', cwd=wps_dir)
 
 
 def replace_namelist_wps(wrf_home, start_date, end_date):
@@ -174,12 +174,12 @@ def run_em_real(wrf_home, start_date, procs):
     utils.run_subprocess('ln -sf %s/met_em.d0* %s/' % (utils.get_wps_dir(wrf_home), em_real_dir))
 
     # Starting real.exe
-    utils.run_subprocess('mpirun -np %d ./%s/real.exe' % (procs, em_real_dir))
+    utils.run_subprocess('mpirun -np %d ./real.exe' % procs, cwd=em_real_dir)
     utils.move_files_with_prefix(em_real_dir, 'rsl*', os.path.join(utils.get_logs_dir(wrf_home),
                                                                    'rsl-real-%s' % start_date.strftime('%Y%m%d')))
 
     # Starting wrf.exe'
-    utils.run_subprocess('mpirun -np %d ./%s/wrf.exe' % (procs, em_real_dir))
+    utils.run_subprocess('mpirun -np %d ./wrf.exe' % procs, cwd=em_real_dir)
     utils.move_files_with_prefix(em_real_dir, 'rsl*', os.path.join(utils.get_logs_dir(wrf_home),
                                                                    'rsl-wrf-%s' % start_date.strftime('%Y%m%d')))
 
