@@ -11,7 +11,7 @@ import sys
 from wrf.execution import constants, utils, exceptions
 
 
-def download_single_inventory(url, dest, retries=5, delay=10):
+def download_single_inventory(url, dest, retries=constants.DEFAULT_RETRIES, delay=constants.DEFAULT_DELAY_S):
     logging.info('Downloading %s : START' % url)
     try_count = 1
     start_time = time.time()
@@ -203,13 +203,12 @@ def run_wrf(wrf_home, start_date, procs=constants.DEFAULT_PROCS,
     run_em_real(wrf_home, start_date, procs)
 
 
-def wrf_run_all(wrf_home, start_date, end_date, period, meta_data=list()):
+def wrf_run_all(wrf_home, start_date, end_date, period):
     logging.info('Downloading GFS Data')
     download_gfs_data(start_date, utils.get_gfs_dir(wrf_home), period=period)
 
     logging.info('Running WRF')
     run_wrf(wrf_home, start_date, period=period)
-    # some logic to download data and run wrf
 
 
 if __name__ == "__main__":
