@@ -3,16 +3,16 @@ import datetime as dt
 import glob
 import logging
 import logging.config
+import ntpath
+import os
 import re
 import shlex
 import shutil
-import time
-import ntpath
-
-import os
 import subprocess
+import time
 
-import constants as constants
+from wrf import constants as constants
+from shapely.geometry import Point, shape
 
 
 def parse_args():
@@ -169,6 +169,52 @@ def run_subprocess(cmd, cwd=None):
     return output
 
 
+def is_inside_polygon(polygons, lat, lon):
+    point = Point(lon, lat)
+    for i, poly in enumerate(polygons.shapeRecords()):
+        polygon = shape(poly.shape.__geo_interface__)
+        if point.within(polygon):
+            return 1
+    return 0
+
+
+def ncdump(nc_fid, verb=True):
+    def print_ncattr(key):
+        try:
+            print "\t\ttype:", repr(nc_fid.variables[key].dtype)
+            for ncattr in nc_fid.variables[key].ncattrs():
+                print '\t\t%s:' % ncattr, \
+                    repr(nc_fid.variables[key].getncattr(ncattr))
+        except KeyError:
+            print "\t\tWARNING: %s does not contain variable attributes" % key
+
+    # NetCDF global attributes
+    _nc_attrs = nc_fid.ncattrs()
+    if verb:
+        print "NetCDF Global Attributes:"
+        for nc_attr in _nc_attrs:
+            print '\t%s:' % nc_attr, repr(nc_fid.getncattr(nc_attr))
+    _nc_dims = [dim for dim in nc_fid.dimensions]  # list of nc dimensions
+    # Dimension shape information.
+    if verb:
+        print "NetCDF dimension information:"
+        for dim in _nc_dims:
+            print "\tName:", dim
+            print "\t\tsize:", len(nc_fid.dimensions[dim])
+            print_ncattr(dim)
+    # Variable information.
+    _nc_vars = [var for var in nc_fid.variables]  # list of nc variables
+    if verb:
+        print "NetCDF variable information:"
+        for var in _nc_vars:
+            if var not in _nc_dims:
+                print '\tName:', var
+                print "\t\tdimensions:", nc_fid.variables[var].dimensions
+                print "\t\tsize:", nc_fid.variables[var].size
+                print_ncattr(var)
+    return _nc_attrs, _nc_dims, _nc_vars
+
+
 def main():
     wrf_home = "/tmp"
     print get_gfs_dir(wrf_home)
@@ -191,7 +237,7 @@ def main():
         'DD1': '01'
     }
 
-    print replace_file_with_values('conf/namelist.input', wrf_home + '/namelist.wps', d)
+    print replace_file_with_values('resources/namelist.input', wrf_home + '/namelist.wps', d)
 
 
 if __name__ == "__main__":

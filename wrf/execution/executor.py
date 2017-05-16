@@ -1,14 +1,14 @@
 import datetime as dt
 import logging
+import os
 import sys
 import threading
 import time
-
-import os
-import pkg_resources
+import numpy as np
 import wget
 
-from wrf.execution import constants, utils, exceptions
+import wrf.resources.manager as res_mgr
+from wrf import constants, utils
 
 
 def download_single_inventory(url, dest, retries=constants.DEFAULT_RETRIES, delay=constants.DEFAULT_DELAY_S):
@@ -28,7 +28,7 @@ def download_single_inventory(url, dest, retries=constants.DEFAULT_RETRIES, dela
             try_count += 1
             time.sleep(delay)
 
-    raise exceptions.UnableToDownloadGfsData(url)
+    raise UnableToDownloadGfsData(url)
 
 
 class InventoryDownloadThread(threading.Thread):
@@ -45,7 +45,7 @@ class InventoryDownloadThread(threading.Thread):
             logging.debug('Downloading from thread %d: START' % self.thread_id)
             download_single_inventory(self.url, self.dest, self.retries, self.delay)
             logging.debug('Downloading from thread %d: END' % self.thread_id)
-        except exceptions.UnableToDownloadGfsData as e:
+        except UnableToDownloadGfsData:
             logging.error('Error in downloading from thread %d' % self.thread_id)
 
 
@@ -102,7 +102,7 @@ def check_gfs_data_availability(wrf_home, start_date, inv, period, step, cycle, 
 
     if len(missing_inv) > 0:
         logging.error('Some data unavailable')
-        raise exceptions.GfsDataUnavailable('Some data unavailable', missing_inv)
+        raise GfsDataUnavailable('Some data unavailable', missing_inv)
 
     logging.info('GFS data available')
 
@@ -146,7 +146,7 @@ def run_wps(wrf_home, start_date):
 
 def replace_namelist_wps(wrf_home, start_date, end_date):
     logging.info('Replacing namelist.wps...')
-    wps = pkg_resources.resource_filename(__name__, 'conf/namelist.wps')
+    wps = res_mgr.get_resource_path('execution/namelist.wps')
     d = {
         'YYYY1': start_date.strftime('%Y'),
         'MM1': start_date.strftime('%m'),
@@ -161,7 +161,7 @@ def replace_namelist_wps(wrf_home, start_date, end_date):
 
 def replace_namelist_input(wrf_home, start_date, end_date):
     logging.info('Replacing namelist.input ...')
-    f = pkg_resources.resource_filename(__name__, 'conf/namelist.input')
+    f = res_mgr.get_resource_path('execution/namelist.input')
     d = {
         'YYYY1': start_date.strftime('%Y'),
         'MM1': start_date.strftime('%m'),
@@ -196,31 +196,50 @@ def run_em_real(wrf_home, start_date, procs):
                                                                    'rsl-wrf-%s' % start_date.strftime('%Y%m%d')))
 
 
-def run_wrf(wrf_home, start_date, procs=constants.DEFAULT_PROCS,
+def run_wrf(wrf_home, start, procs=constants.DEFAULT_PROCS,
             inv=constants.DEFAULT_GFS_DATA_INV,
             period=constants.DEFAULT_PERIOD,
             step=constants.DEFAULT_STEP,
             cycle=constants.DEFAULT_CYCLE,
             res=constants.DEFAULT_RES):
-    end_date = start_date + dt.timedelta(days=period)
+    end = start + dt.timedelta(days=period)
 
-    logging.info('Running WRF from %s to %s...' % (start_date.strftime('%Y%m%d'), end_date.strftime('%Y%m%d')))
+    logging.info('Running WRF from %s to %s...' % (start.strftime('%Y%m%d'), end.strftime('%Y%m%d')))
 
-    check_gfs_data_availability(wrf_home, start_date, inv, period, step, cycle, res)
+    check_gfs_data_availability(wrf_home, start, inv, period, step, cycle, res)
 
-    replace_namelist_wps(wrf_home, start_date, end_date)
-    run_wps(wrf_home, start_date)
+    replace_namelist_wps(wrf_home, start, end)
+    run_wps(wrf_home, start)
 
-    replace_namelist_input(wrf_home, start_date, end_date)
-    run_em_real(wrf_home, start_date, procs)
+    replace_namelist_input(wrf_home, start, end)
+    run_em_real(wrf_home, start, procs)
 
 
 def wrf_run_all(wrf_home, start_date, end_date, period):
-    logging.info('Downloading GFS Data')
-    download_gfs_data(start_date, utils.get_gfs_dir(wrf_home), period=period)
+    logging.info('Running WRF model from %s to %s' % (start_date.strftime('%Y-%m-%d'), end_date.strftime('%Y-%m-%d')))
+    logging.info('WRF home : %s' % wrf_home)
 
-    logging.info('Running WRF')
-    run_wrf(wrf_home, start_date, period=period)
+    dates = np.arange(start_date, end_date, dt.timedelta(days=1)).astype(dt.datetime)
+
+    for date in dates:
+        logging.info('Downloading GFS Data for %s period %d' % (date.strftime('%Y-%m-%d'), period))
+        download_gfs_data(date, utils.get_gfs_dir(wrf_home), period=period)
+
+        logging.info('Running WRF %s period %d' % (date.strftime('%Y-%m-%d'), period))
+        run_wrf(wrf_home, date, period=period)
+
+
+class UnableToDownloadGfsData(Exception):
+    def __init__(self, url):
+        self.url = url
+        Exception.__init__(self, 'Unable to download %s' % url)
+
+
+class GfsDataUnavailable(Exception):
+    def __init__(self, msg, missing_data):
+        self.msg = msg
+        self.missing_data = missing_data
+        Exception.__init__(self, 'Unable to download %s' % msg)
 
 
 if __name__ == "__main__":

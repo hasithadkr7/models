@@ -1,11 +1,9 @@
 #!/bin/python
-import sys
-import os
 import datetime as dt
-
+import os
+import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-import wrf.execution.utils as utils
-
+import wrf.utils as utils
 import wrf.execution.executor as wrf_exec
 
 
