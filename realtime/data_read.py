@@ -1,14 +1,13 @@
 #!/usr/bin/env python
 
+import datetime as dt
 import logging
 import os
 import re
 import sys
-import numpy as np
 import pandas as pd
 from watchdog.events import FileSystemEventHandler
 from watchdog.observers import Observer
-import datetime as dt
 
 
 class DataEventHandler(FileSystemEventHandler):
@@ -23,11 +22,10 @@ class DataEventHandler(FileSystemEventHandler):
 
 
 def process_sat_file(src_file, dest_file):
-    convertfunc = lambda x: dt.datetime.strptime(x, '%Y-%m-%d %H:%M:%S')
     names = ["TIMESTAMP", "Rain_Tot"]
     station = re.search('KALU\d*', src_file).group(0)
     data = pd.read_csv(src_file, skiprows=range(4), names=names, sep=',', usecols=(0, 3), dtype=None,
-                       converters={0: convertfunc})
+                       converters={0: lambda x: dt.datetime.strptime(x, '%Y-%m-%d %H:%M:%S')})
     means = data.groupby(pd.TimeGrouper(freq='H', key='TIMESTAMP')).mean()
     means['STATION'] = station
 
@@ -51,7 +49,7 @@ def main(argv=None):
     logging.info('data dir %s' % path)
     process_old = bool(argv[2]) if len(argv) > 2 else False
     logging.info('process old %s' % str(process_old))
-    dest_file = argv[2] if len(argv) > 3 else os.path.join(path, 'summary.txt')
+    dest_file = argv[2] if len(argv) > 3 else 'summary.txt'
     logging.info('dest file %s' % dest_file)
 
     if process_old:
