@@ -26,7 +26,7 @@ def process_sat_file(src_file, dest_file):
     station = re.search('KALU\d*', src_file).group(0)
     data = pd.read_csv(src_file, skiprows=range(4), names=names, sep=',', usecols=(0, 3), dtype=None,
                        converters={0: lambda x: dt.datetime.strptime(x, '%Y-%m-%d %H:%M:%S')})
-    means = data.groupby(pd.TimeGrouper(freq='H', key='TIMESTAMP')).mean()
+    means = data.groupby(pd.TimeGrouper(freq='H', key='TIMESTAMP')).sum()
     means['STATION'] = station
 
     with open(dest_file, 'a') as f:
