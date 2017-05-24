@@ -16,13 +16,13 @@ class DataEventHandler(FileSystemEventHandler):
 
     def on_created(self, event):
         logging.info("File created %s" % event)
-        if event.src_path.endswith('.dat') and event.src_path.startswith('CR200_'):
+        if event.src_path.endswith('.dat') and event.src_path.split('/')[-1].startswith('CR200_'):
             logging.info('CR200_*.dat file created')
             process_sat_file(event.src_path, self.out_file)
 
     def on_moved(self, event):
         logging.info("File moved/renamed %s" % event)
-        if event.dest_path.endswith('.dat') and event.dest_path.startswith('CR200_'):
+        if event.dest_path.endswith('.dat') and event.dest_path.split('/')[-1].startswith('CR200_'):
             logging.info('file renamed to CR200_*.dat')
             process_sat_file(event.dest_path, self.out_file)
 
@@ -55,7 +55,7 @@ def process_old_files(src, dest_file):
 
 
 def main(argv=None):
-    logging.basicConfig(level=logging.DEBUG, format='%(asctime)s %(threadName)s %(module)s %(levelname)s %(message)s')
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s %(threadName)s %(module)s %(levelname)s %(message)s')
     path = argv[1]
     logging.info('data dir %s' % path)
     process_old = bool(argv[2]) if len(argv) > 2 else False
