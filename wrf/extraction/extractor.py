@@ -323,6 +323,12 @@ def concat_rainfall_files_1(date, wrf_output, weather_stations):
                 rf_df.to_csv(out_file_path, index=False)
 
 
+def extract_rf_series(nc_fid, lat, lon):
+    times_len, times = extract_time_data(nc_fid)
+
+
+
+
 def extract_all(wrf_home, start_date, end_date):
     logging.info('Extracting data from %s to %s' % (start_date.strftime('%Y-%m-%d'), end_date.strftime('%Y-%m-%d')))
     logging.info('WRF home : %s' % wrf_home)
