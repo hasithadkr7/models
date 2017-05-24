@@ -60,7 +60,7 @@ def main(argv=None):
     logging.info('data dir %s' % path)
     process_old = bool(argv[2]) if len(argv) > 2 else False
     logging.info('process old %s' % str(process_old))
-    dest_file = argv[2] if len(argv) > 3 else 'summary.txt'
+    dest_file = argv[3] if len(argv) > 3 else 'summary.txt'
     logging.info('dest file %s' % dest_file)
 
     if process_old:
@@ -68,7 +68,7 @@ def main(argv=None):
         process_old_files(path, dest_file)
 
     observer = Observer()
-    event_handler = DataEventHandler(os.path.join(path, dest_file))
+    event_handler = DataEventHandler(dest_file)
     observer.schedule(event_handler, path, recursive=False)
     observer.start()
     observer.join()
