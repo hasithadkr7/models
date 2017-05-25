@@ -5,6 +5,7 @@ import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 import wrf.utils as utils
 import wrf.execution.executor as wrf_exec
+import wrf.extraction.extractor as wrf_extract
 
 
 def main():
@@ -19,6 +20,7 @@ def main():
 
     wrf_exec.wrf_run_all(wrf_home, start_date, end_date, period)
 
+    wrf_extract.extract_all(wrf_home, start_date, end_date)
 
 if __name__ == "__main__":
     main()
