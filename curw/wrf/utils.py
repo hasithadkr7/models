@@ -10,6 +10,8 @@ import shlex
 import shutil
 import subprocess
 import time
+import pkg_resources
+import yaml
 
 from shapely.geometry import Point, shape
 
@@ -28,7 +30,7 @@ def parse_args():
 
 
 def set_logging_config(log_home):
-    logging_config = dict(
+    default_config = dict(
         version=1,
         formatters={
             'f': {'format': '%(asctime)s %(threadName)s %(module)s %(levelname)s %(message)s'}
@@ -47,11 +49,22 @@ def set_logging_config(log_home):
         },
         root={
             'handlers': ['h', 'fh'],
-            'level': logging.DEBUG,
+            'level': logging.INFO,
         },
     )
 
-    logging.config.dictConfig(logging_config)
+    path = pkg_resources.resource_filename(__name__, 'logging.yaml')
+    value = os.getenv(constants.LOGGING_ENV_VAR, None)
+
+    if value:
+        path = value
+    if os.path.exists(path):
+        with open(path, 'rt') as f:
+            config = yaml.safe_load(f.read())
+        config['handlers']['fh']['filename'] = os.path.join(log_home, 'wrfrun.log')
+        logging.config.dictConfig(config)
+    else:
+        logging.config.dictConfig(default_config)
 
 
 def create_dir_if_not_exists(path):
@@ -166,7 +179,7 @@ def run_subprocess(cmd, cwd=None):
     finally:
         elapsed_t = time.time() - start_t
         logging.info('Subprocess %s finished in %f s' % (cmd, elapsed_t))
-        logging.info('stdout and stderr of %s\n%s' % (cmd, output))
+        logging.debug('stdout and stderr of %s\n%s' % (cmd, output))
     return output
 
 
@@ -229,6 +242,7 @@ def is_inside_polygon(polygons, lat, lon):
 
 def main():
     wrf_home = "/tmp"
+    set_logging_config(wrf_home)
     print get_gfs_dir(wrf_home)
     print get_output_dir(wrf_home)
     print get_scripts_run_dir(wrf_home)
