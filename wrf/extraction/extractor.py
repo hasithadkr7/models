@@ -8,12 +8,12 @@ import csv
 import wrf.resources.manager as res_mgr
 import wrf.utils as utils
 import shapefile
-from netCDF4 import Dataset  # http://code.google.com/p/netcdf4-python/
+from netCDF4 import Dataset
 
 
 def extract_time_data(nc_fid):
     times_len = len(nc_fid.dimensions['Time'])
-    times = nc_fid.variables['Times'][0:times_len]
+    times = [''.join(x) for x in nc_fid.variables['Times'][0:times_len]]
     return times_len, times
 
 
@@ -43,7 +43,7 @@ def extract_metro_colombo(nc_fid, date, times, wrf_output):
         os.makedirs(output_dir)
 
     for tm in range(0, len(times) - 1):
-        output_file_path = output_dir + '/rain-' + ''.join(times[tm, :]) + '.txt'
+        output_file_path = output_dir + '/rain-' + times[tm] + '.txt'
 
         output_file = open(output_file_path, 'w')
 
@@ -84,7 +84,7 @@ def extract_weather_stations(nc_fid, date, times, weather_stations, wrf_output):
             station_file = open(station_file_path, 'w')
 
             for t in range(0, len(times) - 1):
-                station_file.write('%s %f\n' % (''.join(times[t, :]), station_diff[t]))
+                station_file.write('%s %f\n' % (times[t], station_diff[t]))
             station_file.close()
 
 
@@ -184,7 +184,7 @@ def extract_kelani_upper_basin_mean_rainfall(nc_fid, date, times, kelani_basin_s
                 if utils.is_inside_polygon(polys, kel_lats[y, x], kel_lons[y, x]):
                     cnt = cnt + 1
                     rf_sum = rf_sum + diff[t, y, x]
-        output_file.write('%s %f\n' % (''.join(times[t, :]), rf_sum / cnt))
+        output_file.write('%s %f\n' % (times[t], rf_sum / cnt))
 
     output_file.close()
 
@@ -323,10 +323,48 @@ def concat_rainfall_files_1(date, wrf_output, weather_stations):
                 rf_df.to_csv(out_file_path, index=False)
 
 
-def extract_rf_series(nc_fid, lat, lon):
+def extract_rf_series(nc_fid, lat_start, lat_end, lon_start, lon_end):
     times_len, times = extract_time_data(nc_fid)
+    lats = nc_fid.variables['XLAT'][0, :, 0]
+    lons = nc_fid.variables['XLONG'][0, 0, :]
+
+    lat_start_idx = np.argmin(abs(lats - lat_start))
+    lat_end_idx = np.argmin(abs(lats - lat_end)) if lat_start != lat_end else lat_start_idx
+    lon_start_idx = np.argmin(abs(lons - lon_start))
+    lon_end_idx = np.argmin(abs(lons - lon_end)) if lon_start != lon_end else lon_start_idx
+
+    prcp = nc_fid.variables['RAINC'][:, lat_start_idx:lat_end_idx + 1, lon_start_idx: lon_end_idx + 1] + \
+           nc_fid.variables['RAINNC'][:, lat_start_idx: lat_end_idx + 1, lon_start_idx: lon_end_idx + 1] + \
+           nc_fid.variables['SNOWNC'][:, lat_start_idx: lat_end_idx + 1, lon_start_idx: lon_end_idx + 1] + \
+           nc_fid.variables['GRAUPELNC'][:, lat_start_idx:lat_end_idx + 1, lon_start_idx: lon_end_idx + 1]
+
+    diff = prcp[1:times_len, :, :] - prcp[0:times_len - 1, :, :]
+
+    return diff, lats[lat_start_idx:lat_end_idx + 1], lons[lon_start_idx: lon_end_idx + 1], np.array(
+        times[0:times_len - 1])
 
 
+def extract_jaxa_weather_stations(nc_fid, weather_stations_file, output_dir):
+    stations = pd.read_csv(weather_stations_file, header=0, sep=',')
+
+    output_file_dir = os.path.join(output_dir, 'jaxa-stations-wrf-forecast')
+    utils.create_dir_if_not_exists(output_file_dir)
+
+    for idx, station in stations.iterrows():
+        logging.info('Extracting station ' + str(station))
+
+        rf, lats, lons, times = extract_rf_series(nc_fid, station[2], station[2], station[1], station[1])
+
+        output_file_path = os.path.join(output_file_dir,
+                                        station[3] + '-' + str(station[0]) + '-' + times[0].split('_')[0] + '.txt')
+        output_file = open(output_file_path, 'w')
+        output_file.write('jaxa-stations-wrf-forecast\n')
+        output_file.write(', '.join(stations.columns.values) + '\n')
+        output_file.write(', '.join(str(x) for x in station) + '\n')
+        output_file.write('timestamp, rainfall\n')
+        for i in range(len(times)):
+            output_file.write('%s, %f\n' % (times[i], rf[i]))
+        output_file.close()
 
 
 def extract_all(wrf_home, start_date, end_date):
@@ -336,6 +374,7 @@ def extract_all(wrf_home, start_date, end_date):
     weather_st_file = res_mgr.get_resource_path('extraction/local/kelani_basin_stations.txt')
     kelani_basin_file = res_mgr.get_resource_path('extraction/local/kelani_basin_points.txt')
     kelani_basin_shp_file = res_mgr.get_resource_path('extraction/shp/kelani-upper-basin.shp')
+    jaxa_weather_st_file = res_mgr.get_resource_path('extraction/local/jaxa_weather_stations.txt')
 
     dates = np.arange(start_date, end_date, dt.timedelta(days=1)).astype(dt.datetime)
 
@@ -343,7 +382,7 @@ def extract_all(wrf_home, start_date, end_date):
         wrf_output = utils.get_output_dir(wrf_home)
 
         nc_f = wrf_output + '/wrfout_d03_' + date.strftime('%Y-%m-%d') + '_00:00:00'
-        if os.path.exists(nc_f):
+        if not os.path.exists(nc_f):
             raise IOError('File %s not found' % nc_f)
 
         logging.info('Reading nc file %s' % nc_f)
@@ -364,6 +403,9 @@ def extract_all(wrf_home, start_date, end_date):
         logging.info('Extract Kelani upper Basin mean rainfall')
         extract_kelani_upper_basin_mean_rainfall(nc_fid, date, times, kelani_basin_shp_file, wrf_output)
 
+        logging.info('Extract Jaxa stations wrf rainfall')
+        extract_jaxa_weather_stations(nc_fid, jaxa_weather_st_file, wrf_output)
+
         logging.info('Closing nc file')
         nc_fid.close()
 
@@ -383,4 +425,12 @@ def extract_all(wrf_home, start_date, end_date):
 
 
 if __name__ == "__main__":
-    pass
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s %(threadName)s %(module)s %(levelname)s %(message)s')
+    args = utils.parse_args()
+
+    wrf_home = args.wrf_home
+    start_date = dt.datetime.strptime(args.start_date, '%Y-%m-%d')
+    end_date = dt.datetime.strptime(args.end_date, '%Y-%m-%d')
+    period = args.period
+
+    extract_all(wrf_home, start_date, end_date)
