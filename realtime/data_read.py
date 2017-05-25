@@ -48,10 +48,13 @@ def process_old_files(src, dest_file):
         logging.info('Removing the %s file' % dest_file)
         os.remove(dest_file)
 
+    f = None
     for f in sorted(file_list):
         if f.endswith('.dat') and f.startswith('CR200_'):
             logging.info('Reading %s' % f)
             process_sat_file(os.path.join(src, f), dest_file)
+
+    return f
 
 
 def main(argv=None):

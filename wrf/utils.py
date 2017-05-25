@@ -1,4 +1,5 @@
 import argparse
+import collections
 import datetime as dt
 import glob
 import logging
@@ -10,9 +11,14 @@ import shlex
 import shutil
 import subprocess
 import time
+from collections import namedtuple
+
+from recordtype import recordtype
 
 from wrf import constants as constants
 from shapely.geometry import Point, shape
+
+from wrf.execution.executor import WrfCofig, WrfConfig
 
 
 def parse_args():
@@ -100,13 +106,13 @@ def get_gfs_data_dest(inv, date_str, cycle, fcst_id, res, gfs_dir):
     return dest
 
 
-def get_gfs_inventory_url_dest_list(url, inv, date, period, step, cycle, res, gfs_dir):
+def get_gfs_inventory_url_dest_list(date, period, url, inv, step, cycle, res, gfs_dir):
     date_str = date.strftime('%Y%m%d')
     return [get_gfs_data_url_dest_tuple(url, inv, date_str, cycle, str(i).zfill(3), res, gfs_dir) for i in
             range(0, period * 24 + 1, step)]
 
 
-def get_gfs_inventory_dest_list(inv, date, period, step, cycle, res, gfs_dir):
+def get_gfs_inventory_dest_list(date, period, inv, step, cycle, res, gfs_dir):
     date_str = date.strftime('%Y%m%d')
     return [get_gfs_data_dest(inv, date_str, cycle, str(i).zfill(3), res, gfs_dir) for i in
             range(0, period * 24 + 1, step)]
@@ -176,6 +182,67 @@ def is_inside_polygon(polygons, lat, lon):
         if point.within(polygon):
             return 1
     return 0
+
+
+def namedtuple_with_defaults(typename, field_names, default_values=()):
+    T = namedtuple(typename, field_names)
+    T.__new__.__defaults__ = (None,) * len(T._fields)
+    if isinstance(default_values, collections.Mapping):
+        prototype = T(**default_values)
+    else:
+        prototype = T(*default_values)
+    T.__new__.__defaults__ = tuple(prototype)
+    return T
+
+
+def create_gfs_context(date, gfs_dir,
+                       thread_count=constants.DEFAULT_THREAD_COUNT,
+                       retries=constants.DEFAULT_RETRIES,
+                       delay=constants.DEFAULT_DELAY_S,
+                       url=constants.DEFAULT_GFS_DATA_URL,
+                       inv=constants.DEFAULT_GFS_DATA_INV,
+                       period=constants.DEFAULT_PERIOD,
+                       step=constants.DEFAULT_STEP,
+                       cycle=constants.DEFAULT_CYCLE,
+                       res=constants.DEFAULT_RES,
+                       clean=True):
+    GfsContext = namedtuple('GfsMetada',
+                            'date gfs_dir thread_count retries delay url inv period step cycle res clean')
+
+    return GfsContext(date, gfs_dir, thread_count, retries, delay, url, inv, period, step, cycle, res, clean)
+
+
+def get_default_wrf_config(wrf_home,
+                           period=constants.DEFAULT_PERIOD,
+                           namelist_input=constants.DEFAULT_NAMELIST_INPUT_TEMPLATE,
+                           namelist_wps=constants.DEFAULT_NAMELIST_WPS_TEMPLATE,
+                           procs=constants.DEFAULT_PROCS,
+                           gfs_clean=True,
+                           gfs_cycle=constants.DEFAULT_CYCLE,
+                           gfs_delay=constants.DEFAULT_DELAY_S,
+                           gfs_inv=constants.DEFAULT_GFS_DATA_INV,
+                           gfs_res=constants.DEFAULT_RES,
+                           gfs_retries=constants.DEFAULT_RETRIES,
+                           gfs_step=constants.DEFAULT_STEP,
+                           gfs_url=constants.DEFAULT_GFS_DATA_URL):
+    gfs_dir = get_gfs_dir(wrf_home)
+
+    defaults = {'wrf_home': wrf_home,
+                'period': period,
+                'namelist_input': namelist_input,
+                'namelist_wps': namelist_wps,
+                'procs': procs,
+                'gfs_dir': gfs_dir,
+                'gfs_clean': gfs_clean,
+                'gfs_cycle': gfs_cycle,
+                'gfs_delay': gfs_delay,
+                'gfs_inv': gfs_inv,
+                'gfs_res': gfs_res,
+                'gfs_retries': gfs_retries,
+                'gfs_step': gfs_step,
+                'gfs_url': gfs_url}
+
+    return WrfConfig(defaults)
 
 
 # def ncdump(nc_fid, verb=True):

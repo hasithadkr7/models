@@ -49,27 +49,20 @@ class InventoryDownloadThread(threading.Thread):
             logging.error('Error in downloading from thread %d' % self.thread_id)
 
 
-def download_gfs_data(date, gfs_dir,
-                      thread_count=constants.DEFAULT_THREAD_COUNT,
-                      retries=constants.DEFAULT_RETRIES,
-                      delay=constants.DEFAULT_DELAY_S,
-                      url=constants.DEFAULT_GFS_DATA_URL,
-                      inv=constants.DEFAULT_GFS_DATA_INV,
-                      period=constants.DEFAULT_PERIOD,
-                      step=constants.DEFAULT_STEP,
-                      cycle=constants.DEFAULT_CYCLE,
-                      res=constants.DEFAULT_RES,
-                      clean=True):
+def download_gfs_data(date, wrf_conf):
     logging.info('Downloading GFS data: START')
 
-    if clean:
-        logging.info('Cleaning the GFS dir: %s' % gfs_dir)
-        utils.cleanup_dir(gfs_dir)
+    if wrf_conf.get('gfs_clean'):
+        logging.info('Cleaning the GFS dir: %s' % wrf_conf.get('gfs_dir'))
+        utils.cleanup_dir(wrf_conf.get('gfs_dir'))
 
-    inventories = utils.get_gfs_inventory_url_dest_list(url, inv, date, period, step, cycle, res, gfs_dir)
+    inventories = utils.get_gfs_inventory_url_dest_list(date, wrf_conf.get('period'), wrf_conf.get('gfs_url'),
+                                                        wrf_conf.get('gfs_inv'), wrf_conf.get('gfs_step'),
+                                                        wrf_conf.get('gfs_cycle'), wrf_conf.get('gfs_res'),
+                                                        wrf_conf.get('gfs_dir'))
     logging.info(
-        'Following data will be downloaded with %d parallel threads\n%s' % (
-            thread_count, '\n'.join(' '.join(map(str, i)) for i in inventories)))
+        'Following data will be downloaded in parallel threads\n%s' % '\n'.join(
+            ' '.join(map(str, i)) for i in inventories))
 
     start_time = time.time()
 
@@ -79,7 +72,7 @@ def download_gfs_data(date, gfs_dir,
     for i in range(0, inv_count):
         url0 = inventories[i][0]
         dest0 = inventories[i][1]
-        thread = InventoryDownloadThread(i, url0, dest0, retries, delay)
+        thread = InventoryDownloadThread(i, url0, dest0, wrf_conf.get('gfs_retries'), wrf_conf.get('gfs_delay'))
         thread.start()
         threads.append(thread)
 
@@ -91,10 +84,11 @@ def download_gfs_data(date, gfs_dir,
     logging.info('Downloading GFS data: END Elapsed time: %f' % elapsed_time)
 
 
-def check_gfs_data_availability(wrf_home, start_date, inv, period, step, cycle, res):
+def check_gfs_data_availability(date, wrf_config):
     logging.info('Checking gfs data availability...')
-    inventories = utils.get_gfs_inventory_dest_list(inv, start_date, period, step, cycle, res,
-                                                    utils.get_gfs_dir(wrf_home))
+    inventories = utils.get_gfs_inventory_dest_list(date, wrf_config.get('period'), wrf_config.get('gfs_inv'),
+                                                    wrf_config.get('gfs_step'), wrf_config.get('gfs_cycle'),
+                                                    wrf_config.get('gfs_res'), wrf_config.get('gfs_dir'))
     missing_inv = []
     for inv in inventories:
         if not os.path.exists(inv):
@@ -196,37 +190,35 @@ def run_em_real(wrf_home, start_date, procs):
                                                                    'rsl-wrf-%s' % start_date.strftime('%Y%m%d')))
 
 
-def run_wrf(wrf_home, start, procs=constants.DEFAULT_PROCS,
-            inv=constants.DEFAULT_GFS_DATA_INV,
-            period=constants.DEFAULT_PERIOD,
-            step=constants.DEFAULT_STEP,
-            cycle=constants.DEFAULT_CYCLE,
-            res=constants.DEFAULT_RES):
-    end = start + dt.timedelta(days=period)
+def run_wrf(date, wrf_config):
+    end = date + dt.timedelta(days=wrf_config.get('period'))
 
-    logging.info('Running WRF from %s to %s...' % (start.strftime('%Y%m%d'), end.strftime('%Y%m%d')))
+    logging.info('Running WRF from %s to %s...' % (date.strftime('%Y%m%d'), end.strftime('%Y%m%d')))
 
-    check_gfs_data_availability(wrf_home, start, inv, period, step, cycle, res)
+    wrf_home = wrf_config.get('wrf_home')
+    check_gfs_data_availability(date, wrf_config)
 
-    replace_namelist_wps(wrf_home, start, end)
-    run_wps(wrf_home, start)
+    replace_namelist_wps(wrf_home, date, end)
+    run_wps(wrf_home, date)
 
-    replace_namelist_input(wrf_home, start, end)
-    run_em_real(wrf_home, start, procs)
+    replace_namelist_input(wrf_home, date, end)
+    run_em_real(wrf_home, date, wrf_config.get('procs'))
 
 
-def wrf_run_all(wrf_home, start_date, end_date, period):
+def run_all(wrf_conf, start_date, end_date):
     logging.info('Running WRF model from %s to %s' % (start_date.strftime('%Y-%m-%d'), end_date.strftime('%Y-%m-%d')))
-    logging.info('WRF home : %s' % wrf_home)
+
+    logging.info('WRF conf\n %s' % wrf_conf.to_string())
 
     dates = np.arange(start_date, end_date, dt.timedelta(days=1)).astype(dt.datetime)
 
     for date in dates:
-        logging.info('Downloading GFS Data for %s period %d' % (date.strftime('%Y-%m-%d'), period))
-        download_gfs_data(date, utils.get_gfs_dir(wrf_home), period=period)
+        logging.info('Creating GFS context')
+        logging.info('Downloading GFS Data for %s period %d' % (date.strftime('%Y-%m-%d'), wrf_conf.get('period')))
+        download_gfs_data(date, wrf_conf)
 
-        logging.info('Running WRF %s period %d' % (date.strftime('%Y-%m-%d'), period))
-        run_wrf(wrf_home, date, period=period)
+        logging.info('Running WRF %s period %d' % (date.strftime('%Y-%m-%d'), wrf_conf.get('period')))
+        run_wrf(date, wrf_conf)
 
 
 class UnableToDownloadGfsData(Exception):
@@ -240,6 +232,34 @@ class GfsDataUnavailable(Exception):
         self.msg = msg
         self.missing_data = missing_data
         Exception.__init__(self, 'Unable to download %s' % msg)
+
+
+class WrfConfig:
+    def __init__(self, configs=None):
+        if configs is None:
+            configs = {}
+        self.configs = configs
+
+    def set_all(self, config_dict):
+        self.configs.update(config_dict)
+
+    def set(self, key, value):
+        self.configs[key] = value
+
+    def get(self, key):
+        return self.configs[key]
+
+    def get_with_defaults(self, key, default_val):
+        try:
+            return self.configs[key]
+        except KeyError:
+            return default_val
+
+    def get_all(self):
+        return self.configs.copy()
+
+    def to_string(self):
+        return str(self.configs)
 
 
 if __name__ == "__main__":
