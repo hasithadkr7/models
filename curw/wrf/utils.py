@@ -13,7 +13,6 @@ import time
 
 from shapely.geometry import Point, shape
 
-from curw.wrf.execution.executor import WrfConfig
 from curw.wrf import constants
 
 
@@ -189,39 +188,6 @@ def is_inside_polygon(polygons, lat, lon):
 #         prototype = T(*default_values)
 #     T.__new__.__defaults__ = tuple(prototype)
 #     return T
-
-
-def get_default_wrf_config(wrf_home,
-                           period=constants.DEFAULT_PERIOD,
-                           namelist_input=constants.DEFAULT_NAMELIST_INPUT_TEMPLATE,
-                           namelist_wps=constants.DEFAULT_NAMELIST_WPS_TEMPLATE,
-                           procs=constants.DEFAULT_PROCS,
-                           gfs_clean=True,
-                           gfs_cycle=constants.DEFAULT_CYCLE,
-                           gfs_delay=constants.DEFAULT_DELAY_S,
-                           gfs_inv=constants.DEFAULT_GFS_DATA_INV,
-                           gfs_res=constants.DEFAULT_RES,
-                           gfs_retries=constants.DEFAULT_RETRIES,
-                           gfs_step=constants.DEFAULT_STEP,
-                           gfs_url=constants.DEFAULT_GFS_DATA_URL):
-    gfs_dir = get_gfs_dir(wrf_home)
-
-    defaults = {'wrf_home': wrf_home,
-                'period': period,
-                'namelist_input': namelist_input,
-                'namelist_wps': namelist_wps,
-                'procs': procs,
-                'gfs_dir': gfs_dir,
-                'gfs_clean': gfs_clean,
-                'gfs_cycle': gfs_cycle,
-                'gfs_delay': gfs_delay,
-                'gfs_inv': gfs_inv,
-                'gfs_res': gfs_res,
-                'gfs_retries': gfs_retries,
-                'gfs_step': gfs_step,
-                'gfs_url': gfs_url}
-
-    return WrfConfig(defaults)
 
 
 # def ncdump(nc_fid, verb=True):
