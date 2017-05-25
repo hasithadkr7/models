@@ -1,11 +1,9 @@
 #!/bin/python
 import datetime as dt
-import os
-import sys
-sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-import wrf.utils as utils
-import wrf.execution.executor as wrf_exec
-import wrf.extraction.extractor as wrf_extract
+
+from curw.wrf.execution import executor
+from curw.wrf.extraction import extractor
+from curw.wrf import utils
 
 
 def main():
@@ -19,9 +17,9 @@ def main():
 
     wrf_conf = utils.get_default_wrf_config(wrf_home)
 
-    wrf_exec.run_all(wrf_conf, start_date, end_date)
+    executor.run_all(wrf_conf, start_date, end_date)
 
-    wrf_extract.extract_all(wrf_home, start_date, end_date)
+    extractor.extract_all(wrf_home, start_date, end_date)
 
 if __name__ == "__main__":
     main()

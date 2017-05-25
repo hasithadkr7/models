@@ -10,9 +10,11 @@ import shlex
 import shutil
 import subprocess
 import time
+
 from shapely.geometry import Point, shape
-from wrf import constants as constants
-from wrf.execution.executor import WrfConfig
+
+from curw.wrf.execution.executor import WrfConfig
+from curw.wrf import constants
 
 
 def parse_args():

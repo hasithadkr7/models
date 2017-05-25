@@ -1,14 +1,16 @@
-import datetime as dt  # Python standard library datetime  module
-import os
-import logging
-import zipfile
-import pandas as pd
-import numpy as np
 import csv
-import wrf.resources.manager as res_mgr
-import wrf.utils as utils
+import datetime as dt  # Python standard library datetime  module
+import logging
+import os
+import zipfile
+import numpy as np
+import pandas as pd
 import shapefile
+
 from netCDF4 import Dataset
+
+from curw.wrf import utils
+from curw.wrf.resources import manager as res_mgr
 
 
 def extract_time_data(nc_fid):

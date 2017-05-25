@@ -1,10 +1,10 @@
-import logging as log
-import re
-
-import numpy as np
-import os
 import datetime as dt
-import wrf.utils as utils
+import logging as log
+import os
+import re
+import numpy as np
+
+from curw.wrf import utils
 
 
 def read_sat_data_files(sat_data_home):

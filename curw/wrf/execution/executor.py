@@ -7,8 +7,8 @@ import time
 import numpy as np
 import wget
 
-import wrf.resources.manager as res_mgr
-from wrf import constants, utils
+from curw.wrf.resources import manager as res_mgr
+from curw.wrf import constants, utils
 
 
 def download_single_inventory(url, dest, retries=constants.DEFAULT_RETRIES, delay=constants.DEFAULT_DELAY_S):
