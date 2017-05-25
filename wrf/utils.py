@@ -1,5 +1,4 @@
 import argparse
-import collections
 import datetime as dt
 import glob
 import logging
@@ -11,14 +10,9 @@ import shlex
 import shutil
 import subprocess
 import time
-from collections import namedtuple
-
-from recordtype import recordtype
-
-from wrf import constants as constants
 from shapely.geometry import Point, shape
-
-from wrf.execution.executor import WrfCofig, WrfConfig
+from wrf import constants as constants
+from wrf.execution.executor import WrfConfig
 
 
 def parse_args():
@@ -184,32 +178,15 @@ def is_inside_polygon(polygons, lat, lon):
     return 0
 
 
-def namedtuple_with_defaults(typename, field_names, default_values=()):
-    T = namedtuple(typename, field_names)
-    T.__new__.__defaults__ = (None,) * len(T._fields)
-    if isinstance(default_values, collections.Mapping):
-        prototype = T(**default_values)
-    else:
-        prototype = T(*default_values)
-    T.__new__.__defaults__ = tuple(prototype)
-    return T
-
-
-def create_gfs_context(date, gfs_dir,
-                       thread_count=constants.DEFAULT_THREAD_COUNT,
-                       retries=constants.DEFAULT_RETRIES,
-                       delay=constants.DEFAULT_DELAY_S,
-                       url=constants.DEFAULT_GFS_DATA_URL,
-                       inv=constants.DEFAULT_GFS_DATA_INV,
-                       period=constants.DEFAULT_PERIOD,
-                       step=constants.DEFAULT_STEP,
-                       cycle=constants.DEFAULT_CYCLE,
-                       res=constants.DEFAULT_RES,
-                       clean=True):
-    GfsContext = namedtuple('GfsMetada',
-                            'date gfs_dir thread_count retries delay url inv period step cycle res clean')
-
-    return GfsContext(date, gfs_dir, thread_count, retries, delay, url, inv, period, step, cycle, res, clean)
+# def namedtuple_with_defaults(typename, field_names, default_values=()):
+#     T = namedtuple(typename, field_names)
+#     T.__new__.__defaults__ = (None,) * len(T._fields)
+#     if isinstance(default_values, collections.Mapping):
+#         prototype = T(**default_values)
+#     else:
+#         prototype = T(*default_values)
+#     T.__new__.__defaults__ = tuple(prototype)
+#     return T
 
 
 def get_default_wrf_config(wrf_home,
