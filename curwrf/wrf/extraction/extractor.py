@@ -9,8 +9,8 @@ import shapefile
 
 from netCDF4 import Dataset
 
-from curw.wrf import utils
-from curw.wrf.resources import manager as res_mgr
+from curwrf.wrf import utils
+from curwrf.wrf.resources import manager as res_mgr
 
 
 def extract_time_data(nc_fid):

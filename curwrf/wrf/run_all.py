@@ -1,9 +1,9 @@
 #!/bin/python
 import datetime as dt
 
-from curw.wrf.execution import executor
-from curw.wrf.extraction import extractor
-from curw.wrf import utils
+from curwrf.wrf.execution import executor
+from curwrf.wrf.extraction import extractor
+from curwrf.wrf import utils
 
 
 def main():

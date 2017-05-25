@@ -15,7 +15,7 @@ import yaml
 
 from shapely.geometry import Point, shape
 
-from curw.wrf import constants
+from curwrf.wrf import constants
 
 
 def parse_args():

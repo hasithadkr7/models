@@ -4,7 +4,7 @@ import os
 import re
 import numpy as np
 
-from curw.wrf import utils
+from curwrf.wrf import utils
 
 
 def read_sat_data_files(sat_data_home):
