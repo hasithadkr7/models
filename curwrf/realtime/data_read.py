@@ -9,6 +9,7 @@ import pandas as pd
 from watchdog.events import FileSystemEventHandler
 from watchdog.observers import Observer
 import threading
+import numpy as np
 
 threadLock = threading.Lock()
 
@@ -75,6 +76,20 @@ def process_old_files(src, dest_file):
     return cur_file
 
 
+# def update_kelani_raincell_file(start, end, raincell_dir, rf_data_file, rf_loc, raincell_out):
+#     names = ["TIMESTAMP", "rf", 'count', 'station']
+#     rf_data = pd.read_csv(rf_data_file, names=names, usecols=[0, 1, 3],
+#                           converters={0: lambda x: dt.datetime.strptime(x, '%Y-%m-%d_%H:%M:%S')})
+#
+#     df = rf_data[rf_data['station'] == rf_loc].fillna(0)
+#
+#     dates = np.arange(dt.datetime.strptime(start, '%Y-%m-%d'),
+#                       dt.datetime.strptime(end, '%Y-%m-%d', dt.timedelta(hours=1))).astype(dt.datetime)
+#
+#     for date in dates:
+#         raincell_file_name = os.path.join(raincell_dir, 'created-' + date.strftime('%Y-%m-%d'), 'RAINCELL.DAT')
+
+
 def main(argv=None):
     logging.basicConfig(level=logging.INFO, format='%(asctime)s %(threadName)s %(module)s %(levelname)s %(message)s')
     path = argv[1]
@@ -100,6 +115,8 @@ def main(argv=None):
 
 
 if __name__ == "__main__":
+    # update_kelani_raincell_file('2017-05-25', '2017-05-26', '/home/nira/curw/OUTPUT/kelani-basin',
+    #                      '/home/nira/Desktop/summary.txt', 'KALU06', 'RAINCELL.DAT.UPDATED')
     # process_sat_file('/home/nira/Desktop/jaxa/DATA_REAL_TIME/CR200_KALU06_Rain_Data_2017_05_20_2005.dat',
     #                  '/tmp/summary.txt',
     #                  '/home/nira/Desktop/jaxa/DATA_REAL_TIME/CR200_KALU06_Rain_Data_2017_05_20_1901.dat')
