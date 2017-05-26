@@ -138,9 +138,12 @@ def run_wps(wrf_home, start_date):
     utils.run_subprocess('./metgrid.exe', cwd=wps_dir)
 
 
-def replace_namelist_wps(wrf_home, start_date, end_date):
+def replace_namelist_wps(wrf_config, start_date, end_date):
     logging.info('Replacing namelist.wps...')
-    wps = res_mgr.get_resource_path('execution/namelist.wps')
+    if os.path.exists(wrf_config.get('namelist_wps')):
+        wps = wrf_config.get('namelist_wps')
+    else:
+        wps = res_mgr.get_resource_path('execution/namelist.wps')
     d = {
         'YYYY1': start_date.strftime('%Y'),
         'MM1': start_date.strftime('%m'),
@@ -148,9 +151,9 @@ def replace_namelist_wps(wrf_home, start_date, end_date):
         'YYYY2': end_date.strftime('%Y'),
         'MM2': end_date.strftime('%m'),
         'DD2': end_date.strftime('%d'),
-        'GEOG': utils.get_geog_dir(wrf_home)
+        'GEOG': utils.get_geog_dir(wrf_config.get('wrf_home'))
     }
-    utils.replace_file_with_values(wps, os.path.join(wrf_home, utils.get_wps_dir(wrf_home), 'namelist.wps'), d)
+    utils.replace_file_with_values(wps, os.path.join(utils.get_wps_dir(wrf_config.get('wrf_home')), 'namelist.wps'), d)
 
 
 def replace_namelist_input(wrf_home, start_date, end_date):
@@ -164,7 +167,7 @@ def replace_namelist_input(wrf_home, start_date, end_date):
         'MM2': end_date.strftime('%m'),
         'DD2': end_date.strftime('%d'),
     }
-    utils.replace_file_with_values(f, os.path.join(wrf_home, utils.get_em_real_dir(wrf_home), 'namelist.input'), d)
+    utils.replace_file_with_values(f, os.path.join(utils.get_em_real_dir(wrf_home), 'namelist.input'), d)
 
 
 def run_em_real(wrf_home, start_date, procs):
@@ -198,10 +201,10 @@ def run_wrf(date, wrf_config):
     wrf_home = wrf_config.get('wrf_home')
     check_gfs_data_availability(date, wrf_config)
 
-    replace_namelist_wps(wrf_home, date, end)
+    replace_namelist_wps(wrf_config, date, end)
     run_wps(wrf_home, date)
 
-    replace_namelist_input(wrf_home, date, end)
+    replace_namelist_input(wrf_config, date, end)
     run_em_real(wrf_home, date, wrf_config.get('procs'))
 
 
