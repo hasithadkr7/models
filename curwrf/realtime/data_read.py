@@ -28,7 +28,7 @@ class DataEventHandler(FileSystemEventHandler):
 
     def on_moved(self, event):
         logging.info("File moved/renamed %s" % event)
-        if event.src_path.split('/')[-1].startswith(self.start_str) and event.src_path.endswith('.dat'):
+        if event.dest_path.split('/')[-1].startswith(self.start_str) and event.dest_path.endswith('.dat'):
             logging.info('file renamed to CR200_*.dat')
             process_sat_file(event.dest_path, self.out_file, self.prev_file)
             self.prev_file = event.dest_path
