@@ -45,8 +45,10 @@ def extract_metro_colombo(nc_fid, date, times, wrf_output):
         os.makedirs(output_dir)
 
     alpha_file_path = wrf_output + '/colombo/alphas.txt'
-    with open(alpha_file_path, 'a') as alpha:
-        alpha.write('%s %s\n' % (date.strftime('%Y-%m-%d'), str(np.mean(diff[5:29, :, :]))))
+    basin_rf = 1.0
+    with open(alpha_file_path, 'a') as alpha_file:
+        basin_rf = np.sum(diff[5:29, :, :])[0]
+        alpha_file.write('%s %f\n' % (date.strftime('%Y-%m-%d'), basin_rf))
 
     subsection_file_path = wrf_output + '/colombo/sub-means-' + date.strftime('%Y-%m-%d') + '.txt'
     subsection_file = open(subsection_file_path, 'w')
@@ -80,6 +82,8 @@ def extract_metro_colombo(nc_fid, date, times, wrf_output):
 
     subsection_file.close()
 
+    return basin_rf
+
 
 def extract_weather_stations(nc_fid, date, times, weather_stations, wrf_output):
     with open(weather_stations, 'rb') as csvfile:
@@ -107,7 +111,7 @@ def extract_weather_stations(nc_fid, date, times, weather_stations, wrf_output):
             station_file.close()
 
 
-def extract_kelani_basin_rainfall(nc_fid, date, times, kelani_basin_file, wrf_output):
+def extract_kelani_basin_rainfall(nc_fid, date, times, kelani_basin_file, wrf_output, basin_rf=1.0):
     lats = nc_fid.variables['XLAT'][0, :, 0]
     lons = nc_fid.variables['XLONG'][0, 0, :]
 
@@ -144,22 +148,28 @@ def extract_kelani_basin_rainfall(nc_fid, date, times, kelani_basin_file, wrf_ou
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
-    output_file_path = output_dir + '/RAINCELL.DAT'
-    output_file = open(output_file_path, 'w')
+    def write_raincell_file(output_file_path, alpha):
+        output_file = open(output_file_path, 'w')
 
-    res = 60
-    data_hours = len(times) - 1
-    start_ts = date.strftime('%Y-%m-%d %H:%M:%S')
-    end_ts = (date + dt.timedelta(hours=data_hours - 1)).strftime('%Y-%m-%d %H:%M:%S')
-    output_file.write("%d %d %s %s\n" % (res, data_hours, start_ts, end_ts))
+        res = 60
+        data_hours = len(times) - 1
+        start_ts = date.strftime('%Y-%m-%d %H:%M:%S')
+        end_ts = (date + dt.timedelta(hours=data_hours - 1)).strftime('%Y-%m-%d %H:%M:%S')
+        output_file.write("%d %d %s %s\n" % (res, data_hours, start_ts, end_ts))
 
-    for h in range(0, data_hours):
-        for point in points:
-            rf_x = np.digitize(point[1], lon_bins)
-            rf_y = np.digitize(point[2], lat_bins)
-            output_file.write('%d %f\n' % (point[0], diff[h, rf_y, rf_x]))
+        for h in range(0, data_hours):
+            for point in points:
+                rf_x = np.digitize(point[1], lon_bins)
+                rf_y = np.digitize(point[2], lat_bins)
+                output_file.write('%d %f\n' % (point[0], diff[h, rf_y, rf_x] * alpha))
 
-    output_file.close()
+        output_file.close()
+
+    raincell_file_path = output_dir + '/RAINCELL.DAT'
+    write_raincell_file(raincell_file_path, 1)
+
+    for target_rf in [100, 150, 200, 250, 300]:
+        write_raincell_file('%s.%d' % (raincell_file_path, target_rf), target_rf / basin_rf)
 
 
 def extract_kelani_upper_basin_mean_rainfall(nc_fid, date, times, kelani_basin_shp_file, wrf_output):
@@ -411,13 +421,14 @@ def extract_all(wrf_home, start_date, end_date):
         times_len, times = extract_time_data(nc_fid)
 
         logging.info('Extract rainfall data for the metro colombo area')
-        extract_metro_colombo(nc_fid, date, times, wrf_output)
+        basin_rf = extract_metro_colombo(nc_fid, date, times, wrf_output)
+        logging.info('Basin rainfall' + str(basin_rf))
 
         logging.info('Extract weather station rainfall')
         extract_weather_stations(nc_fid, date, times, weather_st_file, wrf_output)
 
         logging.info('Extract Kelani Basin rainfall')
-        extract_kelani_basin_rainfall(nc_fid, date, times, kelani_basin_file, wrf_output)
+        extract_kelani_basin_rainfall(nc_fid, date, times, kelani_basin_file, wrf_output, basin_rf)
 
         logging.info('Extract Kelani upper Basin mean rainfall')
         extract_kelani_upper_basin_mean_rainfall(nc_fid, date, times, kelani_basin_shp_file, wrf_output)
