@@ -44,9 +44,15 @@ def extract_metro_colombo(nc_fid, date, times, wrf_output):
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
+    alpha_file_path = wrf_output + '/colombo/alphas.txt'
+    with open(alpha_file_path, 'a') as alpha:
+        alpha.write('%s %s\n' % (date.strftime('%Y-%m-%d'), str(np.mean(diff[5:29, :, :]))))
+
+    subsection_file_path = wrf_output + '/colombo/sub-means-' + date.strftime('%Y-%m-%d') + '.txt'
+    subsection_file = open(subsection_file_path, 'w')
+
     for tm in range(0, len(times) - 1):
         output_file_path = output_dir + '/rain-' + times[tm] + '.txt'
-
         output_file = open(output_file_path, 'w')
 
         output_file.write('NCOLS %d\n' % width)
@@ -62,6 +68,17 @@ def extract_metro_colombo(nc_fid, date, times, wrf_output):
             output_file.write('\n')
 
         output_file.close()
+
+        # writing subsection file
+        sub_divs = [0, 4, 7]
+        subsection_file.write(times[tm])
+        for j in range(len(sub_divs) - 1):
+            for i in range(len(sub_divs) - 1):
+                subsection_file.write(
+                    ' %f' % np.mean(diff[tm, sub_divs[j]:sub_divs[j + 1], sub_divs[i]: sub_divs[i + 1]]))
+        subsection_file.write('\n')
+
+    subsection_file.close()
 
 
 def extract_weather_stations(nc_fid, date, times, weather_stations, wrf_output):
