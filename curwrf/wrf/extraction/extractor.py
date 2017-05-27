@@ -47,7 +47,7 @@ def extract_metro_colombo(nc_fid, date, times, wrf_output):
     alpha_file_path = wrf_output + '/colombo/alphas.txt'
     basin_rf = 1.0
     with open(alpha_file_path, 'a') as alpha_file:
-        basin_rf = np.sum(diff[5:29, :, :])[0]
+        basin_rf = np.sum(diff[5:29, :, :])/float(width * height)
         alpha_file.write('%s %f\n' % (date.strftime('%Y-%m-%d'), basin_rf))
 
     subsection_file_path = wrf_output + '/colombo/sub-means-' + date.strftime('%Y-%m-%d') + '.txt'
