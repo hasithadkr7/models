@@ -76,7 +76,7 @@ def process_old_files(src, dest_file):
     logging.info('Read the summary file, remove the duplicates and sort')
     summary = pd.read_csv(dest_file, sep=',', names=['timestamp', 'rf', 'count', 'station'])
     with open(dest_file, 'w') as f:
-        summary[summary['count'] > 0].drop_duplicates().sort_values(['timestamp', 'station']).to_csv(f, header=False,
+        summary[summary['count'] > 0].drop_duplicates().sort_values(['timestamp', 'station']).to_csv(f, header=False, index = False,
                                                                                                      date_format='%Y-%m-%d_%H:%M:%S')
 
     return cur_file
