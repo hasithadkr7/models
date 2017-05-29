@@ -211,6 +211,9 @@ def run_wrf(date, wrf_config):
     replace_namelist_input(wrf_config, date, end)
     run_em_real(wrf_home, date, wrf_config.get('procs'))
 
+    logging.info('Moving the WRF files to output directory')
+    utils.move_files_with_prefix(utils.get_em_real_dir(wrf_home), 'wrfout_d*', utils.get_output_dir(wrf_home))
+
 
 def run_all(wrf_conf, start_date, end_date):
     logging.info('Running WRF model from %s to %s' % (start_date.strftime('%Y-%m-%d'), end_date.strftime('%Y-%m-%d')))
