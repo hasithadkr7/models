@@ -156,9 +156,12 @@ def replace_namelist_wps(wrf_config, start_date, end_date):
     utils.replace_file_with_values(wps, os.path.join(utils.get_wps_dir(wrf_config.get('wrf_home')), 'namelist.wps'), d)
 
 
-def replace_namelist_input(wrf_home, start_date, end_date):
+def replace_namelist_input(wrf_config, start_date, end_date):
     logging.info('Replacing namelist.input ...')
-    f = res_mgr.get_resource_path('execution/namelist.input')
+    if os.path.exists(wrf_config.get('namelist_input')):
+        f = wrf_config.get('namelist_input')
+    else:
+        f = res_mgr.get_resource_path('execution/namelist.input')
     d = {
         'YYYY1': start_date.strftime('%Y'),
         'MM1': start_date.strftime('%m'),
@@ -167,7 +170,8 @@ def replace_namelist_input(wrf_home, start_date, end_date):
         'MM2': end_date.strftime('%m'),
         'DD2': end_date.strftime('%d'),
     }
-    utils.replace_file_with_values(f, os.path.join(utils.get_em_real_dir(wrf_home), 'namelist.input'), d)
+    utils.replace_file_with_values(f, os.path.join(utils.get_em_real_dir(wrf_config.get('wrf_home')), 'namelist.input'),
+                                   d)
 
 
 def run_em_real(wrf_home, start_date, procs):
