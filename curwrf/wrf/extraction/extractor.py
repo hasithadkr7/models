@@ -13,13 +13,17 @@ from curwrf.wrf import utils
 from curwrf.wrf.resources import manager as res_mgr
 
 
-def extract_time_data(nc_fid):
+def extract_time_data(nc_f):
+    nc_fid = Dataset(nc_f, 'r')
     times_len = len(nc_fid.dimensions['Time'])
     times = [''.join(x) for x in nc_fid.variables['Times'][0:times_len]]
+    nc_fid.close()
     return times_len, times
 
 
-def extract_metro_colombo(nc_fid, date, times, wrf_output):
+def extract_metro_colombo(nc_f, date, times, wrf_output):
+    nc_fid = Dataset(nc_f, 'r')
+
     lat_min = 41
     lat_max = 47
     lon_min = 11
@@ -47,7 +51,7 @@ def extract_metro_colombo(nc_fid, date, times, wrf_output):
     alpha_file_path = wrf_output + '/colombo/alphas.txt'
     basin_rf = 1.0
     with open(alpha_file_path, 'a') as alpha_file:
-        basin_rf = np.sum(diff[5:29, :, :])/float(width * height)
+        basin_rf = np.sum(diff[5:29, :, :]) / float(width * height)
         alpha_file.write('%s %f\n' % (date.strftime('%Y-%m-%d'), basin_rf))
 
     subsection_file_path = wrf_output + '/colombo/sub-means-' + date.strftime('%Y-%m-%d') + '.txt'
@@ -82,10 +86,13 @@ def extract_metro_colombo(nc_fid, date, times, wrf_output):
 
     subsection_file.close()
 
+    nc_fid.close()
     return basin_rf
 
 
-def extract_weather_stations(nc_fid, date, times, weather_stations, wrf_output):
+def extract_weather_stations(nc_f, date, times, weather_stations, wrf_output):
+    nc_fid = Dataset(nc_f, 'r')
+
     with open(weather_stations, 'rb') as csvfile:
         stations = csv.reader(csvfile, delimiter=' ')
         stations_dir = wrf_output + '/RF'
@@ -110,32 +117,20 @@ def extract_weather_stations(nc_fid, date, times, weather_stations, wrf_output):
                 station_file.write('%s %f\n' % (times[t], station_diff[t]))
             station_file.close()
 
+    nc_fid.close()
 
-def extract_kelani_basin_rainfall(nc_fid, date, times, kelani_basin_file, wrf_output, basin_rf=1.0):
-    lats = nc_fid.variables['XLAT'][0, :, 0]
-    lons = nc_fid.variables['XLONG'][0, 0, :]
+
+def extract_kelani_basin_rainfall(nc_f, date, times, kelani_basin_file, wrf_output, basin_rf=1.0):
+    nc_fid = Dataset(nc_f, 'r')
 
     points = np.genfromtxt(kelani_basin_file, delimiter=',')
 
-    kel_min_lon = np.min(points, 0)[1]
-    kel_min_lat = np.min(points, 0)[2]
-    kel_max_lon = np.max(points, 0)[1]
-    kel_max_lat = np.max(points, 0)[2]
+    kel_lon_min = np.min(points, 0)[1]
+    kel_lat_min = np.min(points, 0)[2]
+    kel_lon_max = np.max(points, 0)[1]
+    kel_lat_max = np.max(points, 0)[2]
 
-    lon_min = np.argmax(lons >= kel_min_lon) - 1
-    lat_min = np.argmax(lats >= kel_min_lat) - 1
-    lon_max = np.argmax(lons >= kel_max_lon)
-    lat_max = np.argmax(lats >= kel_max_lat)
-
-    prcp = nc_fid.variables['RAINC'][:, lat_min:lat_max + 1, lon_min:lon_max + 1] + \
-           nc_fid.variables['RAINNC'][:, lat_min:lat_max + 1, lon_min:lon_max + 1] + \
-           nc_fid.variables['SNOWNC'][:, lat_min:lat_max + 1, lon_min:lon_max + 1] + \
-           nc_fid.variables['GRAUPELNC'][:, lat_min:lat_max + 1, lon_min:lon_max + 1]
-
-    diff = prcp[1:73, :, :] - prcp[0:72, :, :]
-
-    kel_lats = nc_fid.variables['XLAT'][0, lat_min:lat_max + 1, 0]
-    kel_lons = nc_fid.variables['XLONG'][0, 0, lon_min:lon_max + 1]
+    diff, kel_lats, kel_lons, times = extract_area_rf_series(nc_f, kel_lat_min, kel_lat_max, kel_lon_min, kel_lon_max)
 
     def get_bins(arr):
         sz = len(arr)
@@ -148,12 +143,22 @@ def extract_kelani_basin_rainfall(nc_fid, date, times, kelani_basin_file, wrf_ou
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
-    def write_raincell_file(output_file_path, alpha):
+    prev_day_1_file = wrf_output + '/wrfout_d03_' + (date - dt.timedelta(days=1)).strftime('%Y-%m-%d') + '_00:00:00'
+    prev_day_2_file = wrf_output + '/wrfout_d03_' + (date - dt.timedelta(days=2)).strftime('%Y-%m-%d') + '_00:00:00'
+    # prev_day_3_file = wrf_output + '/wrfout_d03_' + (date - dt.timedelta(days=3)).strftime('%Y-%m-%d') + '_00:00:00'
+
+    diff1, _, _, times1 = extract_area_rf_series(prev_day_1_file, kel_lat_min, kel_lat_max, kel_lon_min, kel_lon_max)
+    diff2, _, _, times2 = extract_area_rf_series(prev_day_2_file, kel_lat_min, kel_lat_max, kel_lon_min, kel_lon_max)
+    # diff3, _, _, times3 = extract_area_rf_series(prev_day_3_file, kel_lat_min, kel_lat_max, kel_lon_min, kel_lon_max)
+
+    prev_diff = np.concatenate(diff2, diff1)
+
+    def write_forecast_to_raincell_file(output_file_path, alpha):
         output_file = open(output_file_path, 'w')
 
         res = 60
-        data_hours = len(times) - 1
-        start_ts = date.strftime('%Y-%m-%d %H:%M:%S')
+        data_hours = len(times) - 1 + 48
+        start_ts = (date - dt.timedelta(days=2)).strftime('%Y-%m-%d %H:%M:%S')
         end_ts = (date + dt.timedelta(hours=data_hours - 1)).strftime('%Y-%m-%d %H:%M:%S')
         output_file.write("%d %d %s %s\n" % (res, data_hours, start_ts, end_ts))
 
@@ -161,18 +166,25 @@ def extract_kelani_basin_rainfall(nc_fid, date, times, kelani_basin_file, wrf_ou
             for point in points:
                 rf_x = np.digitize(point[1], lon_bins)
                 rf_y = np.digitize(point[2], lat_bins)
-                output_file.write('%d %f\n' % (point[0], diff[h, rf_y, rf_x] * alpha))
+                if h < 48:
+                    output_file.write('%d %f\n' % (point[0], prev_diff[h, rf_y, rf_x]))
+                else:
+                    output_file.write('%d %f\n' % (point[0], diff[h, rf_y, rf_x] * alpha))
 
         output_file.close()
 
     raincell_file_path = output_dir + '/RAINCELL.DAT'
-    write_raincell_file(raincell_file_path, 1)
+    write_forecast_to_raincell_file(raincell_file_path, 1)
 
     for target_rf in [100, 150, 200, 250, 300]:
-        write_raincell_file('%s.%d' % (raincell_file_path, target_rf), target_rf / basin_rf)
+        write_forecast_to_raincell_file('%s.%d' % (raincell_file_path, target_rf), target_rf / basin_rf)
+
+    nc_fid.close()
 
 
-def extract_kelani_upper_basin_mean_rainfall(nc_fid, date, times, kelani_basin_shp_file, wrf_output):
+def extract_kelani_upper_basin_mean_rainfall(nc_f, date, times, kelani_basin_shp_file, wrf_output):
+    nc_fid = Dataset(nc_f, 'r')
+
     kel_lon_min = 79.994117
     kel_lat_min = 6.754167
     kel_lon_max = 80.773182
@@ -216,6 +228,8 @@ def extract_kelani_upper_basin_mean_rainfall(nc_fid, date, times, kelani_basin_s
         output_file.write('%s %f\n' % (times[t], rf_sum / cnt))
 
     output_file.close()
+
+    nc_fid.close()
 
 
 def extract_kelani_upper_basin_mean_rainfall_sat(sat_dir, date, kelani_basin_shp_file, wrf_output):
@@ -352,28 +366,58 @@ def concat_rainfall_files_1(date, wrf_output, weather_stations):
                 rf_df.to_csv(out_file_path, index=False)
 
 
-def extract_rf_series(nc_fid, lat_start, lat_end, lon_start, lon_end):
-    times_len, times = extract_time_data(nc_fid)
+def extract_point_rf_series(nc_f, lat, lon):
+    nc_fid = Dataset(nc_f, 'r')
+
+    times_len, times = extract_time_data(nc_f)
     lats = nc_fid.variables['XLAT'][0, :, 0]
     lons = nc_fid.variables['XLONG'][0, 0, :]
 
-    lat_start_idx = np.argmin(abs(lats - lat_start))
-    lat_end_idx = np.argmin(abs(lats - lat_end)) if lat_start != lat_end else lat_start_idx
-    lon_start_idx = np.argmin(abs(lons - lon_start))
-    lon_end_idx = np.argmin(abs(lons - lon_end)) if lon_start != lon_end else lon_start_idx
+    lat_start_idx = np.argmin(abs(lats - lat))
+    lon_start_idx = np.argmin(abs(lons - lon))
 
-    prcp = nc_fid.variables['RAINC'][:, lat_start_idx:lat_end_idx + 1, lon_start_idx: lon_end_idx + 1] + \
-           nc_fid.variables['RAINNC'][:, lat_start_idx: lat_end_idx + 1, lon_start_idx: lon_end_idx + 1] + \
-           nc_fid.variables['SNOWNC'][:, lat_start_idx: lat_end_idx + 1, lon_start_idx: lon_end_idx + 1] + \
-           nc_fid.variables['GRAUPELNC'][:, lat_start_idx:lat_end_idx + 1, lon_start_idx: lon_end_idx + 1]
+    prcp = nc_fid.variables['RAINC'][:, lat_start_idx, lon_start_idx] + \
+           nc_fid.variables['RAINNC'][:, lat_start_idx, lon_start_idx] + \
+           nc_fid.variables['SNOWNC'][:, lat_start_idx, lon_start_idx] + \
+           nc_fid.variables['GRAUPELNC'][:, lat_start_idx, lon_start_idx]
 
-    diff = prcp[1:times_len, :, :] - prcp[0:times_len - 1, :, :]
+    diff = prcp[1:times_len] - prcp[0:times_len - 1]
 
-    return diff, lats[lat_start_idx:lat_end_idx + 1], lons[lon_start_idx: lon_end_idx + 1], np.array(
-        times[0:times_len - 1])
+    nc_fid.close()
+
+    return diff, np.array(times[0:times_len - 1])
 
 
-def extract_jaxa_weather_stations(nc_fid, weather_stations_file, output_dir):
+def extract_area_rf_series(nc_f, lat_min, lat_max, lon_min, lon_max):
+    if not os.path.exists(nc_f):
+        raise IOError('File %s not found' % nc_f)
+
+    nc_fid = Dataset(nc_f, 'r')
+
+    times_len, times = extract_time_data(nc_f)
+    lats = nc_fid.variables['XLAT'][0, :, 0]
+    lons = nc_fid.variables['XLONG'][0, 0, :]
+
+    lon_min_idx = np.argmax(lons >= lon_min) - 1
+    lat_min_idx = np.argmax(lats >= lat_min) - 1
+    lon_max_idx = np.argmax(lons >= lon_max)
+    lat_max_idx = np.argmax(lats >= lat_max)
+
+    prcp = nc_fid.variables['RAINC'][:, lat_min_idx:lat_max_idx, lon_min_idx:lon_max_idx] + \
+           nc_fid.variables['RAINNC'][:, lat_min_idx:lat_max_idx, lon_min_idx:lon_max_idx] + \
+           nc_fid.variables['SNOWNC'][:, lat_min_idx:lat_max_idx, lon_min_idx:lon_max_idx] + \
+           nc_fid.variables['GRAUPELNC'][:, lat_min_idx:lat_max_idx, lon_min_idx:lon_max_idx]
+
+    diff = prcp[1:times_len] - prcp[0:times_len - 1]
+
+    nc_fid.close()
+
+    return diff, lats[lat_min_idx:lat_max_idx], lons[lon_min_idx:lon_max_idx], np.array(times[0:times_len - 1])
+
+
+def extract_jaxa_weather_stations(nc_f, weather_stations_file, output_dir):
+    nc_fid = Dataset(nc_f, 'r')
+
     stations = pd.read_csv(weather_stations_file, header=0, sep=',')
 
     output_file_dir = os.path.join(output_dir, 'jaxa-stations-wrf-forecast')
@@ -382,7 +426,7 @@ def extract_jaxa_weather_stations(nc_fid, weather_stations_file, output_dir):
     for idx, station in stations.iterrows():
         logging.info('Extracting station ' + str(station))
 
-        rf, lats, lons, times = extract_rf_series(nc_fid, station[2], station[2], station[1], station[1])
+        rf, times = extract_point_rf_series(nc_f, station[2], station[1])
 
         output_file_path = os.path.join(output_file_dir,
                                         station[3] + '-' + str(station[0]) + '-' + times[0].split('_')[0] + '.txt')
@@ -394,6 +438,8 @@ def extract_jaxa_weather_stations(nc_fid, weather_stations_file, output_dir):
         for i in range(len(times)):
             output_file.write('%s, %f\n' % (times[i], rf[i]))
         output_file.close()
+
+    nc_fid.close()
 
 
 def extract_all(wrf_home, start_date, end_date):
@@ -414,30 +460,24 @@ def extract_all(wrf_home, start_date, end_date):
         if not os.path.exists(nc_f):
             raise IOError('File %s not found' % nc_f)
 
-        logging.info('Reading nc file %s' % nc_f)
-        nc_fid = Dataset(nc_f, 'r')
-
         logging.info('Extracting time data')
-        times_len, times = extract_time_data(nc_fid)
+        times_len, times = extract_time_data(nc_f)
 
         logging.info('Extract rainfall data for the metro colombo area')
-        basin_rf = extract_metro_colombo(nc_fid, date, times, wrf_output)
+        basin_rf = extract_metro_colombo(nc_f, date, times, wrf_output)
         logging.info('Basin rainfall' + str(basin_rf))
 
         logging.info('Extract weather station rainfall')
-        extract_weather_stations(nc_fid, date, times, weather_st_file, wrf_output)
+        extract_weather_stations(nc_f, date, times, weather_st_file, wrf_output)
 
         logging.info('Extract Kelani Basin rainfall')
-        extract_kelani_basin_rainfall(nc_fid, date, times, kelani_basin_file, wrf_output, basin_rf)
+        extract_kelani_basin_rainfall(nc_f, date, times, kelani_basin_file, wrf_output, basin_rf)
 
         logging.info('Extract Kelani upper Basin mean rainfall')
-        extract_kelani_upper_basin_mean_rainfall(nc_fid, date, times, kelani_basin_shp_file, wrf_output)
+        extract_kelani_upper_basin_mean_rainfall(nc_f, date, times, kelani_basin_shp_file, wrf_output)
 
         logging.info('Extract Jaxa stations wrf rainfall')
-        extract_jaxa_weather_stations(nc_fid, jaxa_weather_st_file, wrf_output)
-
-        logging.info('Closing nc file')
-        nc_fid.close()
+        extract_jaxa_weather_stations(nc_f, jaxa_weather_st_file, wrf_output)
 
         # logging.info('adding buffer to the RAINCELL.DAT file')
         # add_buffer_to_kelani_upper_basin_mean_rainfall(date, wrf_output)
@@ -455,6 +495,7 @@ def extract_all(wrf_home, start_date, end_date):
 
 
 if __name__ == "__main__":
+    t, v = extract_point_rf_series('/home/nira/curw/OUTPUT/wrfout_d03_2017-04-19_00:00:00', 6.754167, 79.994117)
     logging.basicConfig(level=logging.INFO, format='%(asctime)s %(threadName)s %(module)s %(levelname)s %(message)s')
     args = utils.parse_args()
 
