@@ -495,9 +495,9 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format='%(asctime)s %(threadName)s %(module)s %(levelname)s %(message)s')
     args = utils.parse_args()
 
-    wrf_home = args.wrf_home
-    start_date = dt.datetime.strptime(args.start_date, '%Y-%m-%d')
-    end_date = dt.datetime.strptime(args.end_date, '%Y-%m-%d')
-    period = args.period
+    wh = args.wrf_home
+    sd = dt.datetime.strptime(args.start_date, '%Y-%m-%d')
+    ed = dt.datetime.strptime(args.end_date, '%Y-%m-%d')
+    p = args.period
 
-    extract_all(wrf_home, start_date, end_date)
+    extract_all(wh, sd, ed)
