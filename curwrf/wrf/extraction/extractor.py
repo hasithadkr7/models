@@ -22,7 +22,7 @@ def extract_time_data(nc_f):
 
 
 def extract_metro_colombo(nc_f, date, wrf_output):
-    times = extract_time_data(nc_f)
+    times_len, times = extract_time_data(nc_f)
 
     nc_fid = Dataset(nc_f, 'r')
 
