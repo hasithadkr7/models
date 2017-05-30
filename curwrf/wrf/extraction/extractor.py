@@ -461,14 +461,14 @@ def extract_all(wrf_home, start_date, end_date):
         times_len, times = extract_time_data(nc_f)
 
         logging.info('Extract rainfall data for the metro colombo area')
-        basin_rf = extract_metro_colombo(nc_f, date, times, wrf_output)
+        basin_rf = extract_metro_colombo(nc_f, date, wrf_output)
         logging.info('Basin rainfall' + str(basin_rf))
 
         logging.info('Extract weather station rainfall')
         extract_weather_stations(nc_f, date, times, weather_st_file, wrf_output)
 
         logging.info('Extract Kelani Basin rainfall')
-        extract_kelani_basin_rainfall(nc_f, date, times, kelani_basin_file, wrf_output, basin_rf)
+        extract_kelani_basin_rainfall(nc_f, date, kelani_basin_file, wrf_output, basin_rf)
 
         logging.info('Extract Kelani upper Basin mean rainfall')
         extract_kelani_upper_basin_mean_rainfall(nc_f, date, times, kelani_basin_shp_file, wrf_output)
