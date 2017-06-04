@@ -25,7 +25,9 @@ def parse_args():
                         help='Start date with format %%Y-%%m-%%d', dest='start_date')
     parser.add_argument('-end', default=(dt.datetime.today() + dt.timedelta(days=1)).strftime('%Y-%m-%d'),
                         help='End date with format %%Y-%%m-%%d', dest='end_date')
-    parser.add_argument('-period', default=3, help='Period of days for each run', type=int)
+    parser.add_argument('-period', default=3, help='Period of days for each run', type=int, dest='period')
+    parser.add_argument('-wrfconfig', default=pkg_resources.resource_filename(__name__, 'wrfconfig.yaml'),
+                        help='Path to the wrfconfig.yaml', dest='wrf_config')
     return parser.parse_args()
 
 
@@ -179,7 +181,7 @@ def run_subprocess(cmd, cwd=None):
     finally:
         elapsed_t = time.time() - start_t
         logging.info('Subprocess %s finished in %f s' % (cmd, elapsed_t))
-        logging.debug('stdout and stderr of %s\n%s' % (cmd, output))
+        logging.info('stdout and stderr of %s\n%s' % (cmd, output))
     return output
 
 

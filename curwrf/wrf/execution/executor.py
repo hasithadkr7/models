@@ -6,6 +6,7 @@ import threading
 import time
 import numpy as np
 import wget
+import yaml
 
 from curwrf.wrf.resources import manager as res_mgr
 from curwrf.wrf import constants, utils
@@ -272,19 +273,20 @@ class WrfConfig:
         return str(self.configs)
 
 
-def get_default_wrf_config(wrf_home,
-                           period=constants.DEFAULT_PERIOD,
-                           namelist_input=constants.DEFAULT_NAMELIST_INPUT_TEMPLATE,
-                           namelist_wps=constants.DEFAULT_NAMELIST_WPS_TEMPLATE,
-                           procs=constants.DEFAULT_PROCS,
-                           gfs_clean=True,
-                           gfs_cycle=constants.DEFAULT_CYCLE,
-                           gfs_delay=constants.DEFAULT_DELAY_S,
-                           gfs_inv=constants.DEFAULT_GFS_DATA_INV,
-                           gfs_res=constants.DEFAULT_RES,
-                           gfs_retries=constants.DEFAULT_RETRIES,
-                           gfs_step=constants.DEFAULT_STEP,
-                           gfs_url=constants.DEFAULT_GFS_DATA_URL):
+def get_wrf_config(wrf_home,
+                   config_file = None,
+                   period=constants.DEFAULT_PERIOD,
+                   namelist_input=constants.DEFAULT_NAMELIST_INPUT_TEMPLATE,
+                   namelist_wps=constants.DEFAULT_NAMELIST_WPS_TEMPLATE,
+                   procs=constants.DEFAULT_PROCS,
+                   gfs_clean=True,
+                   gfs_cycle=constants.DEFAULT_CYCLE,
+                   gfs_delay=constants.DEFAULT_DELAY_S,
+                   gfs_inv=constants.DEFAULT_GFS_DATA_INV,
+                   gfs_res=constants.DEFAULT_RES,
+                   gfs_retries=constants.DEFAULT_RETRIES,
+                   gfs_step=constants.DEFAULT_STEP,
+                   gfs_url=constants.DEFAULT_GFS_DATA_URL):
     gfs_dir = utils.get_gfs_dir(wrf_home)
 
     defaults = {'wrf_home': wrf_home,
@@ -302,7 +304,14 @@ def get_default_wrf_config(wrf_home,
                 'gfs_step': gfs_step,
                 'gfs_url': gfs_url}
 
-    return WrfConfig(defaults)
+    conf = WrfConfig(defaults)
+
+    if config_file is not None and os.path.exists(config_file):
+        with open(config_file, 'r') as f:
+            conf_yaml = yaml.safe_load(f)
+            conf.set_all(conf_yaml['wrfconfig'])
+
+    return conf
 
 
 if __name__ == "__main__":

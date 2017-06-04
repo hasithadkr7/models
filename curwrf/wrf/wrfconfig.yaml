@@ -1,0 +1,20 @@
+{
+        "version": 1,
+        "wrfconfig":
+            {
+                'wrf_home': '/mnt/disks/wrf-mod/',
+                'period': 3,
+                'namelist_input': 'namelist.input',
+                'namelist_wps': 'namelist.wps',
+                'procs': 4,
+                'gfs_dir': '/mnt/disks/wrf-mod/DATA/GFS',
+                'gfs_clean': FALSE,
+                'gfs_cycle': '00',
+                'gfs_delay': 5,
+                'gfs_inv': 'gfs.tCCz.pgrb2.RRRR.fFFF',
+                'gfs_res': '0p50',
+                'gfs_retries': 5,
+                'gfs_step': 3,
+                'gfs_url': 'ftp://ftpprd.ncep.noaa.gov/pub/data/nccf/com/gfs/prod/gfs.YYYYMMDDCC/',
+          },
+}
