@@ -13,32 +13,31 @@ from curwrf.wrf import constants, utils
 
 
 def download_single_inventory(url, dest, retries=constants.DEFAULT_RETRIES, delay=constants.DEFAULT_DELAY_S):
-
-    @utils.timeout(seconds=600)
+    # @utils.timeout(seconds=600)
     def wget_download(url0, dest0):
         try:
             wget.download(url0, out=dest0)
         except:
-            raise UnableToDownloadGfsData('\n'.join(sys.exc_info()))
+            raise UnableToDownloadGfsData(sys.exc_info()[0])
 
     logging.info('Downloading %s : START' % url)
     try_count = 1
     start_time = time.time()
     while try_count <= retries:
         try:
-            wget_download(url, out=dest)
+            wget_download(url, dest)
             end_time = time.time()
             logging.info('Downloading %s : END Elapsed time: %f' % (url, end_time - start_time))
             return True
-        except utils.TimeoutError as e:
-            logging.error('Download timer exceeded %d!' % e.timeout_s)
-            dl = url.split('/')[-1] + '*'
-            logging.error('Deleting the files %s' + dl)
-            utils.delete_files_with_prefix(dest, dl)
-            try_count = 1
+        # except utils.TimeoutError as e:
+        #     logging.error('Download timer exceeded %d!' % e.timeout_s)
+        #     dl = url.split('/')[-1] + '*'
+        #     logging.error('Deleting the files %s' + dl)
+        #     utils.delete_files_with_prefix(dest, dl)
+        #     try_count = 1
         except UnableToDownloadGfsData as e:
-            logging.error('Error in downloading %s Attempt %d : %s' % (url, try_count, e.message))
-            logging.error('Retrying in %d seconds' % delay)
+            logging.error(
+                'Error in downloading %s Attempt %d : %s . Retrying in %d seconds' % (url, try_count, e.message, delay))
             try_count += 1
             time.sleep(delay)
 
@@ -77,7 +76,7 @@ def download_gfs_data(date, wrf_conf):
     gfs_threads = wrf_conf.get('gfs_threads')
     logging.info(
         'Following data will be downloaded in %d parallel threads\n%s' % (gfs_threads, '\n'.join(
-            ' '.join(map(str, i.split('/')[-1])) for i in inventories)))
+            ' '.join(map(str, i)) for i in inventories)))
 
     start_time = time.time()
     inv_count = len(inventories)
@@ -289,38 +288,25 @@ class WrfConfig:
         return str(self.configs)
 
 
-def get_wrf_config(wrf_home,
-                   config_file=None,
-                   period=constants.DEFAULT_PERIOD,
-                   namelist_input=constants.DEFAULT_NAMELIST_INPUT_TEMPLATE,
-                   namelist_wps=constants.DEFAULT_NAMELIST_WPS_TEMPLATE,
-                   procs=constants.DEFAULT_PROCS,
-                   gfs_clean=True,
-                   gfs_cycle=constants.DEFAULT_CYCLE,
-                   gfs_delay=constants.DEFAULT_DELAY_S,
-                   gfs_inv=constants.DEFAULT_GFS_DATA_INV,
-                   gfs_res=constants.DEFAULT_RES,
-                   gfs_retries=constants.DEFAULT_RETRIES,
-                   gfs_step=constants.DEFAULT_STEP,
-                   gfs_url=constants.DEFAULT_GFS_DATA_URL,
-                   gfs_threads=constants.DEFAULT_THREAD_COUNT):
-    gfs_dir = utils.get_gfs_dir(wrf_home)
-
-    defaults = {'wrf_home': wrf_home,
-                'period': period,
-                'namelist_input': namelist_input,
-                'namelist_wps': namelist_wps,
-                'procs': procs,
-                'gfs_dir': gfs_dir,
-                'gfs_clean': gfs_clean,
-                'gfs_cycle': gfs_cycle,
-                'gfs_delay': gfs_delay,
-                'gfs_inv': gfs_inv,
-                'gfs_res': gfs_res,
-                'gfs_retries': gfs_retries,
-                'gfs_step': gfs_step,
-                'gfs_url': gfs_url,
-                'gfs_threads': gfs_threads}
+def get_wrf_config(wrf_home, config_file=None, **kwargs):
+    """
+    precedence = kwargs > wrfconfig.yaml > constants
+    """
+    defaults = {'wrf_home': constants.DEFAULT_WRF_HOME,
+                'period': constants.DEFAULT_PERIOD,
+                'namelist_input': constants.DEFAULT_NAMELIST_INPUT_TEMPLATE,
+                'namelist_wps': constants.DEFAULT_NAMELIST_WPS_TEMPLATE,
+                'procs': constants.DEFAULT_PROCS,
+                'gfs_dir': utils.get_gfs_dir(wrf_home),
+                'gfs_clean': True,
+                'gfs_cycle': constants.DEFAULT_CYCLE,
+                'gfs_delay': constants.DEFAULT_DELAY_S,
+                'gfs_inv': constants.DEFAULT_GFS_DATA_INV,
+                'gfs_res': constants.DEFAULT_RES,
+                'gfs_retries': constants.DEFAULT_RETRIES,
+                'gfs_step': constants.DEFAULT_STEP,
+                'gfs_url': constants.DEFAULT_GFS_DATA_URL,
+                'gfs_threads': constants.DEFAULT_THREAD_COUNT}
 
     conf = WrfConfig(defaults)
 
@@ -328,6 +314,11 @@ def get_wrf_config(wrf_home,
         with open(config_file, 'r') as f:
             conf_yaml = yaml.safe_load(f)
             conf.set_all(conf_yaml['wrfconfig'])
+
+    conf.set('wrf_home', wrf_home)
+    conf.set('gfs_dir', utils.get_gfs_dir(wrf_home))
+    for key in kwargs:
+        conf.set(key, kwargs[key])
 
     return conf
 
