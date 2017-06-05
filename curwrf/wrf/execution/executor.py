@@ -24,8 +24,8 @@ def download_single_inventory(url, dest, retries=constants.DEFAULT_RETRIES, dela
             logging.info('Downloading %s : END Elapsed time: %f' % (url, end_time - start_time))
             return True
         except:
-            logging.error('Error in downloading %s Attempt %d : %s' % (url, try_count, sys.exc_info()[0]))
-            logging.info('Retrying in %d seconds' % delay)
+            logging.error('Error in downloading %s Attempt %d : %s' % (url, try_count, '\n'.join(sys.exc_info())))
+            logging.error('Retrying in %d seconds' % delay)
             try_count += 1
             time.sleep(delay)
 
@@ -61,25 +61,28 @@ def download_gfs_data(date, wrf_conf):
                                                         wrf_conf.get('gfs_inv'), wrf_conf.get('gfs_step'),
                                                         wrf_conf.get('gfs_cycle'), wrf_conf.get('gfs_res'),
                                                         wrf_conf.get('gfs_dir'))
+    gfs_threads = wrf_conf.get('gfs_threads')
     logging.info(
-        'Following data will be downloaded in parallel threads\n%s' % '\n'.join(
-            ' '.join(map(str, i)) for i in inventories))
+        'Following data will be downloaded in %d parallel threads\n%s' % (gfs_threads, '\n'.join(
+            ' '.join(map(str, i.split('/')[-1])) for i in inventories)))
 
     start_time = time.time()
-
-    threads = []
     inv_count = len(inventories)
     logging.debug('Initializing threads')
-    for i in range(0, inv_count):
-        url0 = inventories[i][0]
-        dest0 = inventories[i][1]
-        thread = InventoryDownloadThread(i, url0, dest0, wrf_conf.get('gfs_retries'), wrf_conf.get('gfs_delay'))
-        thread.start()
-        threads.append(thread)
+    for k in range(0, inv_count, gfs_threads):
+        threads = []
+        for j in range(0, gfs_threads):
+            i = k + j
+            if i < inv_count:
+                url0 = inventories[i][0]
+                dest0 = inventories[i][1]
+                thread = InventoryDownloadThread(i, url0, dest0, wrf_conf.get('gfs_retries'), wrf_conf.get('gfs_delay'))
+                thread.start()
+                threads.append(thread)
 
-    logging.debug('Joining threads')
-    for t in threads:
-        t.join()
+        logging.debug('Joining threads')
+        for t in threads:
+            t.join()
 
     elapsed_time = time.time() - start_time
     logging.info('Downloading GFS data: END Elapsed time: %f' % elapsed_time)
@@ -286,7 +289,8 @@ def get_wrf_config(wrf_home,
                    gfs_res=constants.DEFAULT_RES,
                    gfs_retries=constants.DEFAULT_RETRIES,
                    gfs_step=constants.DEFAULT_STEP,
-                   gfs_url=constants.DEFAULT_GFS_DATA_URL):
+                   gfs_url=constants.DEFAULT_GFS_DATA_URL,
+                   gfs_threads=constants.DEFAULT_THREAD_COUNT):
     gfs_dir = utils.get_gfs_dir(wrf_home)
 
     defaults = {'wrf_home': wrf_home,
@@ -302,7 +306,8 @@ def get_wrf_config(wrf_home,
                 'gfs_res': gfs_res,
                 'gfs_retries': gfs_retries,
                 'gfs_step': gfs_step,
-                'gfs_url': gfs_url}
+                'gfs_url': gfs_url,
+                'gfs_threads': gfs_threads}
 
     conf = WrfConfig(defaults)
 

@@ -15,6 +15,7 @@
                 'gfs_res': '0p50',
                 'gfs_retries': 5,
                 'gfs_step': 3,
-                'gfs_url': 'ftp://ftpprd.ncep.noaa.gov/pub/data/nccf/com/gfs/prod/gfs.YYYYMMDDCC/',
+                'gfs_url': 'http://www.ftp.ncep.noaa.gov/data/nccf/com/gfs/prod/gfs.YYYYMMDDCC/',
+                'gfs_threads': 8,
           },
 }
