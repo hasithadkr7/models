@@ -12,7 +12,10 @@ import subprocess
 import time
 import pkg_resources
 import yaml
+import errno
+import signal
 
+from functools import wraps
 from shapely.geometry import Point, shape
 
 from curwrf.wrf import constants
@@ -192,6 +195,37 @@ def is_inside_polygon(polygons, lat, lon):
         if point.within(polygon):
             return 1
     return 0
+
+
+class TimeoutError(Exception):
+    def __init__(self, msg, timeout_s):
+        self.msg = msg
+        self.timeout_s = timeout_s
+        Exception.__init__(self, 'Unable to download %s' % msg)
+
+
+def timeout(seconds=600, error_message=os.strerror(errno.ETIME)):
+    """
+    if a method exceeds 600s (10 min) raise a timer expired error
+    source: https://stackoverflow.com/questions/2281850/timeout-function-if-it-takes-too-long-to-finish
+    errno.ETIME Timer expired
+    """
+    def decorator(func):
+        def _handle_timeout(signum, frame):
+            raise TimeoutError(error_message, seconds)
+
+        def wrapper(*args, **kwargs):
+            signal.signal(signal.SIGALRM, _handle_timeout)
+            signal.alarm(seconds)
+            try:
+                result = func(*args, **kwargs)
+            finally:
+                signal.alarm(0)
+            return result
+
+        return wraps(func)(wrapper)
+
+    return decorator
 
 
 # def namedtuple_with_defaults(typename, field_names, default_values=()):

@@ -13,18 +13,31 @@ from curwrf.wrf import constants, utils
 
 
 def download_single_inventory(url, dest, retries=constants.DEFAULT_RETRIES, delay=constants.DEFAULT_DELAY_S):
+
+    @utils.timeout(seconds=600)
+    def wget_download(url0, dest0):
+        try:
+            wget.download(url0, out=dest0)
+        except:
+            raise UnableToDownloadGfsData('\n'.join(sys.exc_info()))
+
     logging.info('Downloading %s : START' % url)
     try_count = 1
     start_time = time.time()
-
     while try_count <= retries:
         try:
-            wget.download(url, out=dest)
+            wget_download(url, out=dest)
             end_time = time.time()
             logging.info('Downloading %s : END Elapsed time: %f' % (url, end_time - start_time))
             return True
-        except:
-            logging.error('Error in downloading %s Attempt %d : %s' % (url, try_count, '\n'.join(sys.exc_info())))
+        except utils.TimeoutError as e:
+            logging.error('Download timer exceeded %d!' % e.timeout_s)
+            dl = url.split('/')[-1] + '*'
+            logging.error('Deleting the files %s' + dl)
+            utils.delete_files_with_prefix(dest, dl)
+            try_count = 1
+        except UnableToDownloadGfsData as e:
+            logging.error('Error in downloading %s Attempt %d : %s' % (url, try_count, e.message))
             logging.error('Retrying in %d seconds' % delay)
             try_count += 1
             time.sleep(delay)
@@ -236,9 +249,9 @@ def run_all(wrf_conf, start_date, end_date):
 
 
 class UnableToDownloadGfsData(Exception):
-    def __init__(self, url):
-        self.url = url
-        Exception.__init__(self, 'Unable to download %s' % url)
+    def __init__(self, msg):
+        self.msg = msg
+        Exception.__init__(self, 'Unable to download %s' % msg)
 
 
 class GfsDataUnavailable(Exception):
@@ -277,7 +290,7 @@ class WrfConfig:
 
 
 def get_wrf_config(wrf_home,
-                   config_file = None,
+                   config_file=None,
                    period=constants.DEFAULT_PERIOD,
                    namelist_input=constants.DEFAULT_NAMELIST_INPUT_TEMPLATE,
                    namelist_wps=constants.DEFAULT_NAMELIST_WPS_TEMPLATE,
