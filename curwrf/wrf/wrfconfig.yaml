@@ -10,7 +10,7 @@
                 'gfs_dir': '/mnt/disks/wrf-mod/DATA/GFS',
                 'gfs_clean': FALSE,
                 'gfs_cycle': '00',
-                'gfs_delay': 5,
+                'gfs_delay': 60,
                 'gfs_inv': 'gfs.tCCz.pgrb2.RRRR.fFFF',
                 'gfs_res': '0p50',
                 'gfs_retries': 5,
