@@ -159,7 +159,7 @@ def replace_namelist_wps(wrf_config, start_date, end_date):
     if os.path.exists(wrf_config.get('namelist_wps')):
         wps = wrf_config.get('namelist_wps')
     else:
-        wps = res_mgr.get_resource_path('execution/namelist.wps')
+        wps = res_mgr.get_resource_path(os.path.join('execution', constants.DEFAULT_NAMELIST_WPS_TEMPLATE))
     d = {
         'YYYY1': start_date.strftime('%Y'),
         'MM1': start_date.strftime('%m'),
@@ -177,7 +177,7 @@ def replace_namelist_input(wrf_config, start_date, end_date):
     if os.path.exists(wrf_config.get('namelist_input')):
         f = wrf_config.get('namelist_input')
     else:
-        f = res_mgr.get_resource_path('execution/namelist.input')
+        f = res_mgr.get_resource_path(os.path.join('execution', constants.DEFAULT_NAMELIST_INPUT_TEMPLATE))
     d = {
         'YYYY1': start_date.strftime('%Y'),
         'MM1': start_date.strftime('%m'),

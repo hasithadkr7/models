@@ -10,6 +10,11 @@ import shlex
 import shutil
 import subprocess
 import time
+
+import math
+from urllib2 import urlopen, HTTPError, URLError
+
+import multiprocessing
 import pkg_resources
 import yaml
 import errno
@@ -17,21 +22,49 @@ import signal
 
 from functools import wraps
 from shapely.geometry import Point, shape
+from joblib import Parallel, delayed
 
 from curwrf.wrf import constants
 
 
-def parse_args():
-    parser = argparse.ArgumentParser(description='Run all stages of WRF')
-    parser.add_argument('-wrf', default=constants.DEFAULT_WRF_HOME, help='WRF home', dest='wrf_home')
-    parser.add_argument('-start', default=dt.datetime.today().strftime('%Y-%m-%d'),
-                        help='Start date with format %%Y-%%m-%%d', dest='start_date')
-    parser.add_argument('-end', default=(dt.datetime.today() + dt.timedelta(days=1)).strftime('%Y-%m-%d'),
-                        help='End date with format %%Y-%%m-%%d', dest='end_date')
-    parser.add_argument('-period', default=3, help='Period of days for each run', type=int, dest='period')
+def parse_args(parser_description='Running WRF'):
+    def t_or_f(arg):
+        ua = str(arg).upper()
+        if 'TRUE'.startswith(ua):
+            return True
+        elif 'FALSE'.startswith(ua):
+            return False
+        else:
+            raise argparse.ArgumentTypeError('Boolean value expected.')
+
+    parser = argparse.ArgumentParser(description=parser_description)
+    parser.add_argument('-start', default=dt.datetime.today().strftime('%Y-%m-%d_%H:%M'),
+                        help='Start timestamp with format %%Y-%%m-%%d_%%H:%%M', dest='start')
+    parser.add_argument('-end', default=(dt.datetime.today() + dt.timedelta(days=1)).strftime('%Y-%m-%d_%H:%M'),
+                        help='End timestamp with format %%Y-%%m-%%d_%%H:%%M', dest='end')
     parser.add_argument('-wrfconfig', default=pkg_resources.resource_filename(__name__, 'wrfconfig.yaml'),
                         help='Path to the wrfconfig.yaml', dest='wrf_config')
-    return parser.parse_args()
+
+    conf_group = parser.add_argument_group('wrf_config', 'Arguments for WRF config')
+    conf_group.add_argument('-wrf_home', '-wrf', default=constants.DEFAULT_WRF_HOME, help='WRF home', dest='wrf_home')
+    conf_group.add_argument('-period', help='Model running period in days', type=int)
+    conf_group.add_argument('-namelist_input', help='namelist.input file path')
+    conf_group.add_argument('-namelist_wps', help='namelist.wps file path')
+    conf_group.add_argument('-procs', help='Num. of processors for WRF run', type=int)
+    conf_group.add_argument('-gfs_dir', help='GFS data dir path')
+    conf_group.add_argument('-gfs_clean', type=t_or_f, help='If true, gfs_dir will be cleaned before downloading data')
+    conf_group.add_argument('-gfs_inv', help='GFS inventory format. default = gfs.tCCz.pgrb2.RRRR.fFFF')
+    conf_group.add_argument('-gfs_res', help='GFS inventory resolution. default = 0p50')
+    conf_group.add_argument('-gfs_step', help='GFS time step (in hours) between data sets', type=int)
+    conf_group.add_argument('-gfs_retries', help='GFS num. of retries for each download', type=int)
+    conf_group.add_argument('-gfs_delay', help='GFS delay between retries', type=int)
+    conf_group.add_argument('-gfs_url', help='GFS URL')
+    conf_group.add_argument('-gfs_threads', help='GFS num. of parallel downloading threads', type=int)
+
+    # remove all the arguments which are None
+    args_dict = dict((k, v) for k, v in dict(parser.parse_args()._get_kwargs()).items() if v)
+
+    return args_dict
 
 
 def set_logging_config(log_home):
@@ -210,6 +243,7 @@ def timeout(seconds=600, error_message=os.strerror(errno.ETIME)):
     source: https://stackoverflow.com/questions/2281850/timeout-function-if-it-takes-too-long-to-finish
     errno.ETIME Timer expired
     """
+
     def decorator(func):
         def _handle_timeout(signum, frame):
             raise TimeoutError(error_message, seconds)
@@ -226,6 +260,45 @@ def timeout(seconds=600, error_message=os.strerror(errno.ETIME)):
         return wraps(func)(wrapper)
 
     return decorator
+
+
+def datetime_to_epoch(timestamp=None):
+    timestamp = dt.datetime.now() if timestamp is None else timestamp
+    return (timestamp - dt.datetime(1970, 1, 1)).total_seconds()
+
+
+def epoch_to_datetime(epoch_time):
+    return dt.datetime(1970, 1, 1) + dt.timedelta(seconds=epoch_time)
+
+
+def datetime_floor(timestamp, floor_sec):
+    return epoch_to_datetime(math.floor(datetime_to_epoch(timestamp) / floor_sec) * floor_sec)
+
+
+def datetime_lk_to_utc(timestamp_lk):
+    return timestamp_lk - dt.timedelta(hours=5, minutes=30)
+
+
+def datetime_utc_to_lk(timestamp_utc):
+    return timestamp_utc + dt.timedelta(hours=5, minutes=30)
+
+
+def download_file(url, dest):
+    try:
+        f = urlopen(url)
+        logging.info("Downloading %s to %s" % (url, dest))
+        with open(dest, "wb") as local_file:
+            local_file.write(f.read())
+    except HTTPError, e:
+        logging.error("HTTP Error:", e.code, url)
+        raise e
+    except URLError, e:
+        logging.error("URL Error:", e.reason, url)
+        raise e
+
+
+def download_parallel(url_dest_list, procs = multiprocessing.cpu_count()):
+    Parallel(n_jobs=procs)(delayed(download_file)(i[0], i[1]) for i in url_dest_list)
 
 
 # def namedtuple_with_defaults(typename, field_names, default_values=()):

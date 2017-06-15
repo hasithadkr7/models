@@ -9,5 +9,6 @@ setup(
     license='Apache 2.0',
     author='niranda perera',
     author_email='niranda.17@cse.mrt.ac.lk',
-    description=''
+    description='',
+    requires=['airflow', 'pyyaml', 'shapely']
 )
