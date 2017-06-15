@@ -3,10 +3,13 @@ import datetime as dt  # Python standard library datetime  module
 import logging
 import os
 import zipfile
+import multiprocessing
 import numpy as np
 import pandas as pd
 import shapefile
+import shutil
 
+from joblib import Parallel, delayed
 from netCDF4 import Dataset
 
 from curwrf.wrf import utils
@@ -439,6 +442,79 @@ def extract_jaxa_weather_stations(nc_f, weather_stations_file, output_dir):
     nc_fid.close()
 
 
+def extract_jaxa_satellite_data(start_ts_utc, end_ts_utc, output_dir):
+    start = utils.datetime_floor(start_ts_utc, 3600)
+    end = utils.datetime_floor(end_ts_utc, 3600)
+
+    lat_min = 5.722969
+    lon_min = 79.52146
+    lat_max = 10.06425
+    lon_max = 82.18992
+
+    login = 'rainmap:Niskur+1404'
+
+    url0 = 'ftp://' + login + '@hokusai.eorc.jaxa.jp/realtime/txt/05_AsiaSS/YYYY/MM/DD/gsmap_nrt.YYYYMMDD.HH00.05_AsiaSS.csv.zip'
+    url1 = 'ftp://' + login + '@hokusai.eorc.jaxa.jp/now/txt/05_AsiaSS/gsmap_now.YYYYMMDD.HH00_HH59.05_AsiaSS.csv.zip'
+
+    def get_jaxa_url(ts):
+        url_switch = (dt.datetime.utcnow() - ts) > dt.timedelta(hours=5)
+        _url = url0 if url_switch else url1
+        ph = {'YYYY': ts.strftime('%Y'),
+              'MM': ts.strftime('%m'),
+              'DD': ts.strftime('%d'),
+              'HH': ts.strftime('%H')}
+        for k, v in ph.iteritems():
+            _url = _url.replace(k, v)
+        return _url
+
+    tmp_dir = os.path.join(output_dir, 'tmp_jaxa/')
+    if not os.path.exists(tmp_dir):
+        os.mkdir(tmp_dir)
+    else:
+        utils.cleanup_dir(tmp_dir)
+
+    url_dest_list = []
+    for timestamp in np.arange(start, end, dt.timedelta(hours=1)).astype(dt.datetime):
+        url = get_jaxa_url(timestamp)
+        url_dest_list.append((url, os.path.join(tmp_dir, os.path.basename(url)),
+                              os.path.join(output_dir, 'jaxa_sat_rf_' + timestamp.strftime('%Y-%m-%d_%H:%M') + '.asc')))
+
+    utils.download_parallel(url_dest_list)
+
+    procs = multiprocessing.cpu_count()
+    Parallel(n_jobs=procs)(
+        delayed(process_zip_file)(i[1], i[2], lat_min, lon_min, lat_max, lon_max) for i in url_dest_list)
+
+    # clean up temp dir
+    shutil.rmtree(tmp_dir)
+
+
+def process_zip_file(zip_file_path, out_file_path, lat_min, lon_min, lat_max, lon_max):
+    sat_zip = zipfile.ZipFile(zip_file_path)
+    sat = np.genfromtxt(sat_zip.open(os.path.basename(zip_file_path).replace('.zip', '')), delimiter=',', names=True)
+    sat_filt = sat[
+        (sat['Lat'] <= lat_max) & (sat['Lat'] >= lat_min) & (sat['Lon'] <= lon_max) & (sat['Lon'] >= lon_min)]
+    lats = np.sort(np.unique(sat_filt['Lat']))
+    lons = np.sort(np.unique(sat_filt['Lon']))
+
+    cell_size = 0.1
+    no_data_val = -99
+    out_file = open(out_file_path, 'w')
+    out_file.write('NCOLS %d\n' % len(lons))
+    out_file.write('NROWS %d\n' % len(lats))
+    out_file.write('XLLCORNER %f\n' % lons[0])
+    out_file.write('YLLCORNER %f\n' % lats[0])
+    out_file.write('CELLSIZE %f\n' % cell_size)
+    out_file.write('NODATA_VALUE %d\n' % no_data_val)
+
+    for lat in np.flip(lats, 0):
+        for lon in lons:
+            out_file.write(str(sat[(sat['Lat'] == lat) & (sat['Lon'] == lon)][0][2]) + ' ')
+        out_file.write('\n')
+
+    out_file.close()
+
+
 def extract_all(wrf_home, start_date, end_date):
     logging.info('Extracting data from %s to %s' % (start_date.strftime('%Y-%m-%d'), end_date.strftime('%Y-%m-%d')))
     logging.info('WRF home : %s' % wrf_home)
@@ -476,6 +552,9 @@ def extract_all(wrf_home, start_date, end_date):
         logging.info('Extract Jaxa stations wrf rainfall')
         extract_jaxa_weather_stations(nc_f, jaxa_weather_st_file, wrf_output)
 
+        logging.info('Exctract Jaxa sattellite rainfall data')
+        # extract_jaxa_satellite_data(date, wrf_output)
+
         # logging.info('adding buffer to the RAINCELL.DAT file')
         # add_buffer_to_kelani_upper_basin_mean_rainfall(date, wrf_output)
 
@@ -492,6 +571,8 @@ def extract_all(wrf_home, start_date, end_date):
 
 
 if __name__ == "__main__":
+    # extract_jaxa_satellite_data(utils.datetime_lk_to_utc(dt.datetime(2017, 5, 25)),
+    #                             utils.datetime_lk_to_utc(dt.datetime(2017, 5, 28)), '/tmp/rf')
     logging.basicConfig(level=logging.INFO, format='%(asctime)s %(threadName)s %(module)s %(levelname)s %(message)s')
     args = utils.parse_args()
 
