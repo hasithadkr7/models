@@ -8,7 +8,7 @@
                 'namelist_wps': 'namelist.wps',
                 'procs': 4,
                 'gfs_dir': '/mnt/disks/wrf-mod/DATA/GFS',
-                'gfs_clean': FALSE,
+                'gfs_clean': TRUE,
                 'gfs_cycle': '00',
                 'gfs_delay': 60,
                 'gfs_inv': 'gfs.tCCz.pgrb2.RRRR.fFFF',
