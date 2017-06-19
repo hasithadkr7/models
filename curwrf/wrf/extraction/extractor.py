@@ -2,14 +2,20 @@ import csv
 import datetime as dt  # Python standard library datetime  module
 import logging
 import os
+import unittest
 import zipfile
 import multiprocessing
+from matplotlib.colors import LinearSegmentedColormap
+
 import numpy as np
 import pandas as pd
 import shapefile
 import shutil
+import matplotlib.pyplot as plt
+import math
 
 from joblib import Parallel, delayed
+from mpl_toolkits.basemap import Basemap, cm
 from netCDF4 import Dataset
 
 from curwrf.wrf import utils
@@ -470,8 +476,6 @@ def extract_jaxa_satellite_data(start_ts_utc, end_ts_utc, output_dir):
     tmp_dir = os.path.join(output_dir, 'tmp_jaxa/')
     if not os.path.exists(tmp_dir):
         os.mkdir(tmp_dir)
-    else:
-        utils.cleanup_dir(tmp_dir)
 
     url_dest_list = []
     for timestamp in np.arange(start, end, dt.timedelta(hours=1)).astype(dt.datetime):
@@ -513,6 +517,57 @@ def process_zip_file(zip_file_path, out_file_path, lat_min, lon_min, lat_max, lo
         out_file.write('\n')
 
     out_file.close()
+
+    data = np.sort(sat_filt, order=['Lat', 'Lon'])['RainRate'].reshape(len(lats), len(lons))
+    clevs = np.concatenate(([-1, 0], np.array([pow(2, i) for i in range(0, 9)])))
+    create_contour_plot(data, out_file_path + '.png', lat_min, lon_min, lat_max, lon_max, out_file_path, clevs=clevs,
+                        cmap=cm.s3pcpn_l)
+
+
+def create_contour_plot(data, out_file_path, lat_min, lon_min, lat_max, lon_max, plot_title, basemap=None, clevs=None,
+                        cmap=plt.get_cmap('Reds')):
+    """
+    create a contour plot using basemap
+    :param cmap: color map
+    :param clevs: color levels
+    :param basemap: creating basemap takes time, hence you can create it outside and pass it over
+    :param plot_title:
+    :param data: 2D grid data
+    :param out_file_path:
+    :param lat_min:
+    :param lon_min:
+    :param lat_max:
+    :param lon_max:
+    :return:
+    """
+    fig = plt.figure(figsize=(8.27, 11.69))
+    ax = fig.add_axes([0.1, 0.1, 0.8, 0.8])
+    if basemap is None:
+        basemap = Basemap(projection='merc', llcrnrlon=lon_min, llcrnrlat=lat_min, urcrnrlon=lon_max, urcrnrlat=lat_max,
+                          resolution='h')
+    basemap.drawcoastlines()
+    parallels = np.arange(math.floor(lat_min) - 1, math.ceil(lat_max) + 1, 1)
+    basemap.drawparallels(parallels, labels=[1, 0, 0, 0], fontsize=10)
+    meridians = np.arange(math.floor(lon_min) - 1, math.ceil(lon_max) + 1, 1)
+    basemap.drawmeridians(meridians, labels=[0, 0, 0, 1], fontsize=10)
+
+    ny = data.shape[0]
+    nx = data.shape[1]
+    lons, lats = basemap.makegrid(nx, ny)
+
+    if clevs is None:
+        clevs = np.arange(-1, np.max(data) + 1, 1)
+
+    # cs = basemap.contourf(lons, lats, data, clevs, cmap=cm.s3pcpn_l, latlon=True)
+    cs = basemap.contourf(lons, lats, data, clevs, cmap=cmap, latlon=True)
+
+    cbar = basemap.colorbar(cs, location='bottom', pad="5%")
+    cbar.set_label('mm')
+
+    plt.title(plot_title)
+    plt.draw()
+    fig.savefig(out_file_path)
+    plt.close()
 
 
 def extract_all(wrf_home, start_date, end_date):
@@ -570,15 +625,42 @@ def extract_all(wrf_home, start_date, end_date):
         # extract_kelani_upper_basin_mean_rainfall_sat(sat_data_dir, date, kelani_basin_shp_file, wrf_output)
 
 
+class TestExtractorMethods(unittest.TestCase):
+    def test_extract_jaxa_satellite_data(self):
+        extract_jaxa_satellite_data(utils.datetime_lk_to_utc(dt.datetime(2017, 5, 25)),
+                                    utils.datetime_lk_to_utc(dt.datetime(2017, 5, 28)), '/tmp/rf')
+
+        # def test_create_contour_plot(self):
+        #     lat_min = 5.722969
+        #     lon_min = 79.52146
+        #     lat_max = 10.06425
+        #     lon_max = 82.18992
+        #
+        #     tmp_dir = '/tmp/rf/tmp_jaxa'
+        #     if not os.path.exists(tmp_dir):
+        #         os.makedirs(tmp_dir)
+        #
+        #     url = 'ftp://rainmap:Niskur+1404@hokusai.eorc.jaxa.jp/realtime/txt/05_AsiaSS/2017/05/26/' \
+        #           'gsmap_nrt.20170526.0600.05_AsiaSS.csv.zip'
+        #     dest = os.path.join(tmp_dir, os.path.basename(url))
+        #
+        #     if not os.path.exists(dest):
+        #         utils.download_file(url, dest)
+        #
+        #     sat_zip = zipfile.ZipFile(dest)
+        #     sat = np.genfromtxt(sat_zip.open(os.path.basename(dest).replace('.zip', '')), delimiter=',', names=True)
+        #     sat_filt = np.sort(
+        #         sat[(sat['Lat'] <= lat_max) & (sat['Lat'] >= lat_min) & (sat['Lon'] <= lon_max) & (sat['Lon'] >= lon_min)],
+        #         order=['Lat', 'Lon'])
+        #     lats = len(np.unique(sat_filt['Lat']))
+        #     lons = len(np.unique(sat_filt['Lon']))
+        #     # data = np.flip(sat_filt['RainRate'].reshape(lats, lons), 0)
+        #     data = sat_filt['RainRate'].reshape(lats, lons)
+        #
+        #     create_contour_plot(data, os.path.join(tmp_dir, 'output.png'), lat_min, lon_min, lat_max, lon_max, 'Rain rate')
+
+
 if __name__ == "__main__":
-    # extract_jaxa_satellite_data(utils.datetime_lk_to_utc(dt.datetime(2017, 5, 25)),
-    #                             utils.datetime_lk_to_utc(dt.datetime(2017, 5, 28)), '/tmp/rf')
     logging.basicConfig(level=logging.INFO, format='%(asctime)s %(threadName)s %(module)s %(levelname)s %(message)s')
-    args = utils.parse_args()
-
-    wh = args.wrf_home
-    sd = dt.datetime.strptime(args.start_date, '%Y-%m-%d')
-    ed = dt.datetime.strptime(args.end_date, '%Y-%m-%d')
-    p = args.period
-
-    extract_all(wh, sd, ed)
+    suite = unittest.TestLoader().loadTestsFromTestCase(TestExtractorMethods)
+    unittest.TextTestRunner(verbosity=2).run(suite)

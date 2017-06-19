@@ -287,8 +287,11 @@ def download_file(url, dest):
     try:
         f = urlopen(url)
         logging.info("Downloading %s to %s" % (url, dest))
-        with open(dest, "wb") as local_file:
-            local_file.write(f.read())
+        if not os.path.exists(dest):
+            with open(dest, "wb") as local_file:
+                local_file.write(f.read())
+        else:
+            logging.info('File %s already exists' % dest)
     except HTTPError, e:
         logging.error("HTTP Error:", e.code, url)
         raise e
@@ -297,7 +300,7 @@ def download_file(url, dest):
         raise e
 
 
-def download_parallel(url_dest_list, procs = multiprocessing.cpu_count()):
+def download_parallel(url_dest_list, procs=multiprocessing.cpu_count()):
     Parallel(n_jobs=procs)(delayed(download_file)(i[0], i[1]) for i in url_dest_list)
 
 
