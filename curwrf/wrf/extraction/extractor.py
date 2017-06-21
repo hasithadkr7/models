@@ -104,7 +104,7 @@ def extract_weather_stations(nc_f, date, times, weather_stations, wrf_output):
         if not os.path.exists(stations_dir):
             os.makedirs(stations_dir)
         for row in stations:
-            print ' '.join(row)
+            logging.info(' '.join(row))
             lon = row[1]
             lat = row[2]
 
@@ -287,12 +287,12 @@ def add_buffer_to_kelani_upper_basin_mean_rainfall(date, wrf_output):
             with open(file_name) as myfile:
                 first_line = next(myfile)
                 if i != 0:
-                    head = [next(myfile) for x in xrange(cells * 24)]
+                    head = [next(myfile) for x in range(cells * 24)]
                 else:
                     head = [line for line in myfile]
             content.extend(head)
         else:
-            head = ['%d 0.0\n' % (x % cells + 1) for x in xrange(cells * 24 + 1)]
+            head = ['%d 0.0\n' % (x % cells + 1) for x in range(cells * 24 + 1)]
             content.extend(head)
 
     out_dir = wrf_output + '/kelani-basin/new-created-' + date.strftime('%Y-%m-%d')

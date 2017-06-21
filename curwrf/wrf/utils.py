@@ -12,7 +12,8 @@ import subprocess
 import time
 
 import math
-from urllib2 import urlopen, HTTPError, URLError
+from urllib.request import urlopen
+from urllib.error import HTTPError, URLError
 
 import multiprocessing
 import pkg_resources
@@ -62,7 +63,7 @@ def parse_args(parser_description='Running WRF'):
     conf_group.add_argument('-gfs_threads', help='GFS num. of parallel downloading threads', type=int)
 
     # remove all the arguments which are None
-    args_dict = dict((k, v) for k, v in dict(parser.parse_args()._get_kwargs()).items() if v)
+    args_dict = dict((k, v) for k, v in list(dict(parser.parse_args()._get_kwargs()).items()) if v)
 
     return args_dict
 
@@ -170,7 +171,7 @@ def replace_file_with_values(source, destination, val_dict):
     logging.debug('replace file content dict ' + str(val_dict))
 
     # pattern = re.compile(r'\b(' + '|'.join(val_dict.keys()) + r')\b')
-    pattern = re.compile('|'.join(val_dict.keys()))
+    pattern = re.compile('|'.join(list(val_dict.keys())))
 
     dest = open(destination, 'w')
     out = ''
@@ -289,15 +290,15 @@ def download_file(url, dest):
         logging.info("Downloading %s to %s" % (url, dest))
         with open(dest, "wb") as local_file:
             local_file.write(f.read())
-    except HTTPError, e:
+    except HTTPError as e:
         logging.error("HTTP Error:", e.code, url)
         raise e
-    except URLError, e:
+    except URLError as e:
         logging.error("URL Error:", e.reason, url)
         raise e
 
 
-def download_parallel(url_dest_list, procs = multiprocessing.cpu_count()):
+def download_parallel(url_dest_list, procs=multiprocessing.cpu_count()):
     Parallel(n_jobs=procs)(delayed(download_file)(i[0], i[1]) for i in url_dest_list)
 
 
@@ -352,27 +353,27 @@ def download_parallel(url_dest_list, procs = multiprocessing.cpu_count()):
 def main():
     wrf_home = "/tmp"
     set_logging_config(wrf_home)
-    print get_gfs_dir(wrf_home)
-    print get_output_dir(wrf_home)
-    print get_scripts_run_dir(wrf_home)
-    print get_logs_dir(wrf_home)
-    print get_gfs_data_url_dest_tuple(constants.DEFAULT_GFS_DATA_URL, constants.DEFAULT_GFS_DATA_INV,
+    print(get_gfs_dir(wrf_home))
+    print(get_output_dir(wrf_home))
+    print(get_scripts_run_dir(wrf_home))
+    print(get_logs_dir(wrf_home))
+    print(get_gfs_data_url_dest_tuple(constants.DEFAULT_GFS_DATA_URL, constants.DEFAULT_GFS_DATA_INV,
                                       get_gfs_dir(wrf_home), '20170501', constants.DEFAULT_CYCLE, '001',
-                                      constants.DEFAULT_RES)
-    print get_gfs_inventory_url_dest_list(constants.DEFAULT_GFS_DATA_URL, constants.DEFAULT_GFS_DATA_INV,
+                                      constants.DEFAULT_RES))
+    print(get_gfs_inventory_url_dest_list(constants.DEFAULT_GFS_DATA_URL, constants.DEFAULT_GFS_DATA_INV,
                                           dt.datetime.strptime('2017-05-01', '%Y-%m-%d'),
                                           constants.DEFAULT_PERIOD,
                                           constants.DEFAULT_STEP,
                                           constants.DEFAULT_CYCLE,
                                           constants.DEFAULT_RES,
-                                          get_gfs_dir(wrf_home))
+                                          get_gfs_dir(wrf_home)))
     d = {
         'YYYY1': '2016',
         'MM1': '05',
         'DD1': '01'
     }
 
-    print replace_file_with_values('resources/namelist.input', wrf_home + '/namelist.wps', d)
+    print(replace_file_with_values('resources/namelist.input', wrf_home + '/namelist.wps', d))
 
 
 if __name__ == "__main__":

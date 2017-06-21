@@ -1,41 +1,28 @@
 import datetime as dt
 import logging
 import os
-import sys
 import threading
 import time
 import numpy as np
-import wget
 import yaml
+
+from urllib.error import HTTPError, URLError
 
 from curwrf.wrf.resources import manager as res_mgr
 from curwrf.wrf import constants, utils
 
 
 def download_single_inventory(url, dest, retries=constants.DEFAULT_RETRIES, delay=constants.DEFAULT_DELAY_S):
-    # @utils.timeout(seconds=600)
-    def wget_download(url0, dest0):
-        try:
-            wget.download(url0, out=dest0)
-        except:
-            raise UnableToDownloadGfsData(sys.exc_info()[0])
-
     logging.info('Downloading %s : START' % url)
     try_count = 1
     start_time = time.time()
     while try_count <= retries:
         try:
-            wget_download(url, dest)
+            utils.download_file(url, dest)
             end_time = time.time()
             logging.info('Downloading %s : END Elapsed time: %f' % (url, end_time - start_time))
             return True
-        # except utils.TimeoutError as e:
-        #     logging.error('Download timer exceeded %d!' % e.timeout_s)
-        #     dl = url.split('/')[-1] + '*'
-        #     logging.error('Deleting the files %s' + dl)
-        #     utils.delete_files_with_prefix(dest, dl)
-        #     try_count = 1
-        except UnableToDownloadGfsData as e:
+        except (HTTPError, URLError) as e:
             logging.error(
                 'Error in downloading %s Attempt %d : %s . Retrying in %d seconds' % (url, try_count, e.message, delay))
             try_count += 1
