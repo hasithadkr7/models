@@ -1,15 +1,14 @@
 import datetime as dt
+import json
 import logging
 import os
 import threading
 import time
-import numpy as np
-import yaml
-
 from urllib.error import HTTPError, URLError
+import numpy as np
 
-from curwrf.wrf.resources import manager as res_mgr
 from curwrf.wrf import constants, utils
+from curwrf.wrf.resources import manager as res_mgr
 
 
 def download_single_inventory(url, dest, retries=constants.DEFAULT_RETRIES, delay=constants.DEFAULT_DELAY_S):
@@ -277,7 +276,7 @@ class WrfConfig:
 
 def get_wrf_config(wrf_home, config_file=None, **kwargs):
     """
-    precedence = kwargs > wrf_config.yaml > constants
+    precedence = kwargs > wrf_config.json > constants
     """
     defaults = {'wrf_home': constants.DEFAULT_WRF_HOME,
                 'nfs_dir': constants.DEFAULT_NFS_DIR,
@@ -300,7 +299,7 @@ def get_wrf_config(wrf_home, config_file=None, **kwargs):
 
     if config_file is not None and os.path.exists(config_file):
         with open(config_file, 'r') as f:
-            conf_yaml = yaml.safe_load(f)
+            conf_yaml = json.load(f)
             conf.set_all(conf_yaml['wrf_config'])
 
     for key in kwargs:

@@ -1,29 +1,27 @@
 import argparse
 import datetime as dt
+import errno
 import glob
+import json
 import logging
 import logging.config
+import math
+import multiprocessing
 import ntpath
 import os
 import re
 import shlex
 import shutil
+import signal
 import subprocess
 import time
-
-import math
-from urllib.request import urlopen
-from urllib.error import HTTPError, URLError
-
-import multiprocessing
-import pkg_resources
-import yaml
-import errno
-import signal
-
 from functools import wraps
-from shapely.geometry import Point, shape
+from urllib.error import HTTPError, URLError
+from urllib.request import urlopen
+
+import pkg_resources
 from joblib import Parallel, delayed
+from shapely.geometry import Point, shape
 
 from curwrf.wrf import constants
 
@@ -43,8 +41,8 @@ def parse_args(parser_description='Running WRF'):
                         help='Start timestamp with format %%Y-%%m-%%d_%%H:%%M', dest='start')
     parser.add_argument('-end', default=(dt.datetime.today() + dt.timedelta(days=1)).strftime('%Y-%m-%d_%H:%M'),
                         help='End timestamp with format %%Y-%%m-%%d_%%H:%%M', dest='end')
-    parser.add_argument('-wrf_config', default=pkg_resources.resource_filename(__name__, 'wrf_config.yaml'),
-                        help='Path to the wrf_config.yaml', dest='wrf_config')
+    parser.add_argument('-wrf_config', default=pkg_resources.resource_filename(__name__, 'wrf_config.json'),
+                        help='Path to the wrf_config.json', dest='wrf_config')
 
     conf_group = parser.add_argument_group('wrf_config', 'Arguments for WRF config')
     conf_group.add_argument('-wrf_home', '-wrf', default=constants.DEFAULT_WRF_HOME, help='WRF home', dest='wrf_home')
@@ -92,14 +90,14 @@ def set_logging_config(log_home):
         },
     )
 
-    path = pkg_resources.resource_filename(__name__, 'logging.yaml')
+    logging_config_path = pkg_resources.resource_filename(__name__, 'logging.json')
     value = os.getenv(constants.LOGGING_ENV_VAR, None)
 
     if value:
-        path = value
-    if os.path.exists(path):
-        with open(path, 'rt') as f:
-            config = yaml.safe_load(f.read())
+        logging_config_path = value
+    if os.path.exists(logging_config_path):
+        with open(logging_config_path, 'rt') as f:
+            config = json.load(f)
         config['handlers']['fh']['filename'] = os.path.join(log_home, 'wrfrun.log')
         logging.config.dictConfig(config)
     else:

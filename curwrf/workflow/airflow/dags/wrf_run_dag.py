@@ -1,13 +1,14 @@
 import datetime as dt
+import json
 import logging
 import os
 
 import airflow
-import yaml
 from airflow import DAG
 from airflow.models import Variable
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.subdag_operator import SubDagOperator
+
 from curwrf.workflow.airflow.dags import utils as dag_utils
 from curwrf.wrf import constants
 from curwrf.wrf.execution import executor as wrf_exec
@@ -27,7 +28,7 @@ except KeyError:
 
 # set wrf_config --> wrf_config Var (YAML format) > get_wrf_config(wrf_home)
 try:
-    wrf_config_dict = yaml.safe_load(str(Variable.get('wrf_config')))
+    wrf_config_dict = json.loads(str(Variable.get('wrf_config')))
     print(wrf_config_dict)
     wrf_config = wrf_exec.get_wrf_config(wrf_config_dict.pop('wrf_home'), **wrf_config_dict)
 except KeyError as e:
