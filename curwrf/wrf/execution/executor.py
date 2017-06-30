@@ -277,14 +277,15 @@ class WrfConfig:
 
 def get_wrf_config(wrf_home, config_file=None, **kwargs):
     """
-    precedence = kwargs > wrfconfig.yaml > constants
+    precedence = kwargs > wrf_config.yaml > constants
     """
     defaults = {'wrf_home': constants.DEFAULT_WRF_HOME,
+                'nfs_dir': constants.DEFAULT_NFS_DIR,
                 'period': constants.DEFAULT_PERIOD,
                 'namelist_input': constants.DEFAULT_NAMELIST_INPUT_TEMPLATE,
                 'namelist_wps': constants.DEFAULT_NAMELIST_WPS_TEMPLATE,
                 'procs': constants.DEFAULT_PROCS,
-                'gfs_dir': utils.get_gfs_dir(wrf_home),
+                'gfs_dir': utils.get_gfs_dir(constants.DEFAULT_WRF_HOME, False),
                 'gfs_clean': True,
                 'gfs_cycle': constants.DEFAULT_CYCLE,
                 'gfs_delay': constants.DEFAULT_DELAY_S,
@@ -300,12 +301,13 @@ def get_wrf_config(wrf_home, config_file=None, **kwargs):
     if config_file is not None and os.path.exists(config_file):
         with open(config_file, 'r') as f:
             conf_yaml = yaml.safe_load(f)
-            conf.set_all(conf_yaml['wrfconfig'])
+            conf.set_all(conf_yaml['wrf_config'])
+
+    for key in kwargs:
+        conf.set(key, kwargs[key])
 
     conf.set('wrf_home', wrf_home)
     conf.set('gfs_dir', utils.get_gfs_dir(wrf_home))
-    for key in kwargs:
-        conf.set(key, kwargs[key])
 
     return conf
 

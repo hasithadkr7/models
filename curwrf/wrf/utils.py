@@ -43,8 +43,8 @@ def parse_args(parser_description='Running WRF'):
                         help='Start timestamp with format %%Y-%%m-%%d_%%H:%%M', dest='start')
     parser.add_argument('-end', default=(dt.datetime.today() + dt.timedelta(days=1)).strftime('%Y-%m-%d_%H:%M'),
                         help='End timestamp with format %%Y-%%m-%%d_%%H:%%M', dest='end')
-    parser.add_argument('-wrfconfig', default=pkg_resources.resource_filename(__name__, 'wrfconfig.yaml'),
-                        help='Path to the wrfconfig.yaml', dest='wrf_config')
+    parser.add_argument('-wrf_config', default=pkg_resources.resource_filename(__name__, 'wrf_config.yaml'),
+                        help='Path to the wrf_config.yaml', dest='wrf_config')
 
     conf_group = parser.add_argument_group('wrf_config', 'Arguments for WRF config')
     conf_group.add_argument('-wrf_home', '-wrf', default=constants.DEFAULT_WRF_HOME, help='WRF home', dest='wrf_home')
@@ -112,8 +112,18 @@ def create_dir_if_not_exists(path):
     return path
 
 
-def get_gfs_dir(wrf_home=constants.DEFAULT_WRF_HOME):
-    return create_dir_if_not_exists(os.path.join(wrf_home, 'DATA', 'GFS'))
+def get_nfs_gfs_dir(nfs_home=constants.DEFAULT_NFS_DIR, create_dir=True):
+    if create_dir:
+        return create_dir_if_not_exists(os.path.join(nfs_home, 'data', 'gfs'))
+    else:
+        return os.path.join(nfs_home, 'data', 'gfs')
+
+
+def get_gfs_dir(wrf_home=constants.DEFAULT_WRF_HOME, create_dir=True):
+    if create_dir:
+        return create_dir_if_not_exists(os.path.join(wrf_home, 'DATA', 'GFS'))
+    else:
+        return os.path.join(wrf_home, 'DATA', 'GFS')
 
 
 def get_wps_dir(wrf_home=constants.DEFAULT_WRF_HOME):

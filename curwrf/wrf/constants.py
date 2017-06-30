@@ -1,4 +1,5 @@
 DEFAULT_WRF_HOME = '/mnt/disks/wrf-mod/'
+DEFAULT_NFS_DIR = '/mnt/disks/wrf-mod/DATA/nfs'
 
 
 ## GFS configs

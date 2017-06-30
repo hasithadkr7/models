@@ -1,76 +1,68 @@
-# -*- coding: utf-8 -*-
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
-"""
-### Tutorial Documentation
-Documentation that goes along with the Airflow tutorial located
-[here](http://pythonhosted.org/airflow/tutorial.html)
-"""
-import airflow
 import datetime as dt
-from airflow import DAG, macros
-from datetime import timedelta
+import logging
+import os
 
+import airflow
+import yaml
+from airflow import DAG
+from airflow.models import Variable
+from airflow.operators.dummy_operator import DummyOperator
+from airflow.operators.subdag_operator import SubDagOperator
+from curwrf.workflow.airflow.dags import utils as dag_utils
+from curwrf.wrf import constants
 from curwrf.wrf.execution import executor as wrf_exec
-from airflow.operators.python_operator import PythonOperator
-from airflow.operators.bash_operator import BashOperator
 
+WRF_DAG_NAME = 'wrf_run'
+wrf_home = None
+wrf_config = None
 
-def download_single_inventory_sub_dag(parent_name, child_name, url, dest):
-    dag = DAG()
+# set wrf_home --> wrf_home Var > WRF_HOME env var > wrf_home default
+try:
+    wrf_home = Variable.get('wrf_home')
+except KeyError:
+    try:
+        wrf_home = os.environ['WRF_HOME']
+    except KeyError:
+        wrf_home = constants.DEFAULT_WRF_HOME
 
-    pass
-
-
-curr_ts = {{macros.datetime.now()}}
+# set wrf_config --> wrf_config Var (YAML format) > get_wrf_config(wrf_home)
+try:
+    wrf_config_dict = yaml.safe_load(str(Variable.get('wrf_config')))
+    print(wrf_config_dict)
+    wrf_config = wrf_exec.get_wrf_config(wrf_config_dict.pop('wrf_home'), **wrf_config_dict)
+except KeyError as e:
+    logging.info('Key Error: ' + str(e))
+    wrf_config = wrf_exec.get_wrf_config(wrf_home)
 
 default_args = {
-    'owner': 'airflow',
+    'owner': 'curwsl admin',
     'depends_on_past': False,
     'start_date': airflow.utils.dates.days_ago(0),
-    'email': ['airflow@example.com'],
+    'email': ['admin@curwsl.com'],
     'email_on_failure': False,
     'email_on_retry': False,
     'retries': 1,
-    'retry_delay': timedelta(minutes=5),
-    # 'queue': 'bash_queue',
-    # 'pool': 'backfill',
-    # 'priority_weight': 10,
-    # 'end_date': datetime(2016, 1, 1),
-    # 'wait_for_downstream': False,
-    # 'dag': dag,
-    # 'adhoc':False,
-    # 'sla': timedelta(hours=2),
-    # 'execution_timeout': timedelta(seconds=300),
-    # 'on_failure_callback': some_function,
-    # 'on_success_callback': some_other_function,
-    # 'on_retry_callback': another_function,
-    # 'trigger_rule': u'all_success'
+    'retry_delay': dt.timedelta(minutes=5),
 }
 
+# initiate the DAG
 dag = DAG(
-    'wrf_run',
+    WRF_DAG_NAME,
     default_args=default_args,
-    description='Running WRF',
-    schedule_interval=timedelta(days=1))
+    description='Running WRF instantaneously',
+    schedule_interval=None)
 
-wrf_config = wrf_exec.get_wrf_config('/home/nira/curw')
+start = DummyOperator(
+    task_id='start',
+    default_args=default_args,
+    dag=dag,
+)
 
-
-t1 = PythonOperator(
-    task_id='download_gfs_data',
-    python_callable=wrf_exec.download_gfs_data,
-    op_args=[start, wrf_config],
-    dag=dag)
+gfs_data_download = SubDagOperator(
+    task_id='gfs_download',
+    subdag=dag_utils.get_gfs_download_subdag(WRF_DAG_NAME, 'gfs_download', default_args, wrf_home, wrf_config),
+    default_args=default_args,
+    dag=dag,
+)
+start.set_downstream(gfs_data_download)
 
