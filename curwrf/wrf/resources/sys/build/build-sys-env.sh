@@ -26,3 +26,4 @@ pip install wget
 pip install pyyaml
 pip install numpy
 pip install pandas
+pip install joblib

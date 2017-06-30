@@ -1,4 +1,5 @@
-# !/bin/bash  
+#!/bin/bash
+
 test_home="/mnt/disks/wrf-mod/tests"
 echo "----------- test_home dir" 
 echo $test_home
