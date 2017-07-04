@@ -1,39 +1,15 @@
 import datetime as dt
-import json
-import logging
-import os
 
 import airflow
 from airflow import DAG
-from airflow.models import Variable
-from airflow.operators.dummy_operator import DummyOperator
+from airflow.operators.python_operator import PythonOperator
 from airflow.operators.subdag_operator import SubDagOperator
 
 from curwrf.workflow.airflow.dags import utils as dag_utils
-from curwrf.wrf import constants
-from curwrf.wrf.execution import executor as wrf_exec
 
 WRF_DAG_NAME = 'wrf_run'
-wrf_home = None
-wrf_config = None
 
-# set wrf_home --> wrf_home Var > WRF_HOME env var > wrf_home default
-try:
-    wrf_home = Variable.get('wrf_home')
-except KeyError:
-    try:
-        wrf_home = os.environ['WRF_HOME']
-    except KeyError:
-        wrf_home = constants.DEFAULT_WRF_HOME
-
-# set wrf_config --> wrf_config Var (YAML format) > get_wrf_config(wrf_home)
-try:
-    wrf_config_dict = json.loads(str(Variable.get('wrf_config')))
-    print(wrf_config_dict)
-    wrf_config = wrf_exec.get_wrf_config(wrf_config_dict.pop('wrf_home'), **wrf_config_dict)
-except KeyError as e:
-    logging.info('Key Error: ' + str(e))
-    wrf_config = wrf_exec.get_wrf_config(wrf_home)
+wrf_config = dag_utils.set_initial_parameters()
 
 default_args = {
     'owner': 'curwsl admin',
@@ -53,17 +29,20 @@ dag = DAG(
     description='Running WRF instantaneously',
     schedule_interval=None)
 
-start = DummyOperator(
-    task_id='start',
+initialize_params = PythonOperator(
+    task_id='initialize-params',
+    python_callable=dag_utils.set_initial_parameters,
+    provide_context=True,
+    op_args=[],
     default_args=default_args,
     dag=dag,
 )
 
 gfs_data_download = SubDagOperator(
     task_id='gfs_download',
-    subdag=dag_utils.get_gfs_download_subdag(WRF_DAG_NAME, 'gfs_download', default_args, wrf_home, wrf_config),
+    subdag=dag_utils.get_gfs_download_subdag(WRF_DAG_NAME, 'gfs_download', default_args),
     default_args=default_args,
     dag=dag,
 )
-start.set_downstream(gfs_data_download)
+initialize_params.set_downstream(gfs_data_download)
 

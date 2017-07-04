@@ -217,20 +217,20 @@ def run_wrf(date, wrf_config):
     utils.move_files_with_prefix(utils.get_em_real_dir(wrf_home), 'wrfout_d*', utils.get_output_dir(wrf_home))
 
 
-def run_all(wrf_conf, start_date, end_date):
-    logging.info('Running WRF model from %s to %s' % (start_date.strftime('%Y-%m-%d'), end_date.strftime('%Y-%m-%d')))
-
-    logging.info('WRF conf\n %s' % wrf_conf.to_string())
-
-    dates = np.arange(start_date, end_date, dt.timedelta(days=1)).astype(dt.datetime)
-
-    for date in dates:
-        logging.info('Creating GFS context')
-        logging.info('Downloading GFS Data for %s period %d' % (date.strftime('%Y-%m-%d'), wrf_conf.get('period')))
-        download_gfs_data(date, wrf_conf)
-
-        logging.info('Running WRF %s period %d' % (date.strftime('%Y-%m-%d'), wrf_conf.get('period')))
-        run_wrf(date, wrf_conf)
+# def run_all(wrf_conf, start_date, end_date):
+#     logging.info('Running WRF model from %s to %s' % (start_date.strftime('%Y-%m-%d'), end_date.strftime('%Y-%m-%d')))
+#
+#     logging.info('WRF conf\n %s' % wrf_conf.to_string())
+#
+#     dates = np.arange(start_date, end_date, dt.timedelta(days=1)).astype(dt.datetime)
+#
+#     for date in dates:
+#         logging.info('Creating GFS context')
+#         logging.info('Downloading GFS Data for %s period %d' % (date.strftime('%Y-%m-%d'), wrf_conf.get('period')))
+#         download_gfs_data(date, wrf_conf)
+#
+#         logging.info('Running WRF %s period %d' % (date.strftime('%Y-%m-%d'), wrf_conf.get('period')))
+#         run_wrf(date, wrf_conf)
 
 
 class UnableToDownloadGfsData(Exception):
@@ -273,8 +273,11 @@ class WrfConfig:
     def to_string(self):
         return str(self.configs)
 
+    def to_json_string(self):
+        return json.dumps(self.configs)
 
-def get_wrf_config(wrf_home, config_file=None, **kwargs):
+
+def get_wrf_config(wrf_home, config_file=None, start_date=None, **kwargs):
     """
     precedence = kwargs > wrf_config.json > constants
     """
@@ -282,7 +285,9 @@ def get_wrf_config(wrf_home, config_file=None, **kwargs):
                 'nfs_dir': constants.DEFAULT_NFS_DIR,
                 'period': constants.DEFAULT_PERIOD,
                 'namelist_input': constants.DEFAULT_NAMELIST_INPUT_TEMPLATE,
+                # 'namelist_input_dict': constants.DEFAULT_NAMELIST_INPUT_TEMPLATE_DICT,
                 'namelist_wps': constants.DEFAULT_NAMELIST_WPS_TEMPLATE,
+                # 'namelist_wps_dict': constants.DEFAULT_NAMELIST_WPS_TEMPLATE_DICT,
                 'procs': constants.DEFAULT_PROCS,
                 'gfs_dir': utils.get_gfs_dir(constants.DEFAULT_WRF_HOME, False),
                 'gfs_clean': True,
@@ -293,6 +298,7 @@ def get_wrf_config(wrf_home, config_file=None, **kwargs):
                 'gfs_retries': constants.DEFAULT_RETRIES,
                 'gfs_step': constants.DEFAULT_STEP,
                 'gfs_url': constants.DEFAULT_GFS_DATA_URL,
+                'gfs_lag': constants.DEFAULT_GFS_LAG_HOURS,
                 'gfs_threads': constants.DEFAULT_THREAD_COUNT}
 
     conf = WrfConfig(defaults)
@@ -301,6 +307,9 @@ def get_wrf_config(wrf_home, config_file=None, **kwargs):
         with open(config_file, 'r') as f:
             conf_yaml = json.load(f)
             conf.set_all(conf_yaml['wrf_config'])
+
+    if start_date is not None:
+        conf.set('start_date', start_date.strftime('%Y-%m-%d_%H:%M'))
 
     for key in kwargs:
         conf.set(key, kwargs[key])

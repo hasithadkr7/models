@@ -16,11 +16,12 @@ def main():
 
     utils.set_logging_config(utils.get_logs_dir(wrf_home))
 
-    wrf_conf = executor.get_wrf_config(wrf_home, config_file=wrf_config_file, **args_dict)
+    # wrf_conf = executor.get_wrf_config(wrf_home, config_file=wrf_config_file, **args_dict)
 
-    executor.run_all(wrf_conf, start_date, end_date)
+    # executor.run_all(wrf_conf, start_date, end_date)
+    #
+    # extractor.extract_all(wrf_home, start_date, end_date)
 
-    extractor.extract_all(wrf_home, start_date, end_date)
 
 if __name__ == "__main__":
     main()

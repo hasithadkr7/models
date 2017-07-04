@@ -6,6 +6,7 @@ import ntpath
 import os
 
 import shutil
+import datetime as dt
 from curwrf.wrf import utils
 from curwrf.wrf.execution import executor
 
@@ -25,11 +26,11 @@ def download_single_inventory_task(url, dest):
 
 def download_i_th_inventory(i, wrf_config, **kwargs):
     logging.info('Downloading %d inventory' % i)
-    if kwargs is not None:
-        execution_date = kwargs['execution_date']
+    try:
+        execution_date = dt.datetime.strptime(wrf_config.get('start_date'), '%Y-%m-%d_%H:%M')
         logging.info('Execution date %s' % str(execution_date))
-    else:
-        raise DownloadSingleInventoryTaskException('kwargs is not provided')
+    except KeyError:
+        raise DownloadSingleInventoryTaskException('start_date not available in wrf_config')
 
     url, dest = utils.get_gfs_data_url_dest_tuple(wrf_config.get('gfs_url'),
                                                   wrf_config.get('gfs_inv'),
