@@ -3,6 +3,7 @@
   "wrf_config": {
     "wrf_home": "/mnt/disks/wrf-mod/",
     "gfs_dir": "/mnt/disks/wrf-mod/DATA/GFS",
+    "geog_dir": "/mnt/disks/wrf-mod/DATA/geog",
     "nfs_dir": "/mnt/disks/wrf-mod/DATA/nfs",
     "period": 3,
     "namelist_input": "namelist.input",

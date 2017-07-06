@@ -24,25 +24,15 @@ def download_single_inventory_task(url, dest):
     executor.download_single_inventory(url, dest, retries=1, delay=0)
 
 
-def download_i_th_inventory(i, wrf_config, **kwargs):
+def download_i_th_inventory(i, gfs_url, gfs_inv, gfs_date, gfs_cycle, gfs_res, gfs_dir, nfs_dir):
     logging.info('Downloading %d inventory' % i)
-    try:
-        execution_date = dt.datetime.strptime(wrf_config.get('start_date'), '%Y-%m-%d_%H:%M')
-        logging.info('Execution date %s' % str(execution_date))
-    except KeyError:
-        raise DownloadSingleInventoryTaskException('start_date not available in wrf_config')
 
-    url, dest = utils.get_gfs_data_url_dest_tuple(wrf_config.get('gfs_url'),
-                                                  wrf_config.get('gfs_inv'),
-                                                  execution_date.strftime('%Y%m%d'),
-                                                  wrf_config.get('gfs_cycle'),
-                                                  str(i).zfill(3),
-                                                  wrf_config.get('gfs_res'),
-                                                  wrf_config.get('gfs_dir'))
-    dest_nfs = os.path.join(utils.get_nfs_gfs_dir(wrf_config.get('nfs_dir')), ntpath.basename(dest))
+    url, dest = utils.get_gfs_data_url_dest_tuple(gfs_url, gfs_inv, gfs_date, gfs_cycle, str(i).zfill(3), gfs_res,
+                                                  gfs_dir)
+    dest_nfs = os.path.join(utils.get_nfs_gfs_dir(nfs_dir), ntpath.basename(dest))
     logging.info('URL %s, dest %s, nfs_des %s' % (url, dest, dest_nfs))
 
-    if os.path.exists(dest_nfs) and os.path.isfile(dest_nfs):
+    if os.path.exists(dest_nfs) and os.path.isfile(dest_nfs) and os.stat(dest_nfs).st_size != 0:
         logging.info("File available in NFS. Copying to the GFS dir from NFS")
         shutil.copyfile(dest_nfs, dest)
     else:

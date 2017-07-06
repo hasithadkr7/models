@@ -140,22 +140,15 @@ def run_wps(wrf_home, start_date):
     utils.run_subprocess('./metgrid.exe', cwd=wps_dir)
 
 
-def replace_namelist_wps(wrf_config, start_date, end_date):
+def replace_namelist_wps(wrf_config, start_date=None, end_date=None):
     logging.info('Replacing namelist.wps...')
     if os.path.exists(wrf_config.get('namelist_wps')):
-        wps = wrf_config.get('namelist_wps')
+        f = wrf_config.get('namelist_wps')
     else:
-        wps = res_mgr.get_resource_path(os.path.join('execution', constants.DEFAULT_NAMELIST_WPS_TEMPLATE))
-    d = {
-        'YYYY1': start_date.strftime('%Y'),
-        'MM1': start_date.strftime('%m'),
-        'DD1': start_date.strftime('%d'),
-        'YYYY2': end_date.strftime('%Y'),
-        'MM2': end_date.strftime('%m'),
-        'DD2': end_date.strftime('%d'),
-        'GEOG': utils.get_geog_dir(wrf_config.get('wrf_home'))
-    }
-    utils.replace_file_with_values(wps, os.path.join(utils.get_wps_dir(wrf_config.get('wrf_home')), 'namelist.wps'), d)
+        f = res_mgr.get_resource_path(os.path.join('execution', constants.DEFAULT_NAMELIST_WPS_TEMPLATE))
+
+    dest = os.path.join(utils.get_wps_dir(wrf_config.get('wrf_home')), 'namelist.wps')
+    replace_file_with_values(wrf_config, f, dest, 'namelist_wps_dict', start_date, end_date)
 
 
 def replace_namelist_input(wrf_config, start_date, end_date):
@@ -164,6 +157,18 @@ def replace_namelist_input(wrf_config, start_date, end_date):
         f = wrf_config.get('namelist_input')
     else:
         f = res_mgr.get_resource_path(os.path.join('execution', constants.DEFAULT_NAMELIST_INPUT_TEMPLATE))
+
+    dest = os.path.join(utils.get_em_real_dir(wrf_config.get('wrf_home')), 'namelist.input')
+    replace_file_with_values(wrf_config, f, dest, 'namelist_input_dict', start_date, end_date)
+
+
+def replace_file_with_values(wrf_config, src, dest, aux_dict, start_date=None, end_date=None):
+    if start_date is None:
+        start_date = dt.datetime.strptime(wrf_config.get('start_date'), '%Y-%m-%d_%H:%M')
+
+    if end_date is None:
+        end_date = start_date + dt.timedelta(days=wrf_config.get('period'))
+
     d = {
         'YYYY1': start_date.strftime('%Y'),
         'MM1': start_date.strftime('%m'),
@@ -171,9 +176,16 @@ def replace_namelist_input(wrf_config, start_date, end_date):
         'YYYY2': end_date.strftime('%Y'),
         'MM2': end_date.strftime('%m'),
         'DD2': end_date.strftime('%d'),
+        'GEOG': wrf_config.get('geog_dir')
     }
-    utils.replace_file_with_values(f, os.path.join(utils.get_em_real_dir(wrf_config.get('wrf_home')), 'namelist.input'),
-                                   d)
+
+    if aux_dict and wrf_config.is_set(aux_dict):
+        d = d.update(wrf_config.get(aux_dict))
+
+    utils.replace_file_with_values(src, dest, d)
+
+
+
 
 
 def run_em_real(wrf_home, start_date, procs):
@@ -276,20 +288,44 @@ class WrfConfig:
     def to_json_string(self):
         return json.dumps(self.configs)
 
+    def is_set(self, key):
+        return key in self.configs
+
+    def __str__(self):
+        return str(self.configs)
+
 
 def get_wrf_config(wrf_home, config_file=None, start_date=None, **kwargs):
     """
     precedence = kwargs > wrf_config.json > constants
     """
-    defaults = {'wrf_home': constants.DEFAULT_WRF_HOME,
-                'nfs_dir': constants.DEFAULT_NFS_DIR,
+    conf = get_default_wrf_config(wrf_home)
+
+    if config_file is not None and os.path.exists(config_file):
+        with open(config_file, 'r') as f:
+            conf_json = json.load(f)
+            conf.set_all(conf_json['wrf_config'])
+
+    if start_date is not None:
+            conf.set('start_date', start_date)
+
+    for key in kwargs:
+        conf.set(key, kwargs[key])
+
+    return conf
+
+
+def get_default_wrf_config(wrf_home=constants.DEFAULT_WRF_HOME):
+    defaults = {'wrf_home': wrf_home,
+                'nfs_dir': utils.get_nfs_dir(wrf_home),
+                'geog_dir': utils.get_geog_dir(wrf_home),
+                'gfs_dir': utils.get_gfs_dir(constants.DEFAULT_WRF_HOME, False),
                 'period': constants.DEFAULT_PERIOD,
                 'namelist_input': constants.DEFAULT_NAMELIST_INPUT_TEMPLATE,
                 # 'namelist_input_dict': constants.DEFAULT_NAMELIST_INPUT_TEMPLATE_DICT,
                 'namelist_wps': constants.DEFAULT_NAMELIST_WPS_TEMPLATE,
                 # 'namelist_wps_dict': constants.DEFAULT_NAMELIST_WPS_TEMPLATE_DICT,
                 'procs': constants.DEFAULT_PROCS,
-                'gfs_dir': utils.get_gfs_dir(constants.DEFAULT_WRF_HOME, False),
                 'gfs_clean': True,
                 'gfs_cycle': constants.DEFAULT_CYCLE,
                 'gfs_delay': constants.DEFAULT_DELAY_S,
@@ -301,23 +337,7 @@ def get_wrf_config(wrf_home, config_file=None, start_date=None, **kwargs):
                 'gfs_lag': constants.DEFAULT_GFS_LAG_HOURS,
                 'gfs_threads': constants.DEFAULT_THREAD_COUNT}
 
-    conf = WrfConfig(defaults)
-
-    if config_file is not None and os.path.exists(config_file):
-        with open(config_file, 'r') as f:
-            conf_yaml = json.load(f)
-            conf.set_all(conf_yaml['wrf_config'])
-
-    if start_date is not None:
-        conf.set('start_date', start_date.strftime('%Y-%m-%d_%H:%M'))
-
-    for key in kwargs:
-        conf.set(key, kwargs[key])
-
-    conf.set('wrf_home', wrf_home)
-    conf.set('gfs_dir', utils.get_gfs_dir(wrf_home))
-
-    return conf
+    return WrfConfig(defaults)
 
 
 if __name__ == "__main__":

@@ -6,6 +6,7 @@ from airflow.operators.python_operator import PythonOperator
 from airflow.operators.subdag_operator import SubDagOperator
 
 from curwrf.workflow.airflow.dags import utils as dag_utils
+from curwrf.wrf.execution.tasks import run_wps
 
 WRF_DAG_NAME = 'wrf_run'
 
@@ -44,5 +45,77 @@ gfs_data_download = SubDagOperator(
     default_args=default_args,
     dag=dag,
 )
-initialize_params.set_downstream(gfs_data_download)
 
+pre_wps = PythonOperator(
+    task_id='pre_wps',
+    python_callable=run_wps.preprocess,
+    provide_context=True,
+    op_args=[],
+    default_args=default_args,
+    dag=dag,
+)
+
+pre_ungrib = PythonOperator(
+    task_id='pre_ungrib',
+    python_callable=run_wps.pre_ungrib,
+    provide_context=True,
+    op_args=[],
+    default_args=default_args,
+    dag=dag,
+)
+
+ungrib = PythonOperator(
+    task_id='ungrib',
+    python_callable=run_wps.ungrib,
+    provide_context=True,
+    op_args=[],
+    default_args=default_args,
+    dag=dag,
+)
+
+pre_geogrid = PythonOperator(
+    task_id='pre_geogrid',
+    python_callable=run_wps.pre_geogrid,
+    provide_context=True,
+    op_args=[],
+    default_args=default_args,
+    dag=dag,
+)
+
+geogrid = PythonOperator(
+    task_id='geogrid',
+    python_callable=run_wps.geogrid,
+    provide_context=True,
+    op_args=[],
+    default_args=default_args,
+    dag=dag,
+)
+
+pre_metgrid = PythonOperator(
+    task_id='pre_metgrid',
+    python_callable=run_wps.pre_metgrid,
+    provide_context=True,
+    op_args=[],
+    default_args=default_args,
+    dag=dag,
+)
+
+metgrid = PythonOperator(
+    task_id='metgrid',
+    python_callable=run_wps.metgrid,
+    provide_context=True,
+    op_args=[],
+    default_args=default_args,
+    dag=dag,
+)
+
+initialize_params >> [pre_wps, gfs_data_download]
+
+pre_wps >> pre_geogrid >> geogrid
+
+pre_ungrib << [gfs_data_download, pre_wps]
+pre_ungrib >> ungrib
+
+pre_metgrid << [geogrid, ungrib]
+
+pre_metgrid >> metgrid

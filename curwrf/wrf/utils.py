@@ -117,6 +117,10 @@ def get_nfs_gfs_dir(nfs_home=constants.DEFAULT_NFS_DIR, create_dir=True):
         return os.path.join(nfs_home, 'data', 'gfs')
 
 
+def get_nfs_dir(wrf_home=constants.DEFAULT_WRF_HOME):
+    return os.path.join(wrf_home, 'DATA', 'nfs')
+
+
 def get_gfs_dir(wrf_home=constants.DEFAULT_WRF_HOME, create_dir=True):
     if create_dir:
         return create_dir_if_not_exists(os.path.join(wrf_home, 'DATA', 'GFS'))
@@ -308,6 +312,16 @@ def download_file(url, dest):
 
 def download_parallel(url_dest_list, procs=multiprocessing.cpu_count()):
     Parallel(n_jobs=procs)(delayed(download_file)(i[0], i[1]) for i in url_dest_list)
+
+
+def get_appropriate_gfs_inventory(wrf_config):
+    st = dt.datetime.strptime(wrf_config.get('start_date'), '%Y-%m-%d_%H:%M')
+    floor_val = datetime_floor(st - dt.timedelta(hours=wrf_config.get('gfs_lag')), 6 * 3600)
+    gfs_date = floor_val.strftime('%Y%m%d')
+    gfs_cycle = str(floor_val.hour).zfill(2)
+    start_inv = math.floor((st - floor_val).seconds / 3600 / wrf_config.get('gfs_step')) * wrf_config.get('gfs_step')
+
+    return gfs_date, gfs_cycle, start_inv
 
 
 # def namedtuple_with_defaults(typename, field_names, default_values=()):
