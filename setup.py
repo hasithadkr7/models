@@ -5,7 +5,7 @@ setup(
     version='1.0.0',
     packages=['curwrf', 'curwrf.wrf', 'curwrf.wrf.execution', 'curwrf.wrf.resources', 'curwrf.wrf.extraction',
               'curwrf.realtime', 'curwrf.workflow', 'curwrf.workflow.airflow', 'curwrf.workflow.airflow.dags',
-              'curwrf.wrf.execution.tasks'],
+              'curwrf.workflow.airflow.extensions', 'curwrf.wrf.execution.tasks'],
     url='',
     license='Apache 2.0',
     author='niranda perera',
