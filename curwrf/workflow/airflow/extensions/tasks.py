@@ -135,6 +135,9 @@ class Real(WrfTask):
     def pre_process(self, *args, **kwargs):
         wrf_home = self.get_config(**kwargs).get('wrf_home')
 
+        logging.info('Replacing namelist.input place-holders')
+        executor.replace_namelist_input(self.get_config(**kwargs))
+
         logging.info('Running em_real...')
         em_real_dir = utils.get_em_real_dir(wrf_home)
 
@@ -166,6 +169,9 @@ class Wrf(WrfTask):
         wrf_home = self.get_config(**kwargs).get('wrf_home')
         em_real_dir = utils.get_em_real_dir(wrf_home)
         procs = self.get_config(**kwargs).get('procs')
+
+        logging.info('Replacing namelist.input place-holders')
+        executor.replace_namelist_input(self.get_config(**kwargs))
 
         utils.run_subprocess('mpirun -np %d ./wrf.exe' % procs, cwd=em_real_dir)
 
