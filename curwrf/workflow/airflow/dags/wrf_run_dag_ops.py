@@ -71,8 +71,28 @@ metgrid = CurwPythonOperator(
     dag=dag,
 )
 
+real = CurwPythonOperator(
+    task_id='real',
+    curw_task=tasks.Real,
+    provide_context=True,
+    default_args=default_args,
+    dag=dag,
+)
+
+
+wrf = CurwPythonOperator(
+    task_id='real',
+    curw_task=tasks.Wrf,
+    provide_context=True,
+    default_args=default_args,
+    dag=dag,
+)
+
+
 initialize_params >> [gfs_data_download, geogrid, ungrib]
 
 gfs_data_download >> ungrib
 
 metgrid << [geogrid, ungrib]
+
+metgrid >> real >> wrf

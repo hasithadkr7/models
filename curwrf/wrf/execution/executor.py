@@ -151,7 +151,7 @@ def replace_namelist_wps(wrf_config, start_date=None, end_date=None):
     replace_file_with_values(wrf_config, f, dest, 'namelist_wps_dict', start_date, end_date)
 
 
-def replace_namelist_input(wrf_config, start_date, end_date):
+def replace_namelist_input(wrf_config, start_date=None, end_date=None):
     logging.info('Replacing namelist.input ...')
     if os.path.exists(wrf_config.get('namelist_input')):
         f = wrf_config.get('namelist_input')
@@ -183,9 +183,6 @@ def replace_file_with_values(wrf_config, src, dest, aux_dict, start_date=None, e
         d = d.update(wrf_config.get(aux_dict))
 
     utils.replace_file_with_values(src, dest, d)
-
-
-
 
 
 def run_em_real(wrf_home, start_date, procs):

@@ -48,9 +48,6 @@ class WrfTask(CurwTask):
 
 
 class Ungrib(WrfTask):
-    def __init__(self):
-        super(Ungrib, self).__init__()
-
     def pre_process(self, *args, **kwargs):
         logging.info('Running preprocessing for ungrib...')
 
@@ -132,6 +129,53 @@ class Geogrid(WrfTask):
             utils.run_subprocess('./geogrid.exe', cwd=wps_dir)
         else:
             logging.info('Geogrid output already available')
+
+
+class Real(WrfTask):
+    def pre_process(self, *args, **kwargs):
+        wrf_home = self.get_config(**kwargs).get('wrf_home')
+
+        logging.info('Running em_real...')
+        em_real_dir = utils.get_em_real_dir(wrf_home)
+
+        logging.info('Cleaning up files')
+        utils.delete_files_with_prefix(em_real_dir, 'met_em*')
+        utils.delete_files_with_prefix(em_real_dir, 'rsl*')
+
+        # Linking met_em.*
+        logging.info('Creating met_em.d* symlinks')
+        utils.create_symlink_with_prefix(utils.get_wps_dir(wrf_home), 'met_em.d*', em_real_dir)
+
+    def process(self, *args, **kwargs):
+        wrf_home = self.get_config(**kwargs).get('wrf_home')
+        em_real_dir = utils.get_em_real_dir(wrf_home)
+        procs = self.get_config(**kwargs).get('procs')
+        utils.run_subprocess('mpirun -np %d ./wrf.exe' % procs, cwd=em_real_dir)
+
+    def post_process(self, *args, **kwargs):
+        wrf_home = self.get_config(**kwargs).get('wrf_home')
+        start_date = self.get_config(**kwargs).get('start_date')
+        em_real_dir = utils.get_em_real_dir(wrf_home)
+
+        utils.move_files_with_prefix(em_real_dir, 'rsl*', os.path.join(utils.get_logs_dir(wrf_home),
+                                                                       'rsl-real-%s' % start_date))
+
+
+class Wrf(WrfTask):
+    def process(self, *args, **kwargs):
+        wrf_home = self.get_config(**kwargs).get('wrf_home')
+        em_real_dir = utils.get_em_real_dir(wrf_home)
+        procs = self.get_config(**kwargs).get('procs')
+
+        utils.run_subprocess('mpirun -np %d ./wrf.exe' % procs, cwd=em_real_dir)
+
+    def post_process(self, *args, **kwargs):
+        wrf_home = self.get_config(**kwargs).get('wrf_home')
+        em_real_dir = utils.get_em_real_dir(wrf_home)
+        start_date = self.get_config(**kwargs).get('start_date')
+
+        utils.move_files_with_prefix(em_real_dir, 'rsl*',
+                                     os.path.join(utils.get_logs_dir(wrf_home), 'rsl-wrf-%s' % start_date))
 
 
 class CurwAriflowTasksException(Exception):
