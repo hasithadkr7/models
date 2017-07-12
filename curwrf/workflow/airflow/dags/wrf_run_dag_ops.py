@@ -81,7 +81,7 @@ real = CurwPythonOperator(
 
 
 wrf = CurwPythonOperator(
-    task_id='real',
+    task_id='wrf',
     curw_task=tasks.Wrf,
     provide_context=True,
     default_args=default_args,
