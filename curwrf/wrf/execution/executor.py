@@ -173,9 +173,13 @@ def replace_file_with_values(wrf_config, src, dest, aux_dict, start_date=None, e
         'YYYY1': start_date.strftime('%Y'),
         'MM1': start_date.strftime('%m'),
         'DD1': start_date.strftime('%d'),
+        'hh1': start_date.strftime('%H'),
+        'mm1': start_date.strftime('%M'),
         'YYYY2': end_date.strftime('%Y'),
         'MM2': end_date.strftime('%m'),
         'DD2': end_date.strftime('%d'),
+        'hh2': end_date.strftime('%H'),
+        'mm2': end_date.strftime('%M'),
         'GEOG': wrf_config.get('geog_dir')
     }
 
