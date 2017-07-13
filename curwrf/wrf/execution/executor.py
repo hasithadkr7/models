@@ -164,7 +164,8 @@ def replace_namelist_input(wrf_config, start_date=None, end_date=None):
 
 def replace_file_with_values(wrf_config, src, dest, aux_dict, start_date=None, end_date=None):
     if start_date is None:
-        start_date = dt.datetime.strptime(wrf_config.get('start_date'), '%Y-%m-%d_%H:%M')
+        start_date = utils.datetime_floor(dt.datetime.strptime(wrf_config.get('start_date'), '%Y-%m-%d_%H:%M'),
+                                          wrf_config.get('gfs_step') * 3600)
 
     if end_date is None:
         end_date = start_date + dt.timedelta(days=wrf_config.get('period'))
@@ -308,7 +309,7 @@ def get_wrf_config(wrf_home, config_file=None, start_date=None, **kwargs):
             conf.set_all(conf_json['wrf_config'])
 
     if start_date is not None:
-            conf.set('start_date', start_date)
+        conf.set('start_date', start_date)
 
     for key in kwargs:
         conf.set(key, kwargs[key])
