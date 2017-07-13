@@ -218,7 +218,7 @@ def create_symlink_with_prefix(src_dir, prefix, dest_dir):
 
 
 def run_subprocess(cmd, cwd=None):
-    logging.info('Running subprocess %s' % cmd)
+    logging.info('Running subprocess %s cwd %s' % (cmd, cwd))
     start_t = time.time()
     output = ''
     try:

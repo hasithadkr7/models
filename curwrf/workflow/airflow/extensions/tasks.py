@@ -153,7 +153,7 @@ class Real(WrfTask):
         wrf_home = self.get_config(**kwargs).get('wrf_home')
         em_real_dir = utils.get_em_real_dir(wrf_home)
         procs = self.get_config(**kwargs).get('procs')
-        utils.run_subprocess('mpirun -np %d ./wrf.exe' % procs, cwd=em_real_dir)
+        utils.run_subprocess('mpirun -np %d ./real.exe' % procs, cwd=em_real_dir)
 
     def post_process(self, *args, **kwargs):
         wrf_home = self.get_config(**kwargs).get('wrf_home')
