@@ -217,7 +217,7 @@ def create_symlink_with_prefix(src_dir, prefix, dest_dir):
         os.symlink(filename, os.path.join(dest_dir, ntpath.basename(filename)))
 
 
-def run_subprocess(cmd, cwd=None):
+def run_subprocess(cmd, cwd=None, print_stdout=False):
     logging.info('Running subprocess %s cwd %s' % (cmd, cwd))
     start_t = time.time()
     output = ''
@@ -230,7 +230,8 @@ def run_subprocess(cmd, cwd=None):
     finally:
         elapsed_t = time.time() - start_t
         logging.info('Subprocess %s finished in %f s' % (cmd, elapsed_t))
-        logging.info('stdout and stderr of %s\n%s' % (cmd, output))
+        if print_stdout:
+            logging.info('stdout and stderr of %s\n%s' % (cmd, output))
     return output
 
 
