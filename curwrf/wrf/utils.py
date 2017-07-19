@@ -10,12 +10,19 @@ import shlex
 import shutil
 import subprocess
 import time
+
+import multiprocessing
+from urllib2 import urlopen, HTTPError, URLError
+
+import math
 import pkg_resources
 import yaml
 import errno
 import signal
 
 from functools import wraps
+
+from joblib import Parallel, delayed
 from shapely.geometry import Point, shape
 
 from curwrf.wrf import constants
@@ -210,6 +217,7 @@ def timeout(seconds=600, error_message=os.strerror(errno.ETIME)):
     source: https://stackoverflow.com/questions/2281850/timeout-function-if-it-takes-too-long-to-finish
     errno.ETIME Timer expired
     """
+
     def decorator(func):
         def _handle_timeout(signum, frame):
             raise TimeoutError(error_message, seconds)
@@ -226,6 +234,59 @@ def timeout(seconds=600, error_message=os.strerror(errno.ETIME)):
         return wraps(func)(wrapper)
 
     return decorator
+
+
+def datetime_to_epoch(timestamp=None):
+    timestamp = dt.datetime.now() if timestamp is None else timestamp
+    return (timestamp - dt.datetime(1970, 1, 1)).total_seconds()
+
+
+def epoch_to_datetime(epoch_time):
+    return dt.datetime(1970, 1, 1) + dt.timedelta(seconds=epoch_time)
+
+
+def datetime_floor(timestamp, floor_sec):
+    return epoch_to_datetime(math.floor(datetime_to_epoch(timestamp) / floor_sec) * floor_sec)
+
+
+def datetime_lk_to_utc(timestamp_lk):
+    return timestamp_lk - dt.timedelta(hours=5, minutes=30)
+
+
+def datetime_utc_to_lk(timestamp_utc):
+    return timestamp_utc + dt.timedelta(hours=5, minutes=30)
+
+
+def download_file(url, dest, overwrite=False):
+    try:
+        f = urlopen(url)
+        logging.info("Downloading %s to %s" % (url, dest))
+        if not overwrite and os.path.exists(dest) and os.stat(dest).st_size != 0:
+            logging.info('File already exists. Skipping download!')
+            return
+        else:
+            with open(dest, "wb") as local_file:
+                local_file.write(f.read())
+    except HTTPError as e:
+        logging.error("HTTP Error:", e.code, url)
+        raise e
+    except URLError as e:
+        logging.error("URL Error:", e.reason, url)
+        raise e
+
+
+def download_parallel(url_dest_list, procs=multiprocessing.cpu_count()):
+    Parallel(n_jobs=procs)(delayed(download_file)(i[0], i[1]) for i in url_dest_list)
+
+
+def get_appropriate_gfs_inventory(wrf_config):
+    st = dt.datetime.strptime(wrf_config.get('start_date'), '%Y-%m-%d_%H:%M')
+    floor_val = datetime_floor(st - dt.timedelta(hours=wrf_config.get('gfs_lag')), 6 * 3600)
+    gfs_date = floor_val.strftime('%Y%m%d')
+    gfs_cycle = str(floor_val.hour).zfill(2)
+    start_inv = math.floor((st - floor_val).seconds / 3600 / wrf_config.get('gfs_step')) * wrf_config.get('gfs_step')
+
+    return gfs_date, gfs_cycle, start_inv
 
 
 # def namedtuple_with_defaults(typename, field_names, default_values=()):
