@@ -257,11 +257,15 @@ def datetime_utc_to_lk(timestamp_utc):
     return timestamp_utc + dt.timedelta(hours=5, minutes=30)
 
 
+def file_exists_nonempty(filename):
+    return os.path.exists(filename) and os.stat(filename).st_size != 0
+
+
 def download_file(url, dest, overwrite=False):
     try:
         f = urlopen(url)
         logging.info("Downloading %s to %s" % (url, dest))
-        if not overwrite and os.path.exists(dest) and os.stat(dest).st_size != 0:
+        if not overwrite and file_exists_nonempty(dest):
             logging.info('File already exists. Skipping download!')
             return
         else:

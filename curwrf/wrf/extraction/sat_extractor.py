@@ -13,7 +13,7 @@ from joblib import Parallel, delayed
 from mpl_toolkits.basemap import Basemap, cm
 
 
-def extract_jaxa_satellite_data(start_ts_utc, end_ts_utc, output_dir):
+def extract_jaxa_satellite_data(start_ts_utc, end_ts_utc, output_dir, cleanup=True):
     start = utils.datetime_floor(start_ts_utc, 3600)
     end = utils.datetime_floor(end_ts_utc, 3600)
 
@@ -48,45 +48,71 @@ def extract_jaxa_satellite_data(start_ts_utc, end_ts_utc, output_dir):
         url_dest_list.append((url, os.path.join(tmp_dir, os.path.basename(url)),
                               os.path.join(output_dir, 'jaxa_sat_rf_' + timestamp.strftime('%Y-%m-%d_%H:%M') + '.asc')))
 
-    utils.download_parallel(url_dest_list)
+    procs = multiprocessing.cpu_count()
 
-    procs = multiprocessing.cpu_count() * 2
+    logging.info('Downloading inventory in parallel')
+    utils.download_parallel(url_dest_list, procs)
+    logging.info('Downloading inventory complete')
+
+    logging.info('Processing files in parallel')
     Parallel(n_jobs=procs)(
-        delayed(process_zip_file)(i[1], i[2], lat_min, lon_min, lat_max, lon_max) for i in url_dest_list)
+        delayed(process_jaxa_zip_file)(i[1], i[2], lat_min, lon_min, lat_max, lon_max, True) for i in url_dest_list)
+    logging.info('Processing files complete')
+
+    logging.info('Processing cumulative')
+    total = None
+    for url_dest in url_dest_list:
+        if total is None:
+            total = np.genfromtxt(url_dest[2] + '.archive', dtype=float)
+        else:
+            total += np.genfromtxt(url_dest[2] + '.archive', dtype=float)
+    from_to = '%s-%s' % (start_ts_utc.strftime('%Y-%m-%d_%H:%M'), end_ts_utc.strftime('%Y-%m-%d_%H:%M'))
+    cum_filename = os.path.join(output_dir, 'jaxa_sat_cum_rf_' + from_to + '.png')
+    title = 'Cumulative rainfall ' + from_to
+    clevs = np.concatenate(([-1, 0], np.array([pow(2, i) for i in range(0, 9)])))
+    create_contour_plot(total, cum_filename, lat_min, lon_min, lat_max, lon_max, title, clevs=clevs, cmap=cm.s3pcpn)
+    logging.info('Processing cumulative complete')
 
     # clean up temp dir
-    shutil.rmtree(tmp_dir)
+    if cleanup:
+        shutil.rmtree(tmp_dir)
 
 
-def process_zip_file(zip_file_path, out_file_path, lat_min, lon_min, lat_max, lon_max):
-    sat_zip = zipfile.ZipFile(zip_file_path)
-    sat = np.genfromtxt(sat_zip.open(os.path.basename(zip_file_path).replace('.zip', '')), delimiter=',', names=True)
-    sat_filt = sat[
-        (sat['Lat'] <= lat_max) & (sat['Lat'] >= lat_min) & (sat['Lon'] <= lon_max) & (sat['Lon'] >= lon_min)]
-    lats = np.sort(np.unique(sat_filt['Lat']))
-    lons = np.sort(np.unique(sat_filt['Lon']))
+def process_jaxa_zip_file(zip_file_path, out_file_path, lat_min, lon_min, lat_max, lon_max, archive_data=False):
+    if not utils.file_exists_nonempty(out_file_path):
+        sat_zip = zipfile.ZipFile(zip_file_path)
+        sat = np.genfromtxt(sat_zip.open(os.path.basename(zip_file_path).replace('.zip', '')), delimiter=',',
+                            names=True)
+        sat_filt = sat[
+            (sat['Lat'] <= lat_max) & (sat['Lat'] >= lat_min) & (sat['Lon'] <= lon_max) & (sat['Lon'] >= lon_min)]
+        lats = np.sort(np.unique(sat_filt['Lat']))
+        lons = np.sort(np.unique(sat_filt['Lon']))
 
-    cell_size = 0.1
-    no_data_val = -99
-    out_file = open(out_file_path, 'w')
-    out_file.write('NCOLS %d\n' % len(lons))
-    out_file.write('NROWS %d\n' % len(lats))
-    out_file.write('XLLCORNER %f\n' % lons[0])
-    out_file.write('YLLCORNER %f\n' % lats[0])
-    out_file.write('CELLSIZE %f\n' % cell_size)
-    out_file.write('NODATA_VALUE %d\n' % no_data_val)
+        cell_size = 0.1
+        no_data_val = -99
+        with open(out_file_path, 'w') as out_file:
+            out_file.write('NCOLS %d\n' % len(lons))
+            out_file.write('NROWS %d\n' % len(lats))
+            out_file.write('XLLCORNER %f\n' % lons[0])
+            out_file.write('YLLCORNER %f\n' % lats[0])
+            out_file.write('CELLSIZE %f\n' % cell_size)
+            out_file.write('NODATA_VALUE %d\n' % no_data_val)
 
-    for lat in np.flip(lats, 0):
-        for lon in lons:
-            out_file.write(str(sat[(sat['Lat'] == lat) & (sat['Lon'] == lon)][0][2]) + ' ')
-        out_file.write('\n')
+            for lat in np.flip(lats, 0):
+                for lon in lons:
+                    out_file.write(str(sat[(sat['Lat'] == lat) & (sat['Lon'] == lon)][0][2]) + ' ')
+                out_file.write('\n')
 
-    out_file.close()
+        data = np.sort(sat_filt, order=['Lat', 'Lon'])['RainRate'].reshape(len(lats), len(lons))
+        clevs = np.concatenate(([-1, 0], np.array([pow(2, i) for i in range(0, 9)])))
+        title = 'Hourly rainfall ' + os.path.basename(out_file_path).replace('jaxa_sat_rf_', '').replace('.asc', '')
+        create_contour_plot(data, out_file_path + '.png', lat_min, lon_min, lat_max, lon_max, title, clevs=clevs,
+                            cmap=cm.s3pcpn)
 
-    data = np.sort(sat_filt, order=['Lat', 'Lon'])['RainRate'].reshape(len(lats), len(lons))
-    clevs = np.concatenate(([-1, 0], np.array([pow(2, i) for i in range(0, 9)])))
-    create_contour_plot(data, out_file_path + '.png', lat_min, lon_min, lat_max, lon_max, out_file_path, clevs=clevs,
-                        cmap=cm.s3pcpn)
+        if archive_data:
+            np.savetxt(out_file_path + '.archive', data, fmt='%g')
+    else:
+        logging.info('%s already exits' % out_file_path)
 
 
 def create_contour_plot(data, out_file_path, lat_min, lon_min, lat_max, lon_max, plot_title, basemap=None, clevs=None,
@@ -144,6 +170,7 @@ if __name__ == "__main__":
     parser.add_argument('-end', default=(dt.datetime.utcnow() - dt.timedelta(hours=1)).strftime('%Y-%m-%d_%H:%M'),
                         help='End timestamp UTC with format %%Y-%%m-%%d_%%H:%%M', dest='end_ts')
     parser.add_argument('-output', default=None, help='Output directory of the images', dest='output')
+    parser.add_argument('-clean', default=0, help='Cleanup temp directory', dest='clean')
     args = parser.parse_args()
 
     if args.output is None:
@@ -153,4 +180,4 @@ if __name__ == "__main__":
 
     extract_jaxa_satellite_data(dt.datetime.strptime(args.start_ts, '%Y-%m-%d_%H:%M'),
                                 dt.datetime.strptime(args.end_ts, '%Y-%m-%d_%H:%M'),
-                                output)
+                                output, bool(int(args.clean)))
