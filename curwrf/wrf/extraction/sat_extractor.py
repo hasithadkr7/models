@@ -187,7 +187,7 @@ if __name__ == "__main__":
     parser.add_argument('-end', default=(dt.datetime.utcnow() - dt.timedelta(hours=1)).strftime('%Y-%m-%d_%H:%M'),
                         help='End timestamp UTC with format %%Y-%%m-%%d_%%H:%%M', dest='end_ts')
     parser.add_argument('-output', default=None, help='Output directory of the images', dest='output')
-    parser.add_argument('-clean', default=0, help='Cleanup temp directory', dest='clean')
+    parser.add_argument('-clean', default=0, help='Cleanup temp directory', dest='clean', type=int)
     args = parser.parse_args()
 
     if args.output is None:
@@ -197,4 +197,4 @@ if __name__ == "__main__":
 
     extract_jaxa_satellite_data(dt.datetime.strptime(args.start_ts, '%Y-%m-%d_%H:%M'),
                                 dt.datetime.strptime(args.end_ts, '%Y-%m-%d_%H:%M'),
-                                output, bool(int(args.clean)))
+                                output, bool(args.clean))
