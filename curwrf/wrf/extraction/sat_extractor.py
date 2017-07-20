@@ -6,6 +6,9 @@ import multiprocessing
 import os
 import shutil
 import zipfile
+import matplotlib
+
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
 from curwrf.wrf import utils
@@ -60,34 +63,46 @@ def extract_jaxa_satellite_data(start_ts_utc, end_ts_utc, output_dir, cleanup=Tr
     logging.info('Processing files complete')
 
     logging.info('Processing cumulative')
-    total = None
-    for url_dest in url_dest_list:
-        if total is None:
-            total = np.genfromtxt(url_dest[2] + '.archive', dtype=float)
-        else:
-            total += np.genfromtxt(url_dest[2] + '.archive', dtype=float)
-    from_to = '%s-%s' % (start_ts_utc.strftime('%Y-%m-%d_%H:%M'), end_ts_utc.strftime('%Y-%m-%d_%H:%M'))
-    cum_filename = os.path.join(output_dir, 'jaxa_sat_cum_rf_' + from_to + '.png')
-    title = 'Cumulative rainfall ' + from_to
-    clevs = np.concatenate(([-1, 0], np.array([pow(2, i) for i in range(0, 9)])))
-    create_contour_plot(total, cum_filename, lat_min, lon_min, lat_max, lon_max, title, clevs=clevs, cmap=cm.s3pcpn)
+    process_cumulative_plot(url_dest_list, start_ts_utc, end_ts_utc, output_dir, lat_min, lon_min, lat_max, lon_max)
     logging.info('Processing cumulative complete')
 
     # clean up temp dir
     if cleanup:
+        logging.info('Cleaning up')
         shutil.rmtree(tmp_dir)
 
 
-def process_jaxa_zip_file(zip_file_path, out_file_path, lat_min, lon_min, lat_max, lon_max, archive_data=False):
-    if not utils.file_exists_nonempty(out_file_path):
-        sat_zip = zipfile.ZipFile(zip_file_path)
-        sat = np.genfromtxt(sat_zip.open(os.path.basename(zip_file_path).replace('.zip', '')), delimiter=',',
-                            names=True)
-        sat_filt = sat[
-            (sat['Lat'] <= lat_max) & (sat['Lat'] >= lat_min) & (sat['Lon'] <= lon_max) & (sat['Lon'] >= lon_min)]
-        lats = np.sort(np.unique(sat_filt['Lat']))
-        lons = np.sort(np.unique(sat_filt['Lon']))
+def process_cumulative_plot(url_dest_list, start_ts_utc, end_ts_utc, output_dir, lat_min, lon_min, lat_max, lon_max):
+    from_to = '%s-%s' % (start_ts_utc.strftime('%Y-%m-%d_%H:%M'), end_ts_utc.strftime('%Y-%m-%d_%H:%M'))
+    cum_filename = os.path.join(output_dir, 'jaxa_sat_cum_rf_' + from_to + '.png')
 
+    if not utils.file_exists_nonempty(cum_filename):
+        total = None
+        for url_dest in url_dest_list:
+            if total is None:
+                total = np.genfromtxt(url_dest[2] + '.archive', dtype=float)
+            else:
+                total += np.genfromtxt(url_dest[2] + '.archive', dtype=float)
+        title = 'Cumulative rainfall ' + from_to
+        clevs = np.concatenate(([-1, 0], np.array([pow(2, i) for i in range(0, 9)])))
+        create_contour_plot(total, cum_filename, lat_min, lon_min, lat_max, lon_max, title, clevs=clevs, cmap=cm.s3pcpn)
+    else:
+        logging.info('%s already exits' % cum_filename)
+
+
+def process_jaxa_zip_file(zip_file_path, out_file_path, lat_min, lon_min, lat_max, lon_max, archive_data=False):
+    sat_zip = zipfile.ZipFile(zip_file_path)
+    sat = np.genfromtxt(sat_zip.open(os.path.basename(zip_file_path).replace('.zip', '')), delimiter=',',
+                        names=True)
+    sat_filt = np.sort(
+        sat[(sat['Lat'] <= lat_max) & (sat['Lat'] >= lat_min) & (sat['Lon'] <= lon_max) & (sat['Lon'] >= lon_min)],
+        order=['Lat', 'Lon'])
+    lats = np.sort(np.unique(sat_filt['Lat']))
+    lons = np.sort(np.unique(sat_filt['Lon']))
+
+    data = sat_filt['RainRate'].reshape(len(lats), len(lons))
+
+    if not utils.file_exists_nonempty(out_file_path):
         cell_size = 0.1
         no_data_val = -99
         with open(out_file_path, 'w') as out_file:
@@ -98,21 +113,23 @@ def process_jaxa_zip_file(zip_file_path, out_file_path, lat_min, lon_min, lat_ma
             out_file.write('CELLSIZE %f\n' % cell_size)
             out_file.write('NODATA_VALUE %d\n' % no_data_val)
 
-            for lat in np.flip(lats, 0):
-                for lon in lons:
-                    out_file.write(str(sat[(sat['Lat'] == lat) & (sat['Lon'] == lon)][0][2]) + ' ')
-                out_file.write('\n')
+            sat_flipped = np.flip(sat_filt['RainRate'].reshape(len(lats), len(lons)), 0)
+            np.savetxt(out_file, sat_flipped, fmt='%g')
+    else:
+        logging.info('%s already exits' % out_file_path)
 
-        data = np.sort(sat_filt, order=['Lat', 'Lon'])['RainRate'].reshape(len(lats), len(lons))
+    if not utils.file_exists_nonempty(out_file_path + '.png'):
         clevs = np.concatenate(([-1, 0], np.array([pow(2, i) for i in range(0, 9)])))
         title = 'Hourly rainfall ' + os.path.basename(out_file_path).replace('jaxa_sat_rf_', '').replace('.asc', '')
         create_contour_plot(data, out_file_path + '.png', lat_min, lon_min, lat_max, lon_max, title, clevs=clevs,
                             cmap=cm.s3pcpn)
-
-        if archive_data:
-            np.savetxt(out_file_path + '.archive', data, fmt='%g')
     else:
-        logging.info('%s already exits' % out_file_path)
+        logging.info('%s already exits' % (out_file_path + '.png'))
+
+    if archive_data and not utils.file_exists_nonempty(out_file_path + '.archive'):
+        np.savetxt(out_file_path + '.archive', data, fmt='%g')
+    else:
+        logging.info('%s already exits' % (out_file_path + '.archive'))
 
 
 def create_contour_plot(data, out_file_path, lat_min, lon_min, lat_max, lon_max, plot_title, basemap=None, clevs=None,
