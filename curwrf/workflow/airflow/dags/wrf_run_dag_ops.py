@@ -1,5 +1,4 @@
 import datetime as dt
-
 import airflow
 from airflow import DAG
 from airflow.operators.python_operator import PythonOperator
@@ -8,9 +7,11 @@ from curwrf.workflow.airflow.dags import utils as dag_utils
 from curwrf.workflow.airflow.extensions import tasks
 from curwrf.workflow.airflow.extensions.operators import CurwPythonOperator
 
-WRF_DAG_NAME = 'wrf_run_ops'
-
-wrf_config = dag_utils.set_initial_parameters()
+wrf_dag_name = 'wrf_run_ops'
+wrf_home_key = 'wrf_home'
+wrf_start_date_key = 'wrf_start_date'
+wrf_config_key = 'wrf_config'
+queue = 'default'  # 'wrf_fs_impl_queue'
 
 default_args = {
     'owner': 'curwsl admin',
@@ -21,11 +22,12 @@ default_args = {
     'email_on_retry': False,
     'retries': 1,
     'retry_delay': dt.timedelta(minutes=5),
+    'queue': queue,
 }
 
 # initiate the DAG
 dag = DAG(
-    WRF_DAG_NAME,
+    wrf_dag_name,
     default_args=default_args,
     description='Running WRF instantaneously',
     schedule_interval=None)
@@ -34,18 +36,17 @@ initialize_params = PythonOperator(
     task_id='initialize-params',
     python_callable=dag_utils.set_initial_parameters,
     provide_context=True,
-    op_args=[],
+    op_args=[wrf_home_key, wrf_start_date_key, wrf_config_key],
     default_args=default_args,
     dag=dag,
 )
 
 gfs_data_download = SubDagOperator(
     task_id='gfs_download',
-    subdag=dag_utils.get_gfs_download_subdag(WRF_DAG_NAME, 'gfs_download', default_args),
+    subdag=dag_utils.get_gfs_download_subdag(wrf_dag_name, 'gfs_download', default_args),
     default_args=default_args,
     dag=dag,
 )
-
 
 ungrib = CurwPythonOperator(
     task_id='ungrib',
@@ -79,7 +80,6 @@ real = CurwPythonOperator(
     dag=dag,
 )
 
-
 wrf = CurwPythonOperator(
     task_id='wrf',
     curw_task=tasks.Wrf,
@@ -87,7 +87,6 @@ wrf = CurwPythonOperator(
     default_args=default_args,
     dag=dag,
 )
-
 
 initialize_params >> [gfs_data_download, geogrid, ungrib]
 

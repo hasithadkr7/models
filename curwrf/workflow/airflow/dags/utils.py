@@ -44,10 +44,11 @@ def get_gfs_download_subdag(parent_dag_name, child_dag_name, args):
     return dag_subdag
 
 
-def set_initial_parameters(**kwargs):
+def set_initial_parameters(wrf_home_key='wrf_home', wrf_start_date_key='wrf_start_date', wrf_config_key='wrf_config',
+                           **kwargs):
     # set wrf_home --> wrf_home Var > WRF_HOME env var > wrf_home default
     try:
-        wrf_home = Variable.get('wrf_home')
+        wrf_home = Variable.get(wrf_home_key)
     except KeyError:
         try:
             wrf_home = os.environ['WRF_HOME']
@@ -57,7 +58,7 @@ def set_initial_parameters(**kwargs):
 
     # set wrf_config --> wrf_config Var (YAML format) > get_wrf_config(wrf_home)
     try:
-        wrf_config_dict = Variable.get('wrf_config', deserialize_json=True)
+        wrf_config_dict = Variable.get(wrf_config_key, deserialize_json=True)
         wrf_config = wrf_exec.get_wrf_config(wrf_config_dict.pop('wrf_home'), **wrf_config_dict)
     except KeyError as e:
         logging.warning('wrf_config Variable not available: ' + str(e))
@@ -70,7 +71,7 @@ def set_initial_parameters(**kwargs):
     # set start_date --> wrf_start_date var > execution_date param in the workflow > today
     start_date = None
     try:
-        start_date_dt = dt.datetime.strptime(Variable.get('wrf_start_date'), '%Y-%m-%d_%H:%M') + dt.timedelta(
+        start_date_dt = dt.datetime.strptime(Variable.get(wrf_start_date_key), '%Y-%m-%d_%H:%M') + dt.timedelta(
             seconds=time.altzone)
         start_date = utils.datetime_floor(start_date_dt, 3600).strftime('%Y-%m-%d_%H:%M')
     except KeyError as e1:
@@ -85,7 +86,7 @@ def set_initial_parameters(**kwargs):
     if start_date is not None and (not wrf_config.is_set('start_date') or wrf_config.get('start_date') != start_date):
         wrf_config.set('start_date', start_date)
         # date_splits = re.split('[-_:]', start_date)
-        Variable.set('wrf_config', wrf_config.to_json_string())
+        Variable.set(wrf_config_key, wrf_config.to_json_string())
 
     if 'ti' in kwargs:
         kwargs['ti'].xcom_push(key='wrf_config_json', value=wrf_config.to_json_string())
