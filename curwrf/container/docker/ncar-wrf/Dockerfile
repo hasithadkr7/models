@@ -1,5 +1,5 @@
 FROM centos:latest
-MAINTAINER John Exby <exby@ucar.edu>
+MAINTAINER niranda perera <niranda.17@cse.mrt.ac.lk>
 # 
 # This Dockerfile compiles WRF from source during "docker build" step
 ENV WRF_VERSION 3.7.1
