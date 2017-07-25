@@ -80,7 +80,7 @@ def set_initial_parameters(**kwargs):
                                               3600).strftime('%Y-%m-%d_%H:%M')
         except KeyError as e2:
             logging.warning('execution_date is not available - %s' % str(e2))
-    logging.info('wrf_start_date: %s' % (start_date if start_date is not None else 'None'))
+    logging.info('wrf_start_date: %s' % start_date)
 
     if start_date is not None and (not wrf_config.is_set('start_date') or wrf_config.get('start_date') != start_date):
         wrf_config.set('start_date', start_date)
