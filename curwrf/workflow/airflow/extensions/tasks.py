@@ -160,6 +160,7 @@ class Real(WrfTask):
         start_date = self.get_config(**kwargs).get('start_date')
         em_real_dir = utils.get_em_real_dir(wrf_home)
 
+        logging.info('Moving the real logs')
         utils.move_files_with_prefix(em_real_dir, 'rsl*', os.path.join(utils.get_logs_dir(wrf_home),
                                                                        'rsl-real-%s' % start_date))
 
@@ -180,8 +181,12 @@ class Wrf(WrfTask):
         em_real_dir = utils.get_em_real_dir(wrf_home)
         start_date = self.get_config(**kwargs).get('start_date')
 
+        logging.info('Moving the WRF logs')
         utils.move_files_with_prefix(em_real_dir, 'rsl*',
                                      os.path.join(utils.get_logs_dir(wrf_home), 'rsl-wrf-%s' % start_date))
+
+        logging.info('Moving the WRF files to output directory')
+        utils.move_files_with_prefix(utils.get_em_real_dir(wrf_home), 'wrfout_d*', utils.get_output_dir(wrf_home))
 
 
 class CurwAriflowTasksException(Exception):
