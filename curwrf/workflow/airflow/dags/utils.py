@@ -28,7 +28,9 @@ def get_gfs_download_subdag(parent_dag_name, child_dag_name, args, wrf_config_ke
     try:
         gfs_date, gfs_cycle, start = utils.get_appropriate_gfs_inventory(wrf_config)
     except KeyError as e:
-        raise WrfRunException(str(e))
+        # raise WrfRunException(str(e))
+        logging.error('Unable to find the key: %s. Returining an empty subdag' % str(e))
+        return dag_subdag
 
     for i in range(int(start), int(start) + period * 24 + 1, step):
         PythonOperator(
