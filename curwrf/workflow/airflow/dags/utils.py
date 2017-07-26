@@ -13,14 +13,14 @@ from curwrf.wrf.execution.executor import WrfConfig
 from curwrf.wrf.execution.tasks import download_inventory
 
 
-def get_gfs_download_subdag(parent_dag_name, child_dag_name, args):
+def get_gfs_download_subdag(parent_dag_name, child_dag_name, args, wrf_config_key='wrf_config'):
     dag_subdag = DAG(
         dag_id='%s.%s' % (parent_dag_name, child_dag_name),
         default_args=args,
         schedule_interval=None,
     )
 
-    wrf_config = WrfConfig(configs=Variable.get('wrf_config', deserialize_json=True))
+    wrf_config = WrfConfig(configs=Variable.get(wrf_config_key, deserialize_json=True))
 
     period = wrf_config.get('period')
     step = wrf_config.get('gfs_step')

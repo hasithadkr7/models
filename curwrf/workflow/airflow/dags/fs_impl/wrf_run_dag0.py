@@ -43,7 +43,7 @@ initialize_params = PythonOperator(
 
 gfs_data_download = SubDagOperator(
     task_id='gfs_download',
-    subdag=dag_utils.get_gfs_download_subdag(wrf_dag_name, 'gfs_download', default_args),
+    subdag=dag_utils.get_gfs_download_subdag(wrf_dag_name, 'gfs_download', default_args, wrf_config_key=wrf_config_key),
     default_args=default_args,
     dag=dag,
 )
