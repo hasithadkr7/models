@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-rabbitmqctl add_user curw rabbitmq_password
-rabbitmqctl add_vhost rabbitmq_virtual_host_name
-rabbitmqctl set_user_tags rabbitmq_user_name rabbitmq_tag_name
-rabbitmqctl set_permissions -p rabbitmq_virtual_host_name rabbitmq_user_name ".*" ".*" ".*"
+rabbitmqctl add_user curw cfcwm07
+rabbitmqctl add_vhost curwsl
+rabbitmqctl set_user_tags curw administrator
+rabbitmqctl set_permissions -p curwsl curw ".*" ".*" ".*"
