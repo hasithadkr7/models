@@ -2,7 +2,7 @@ FROM centos:latest
 MAINTAINER niranda perera <niranda.17@cse.mrt.ac.lk>
 # 
 # This Dockerfile compiles WRF from source during "docker build" step
-ENV WRF_VERSION 3.7.1
+ENV WRF_VERSION 3.8.1
 #RUN curl -SL https://ral.ucar.edu/sites/default/files/public/projects/ncar-docker-wrf/ucar-bsd-3-clause-license.pdf > /UCAR-BSD-3-Clause-License.pdf
 #
 RUN yum -y update
