@@ -20,7 +20,11 @@ def get_gfs_download_subdag(parent_dag_name, child_dag_name, args, wrf_config_ke
         schedule_interval=None,
     )
 
-    wrf_config = WrfConfig(configs=Variable.get(wrf_config_key, deserialize_json=True))
+    try:
+        wrf_config = WrfConfig(configs=Variable.get(wrf_config_key, deserialize_json=True))
+    except KeyError as e:
+        logging.error('Key error %s' % str(e))
+        return dag_subdag
 
     period = wrf_config.get('period')
     step = wrf_config.get('gfs_step')
@@ -56,8 +60,6 @@ def set_initial_parameters(wrf_home_key='wrf_home', wrf_start_date_key='wrf_star
             wrf_home = os.environ['WRF_HOME']
         except KeyError:
             wrf_home = constants.DEFAULT_WRF_HOME
-        logging.info('%s Variable is set to %s' % (wrf_home_key, wrf_home))
-        Variable.set(wrf_home_key, wrf_home)
     logging.info('wrf_home: %s' % wrf_home)
 
     # set wrf_config --> wrf_config Var (YAML format) > get_wrf_config(wrf_home)
