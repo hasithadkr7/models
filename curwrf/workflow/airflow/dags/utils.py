@@ -56,15 +56,17 @@ def set_initial_parameters(wrf_home_key='wrf_home', wrf_start_date_key='wrf_star
             wrf_home = os.environ['WRF_HOME']
         except KeyError:
             wrf_home = constants.DEFAULT_WRF_HOME
+        logging.info('%s Variable is set to %s' % (wrf_home_key, wrf_home))
+        Variable.set(wrf_home_key, wrf_home)
     logging.info('wrf_home: %s' % wrf_home)
 
     # set wrf_config --> wrf_config Var (YAML format) > get_wrf_config(wrf_home)
     try:
         wrf_config_dict = Variable.get(wrf_config_key, deserialize_json=True)
         wrf_config = wrf_exec.get_wrf_config(wrf_config_dict.pop('wrf_home'), **wrf_config_dict)
-    except KeyError as e:
-        logging.warning('wrf_config Variable not available: ' + str(e))
+    except KeyError:
         wrf_config = wrf_exec.get_wrf_config(wrf_home)
+        logging.warning('%s Variable is set to %s' % (wrf_config_key, wrf_config.to_json_string()))
     logging.info('wrf_config: %s' % wrf_config.to_string())
 
     if wrf_home != wrf_config.get('wrf_home'):
