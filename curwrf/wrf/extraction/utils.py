@@ -43,13 +43,14 @@ def extract_variables(nc_f, vars, lat_min, lat_max, lon_min, lon_max, lat_var='X
 
 def create_asc_file(data, lats, lons, out_file_path, cell_size=0.1, no_data_val=-99, overwrite=False):
     if not utils.file_exists_nonempty(out_file_path) or overwrite:
-        with open(out_file_path, 'w') as out_file:
-            out_file.write('NCOLS %d\n' % len(lons))
-            out_file.write('NROWS %d\n' % len(lats))
-            out_file.write('XLLCORNER %f\n' % lons[0])
-            out_file.write('YLLCORNER %f\n' % lats[0])
-            out_file.write('CELLSIZE %f\n' % cell_size)
-            out_file.write('NODATA_VALUE %d\n' % no_data_val)
+        with open(out_file_path, 'wb') as out_file:
+            out_file.write(('NCOLS %d\n' % len(lons)).encode())
+            out_file.write(('NROWS %d\n' % len(lats)).encode())
+            out_file.write(('XLLCORNER %f\n' % lons[0]).encode())
+            out_file.write(('YLLCORNER %f\n' % lats[0]).encode())
+            out_file.write(('CELLSIZE %f\n' % cell_size).encode())
+            out_file.write(('NODATA_VALUE %d\n' % no_data_val).encode())
+
             np.savetxt(out_file, data, fmt='%g')
     else:
         logging.info('%s already exits' % out_file_path)

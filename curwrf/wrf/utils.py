@@ -303,12 +303,12 @@ def file_exists_nonempty(filename):
 
 def download_file(url, dest, overwrite=False):
     try:
-        f = urlopen(url)
         logging.info("Downloading %s to %s" % (url, dest))
         if not overwrite and file_exists_nonempty(dest):
             logging.info('File already exists. Skipping download!')
             return
         else:
+            f = urlopen(url)
             with open(dest, "wb") as local_file:
                 local_file.write(f.read())
     except HTTPError as e:
