@@ -12,6 +12,7 @@ wrf_config_key = 'wrf_config3'
 wrf_home_key = 'wrf_home3'
 wrf_start_date_key = 'wrf_start_date3'
 queue = 'wrf_fs_impl_queue'
+schedule_interval = '30 4 * * *'
 
 default_args = {
     'owner': 'curwsl admin',
@@ -30,7 +31,7 @@ dag = DAG(
     wrf_dag_name,
     default_args=default_args,
     description='Running WRF instantaneously',
-    schedule_interval=None)
+    schedule_interval=schedule_interval)
 
 initialize_params = PythonOperator(
     task_id='initialize-params',
