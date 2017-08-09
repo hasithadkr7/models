@@ -325,10 +325,15 @@ def download_parallel(url_dest_list, procs=multiprocessing.cpu_count()):
 
 def get_appropriate_gfs_inventory(wrf_config):
     st = dt.datetime.strptime(wrf_config.get('start_date'), '%Y-%m-%d_%H:%M')
-    floor_val = datetime_floor(st - dt.timedelta(hours=wrf_config.get('gfs_lag')), 6 * 3600)
+    # if the time difference between now and start time is lt gfs_lag, then the time will be adjusted
+    if (dt.datetime.utcnow() - st).total_seconds() <= wrf_config.get('gfs_lag') * 3600:
+        floor_val = datetime_floor(st - dt.timedelta(hours=wrf_config.get('gfs_lag')), 6 * 3600)
+    else:
+        floor_val = datetime_floor(st, 6 * 3600)
     gfs_date = floor_val.strftime('%Y%m%d')
     gfs_cycle = str(floor_val.hour).zfill(2)
-    start_inv = math.floor((st - floor_val).seconds / 3600 / wrf_config.get('gfs_step')) * wrf_config.get('gfs_step')
+    start_inv = math.floor((st - floor_val).total_seconds() / 3600 / wrf_config.get('gfs_step')) * wrf_config.get(
+        'gfs_step')
 
     return gfs_date, gfs_cycle, start_inv
 

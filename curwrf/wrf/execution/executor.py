@@ -323,6 +323,7 @@ def get_default_wrf_config(wrf_home=constants.DEFAULT_WRF_HOME):
                 'geog_dir': utils.get_geog_dir(wrf_home),
                 'gfs_dir': utils.get_gfs_dir(constants.DEFAULT_WRF_HOME, False),
                 'period': constants.DEFAULT_PERIOD,
+                'offset': constants.DEFAULT_OFFSET,
                 'namelist_input': constants.DEFAULT_NAMELIST_INPUT_TEMPLATE,
                 # 'namelist_input_dict': constants.DEFAULT_NAMELIST_INPUT_TEMPLATE_DICT,
                 'namelist_wps': constants.DEFAULT_NAMELIST_WPS_TEMPLATE,
