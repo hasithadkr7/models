@@ -75,7 +75,7 @@ def set_initial_parameters(wrf_home_key='wrf_home', wrf_start_date_key='wrf_star
         logging.warning('wrf_home and wrf_config[wrf_home] are different! Please check the inputs')
 
     # set start_date --> wrf_start_date var > execution_date param in the workflow > today
-    start_date, start_date_dt = None, None
+    start_date_dt = None
     try:
         start_date_dt_utc = dt.datetime.strptime(Variable.get(wrf_start_date_key), '%Y-%m-%d_%H:%M') + dt.timedelta(
             seconds=time.altzone)
