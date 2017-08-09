@@ -76,6 +76,7 @@ def set_initial_parameters(wrf_home_key='wrf_home', wrf_start_date_key='wrf_star
 
     # set start_date --> wrf_start_date var > execution_date param in the workflow > today
     start_date_dt = None
+    start_date = None
     try:
         start_date_dt_utc = dt.datetime.strptime(Variable.get(wrf_start_date_key), '%Y-%m-%d_%H:%M') + dt.timedelta(
             seconds=time.altzone)
@@ -86,8 +87,10 @@ def set_initial_parameters(wrf_home_key='wrf_home', wrf_start_date_key='wrf_star
             start_date_dt = utils.datetime_floor(kwargs['execution_date'] + dt.timedelta(seconds=time.altzone), 3600)
         except KeyError as e2:
             logging.warning('execution_date is not available - %s' % str(e2))
-    start_date = (start_date_dt - dt.timedelta(hours=wrf_config.get('offset'))).strftime('%Y-%m-%d_%H:%M')
-    logging.info('wrf_start_date: %s' % start_date)
+
+    if start_date_dt is not None:
+        start_date = (start_date_dt - dt.timedelta(hours=wrf_config.get('offset'))).strftime('%Y-%m-%d_%H:%M')
+        logging.info('wrf_start_date: %s' % start_date)
 
     if start_date is not None and (not wrf_config.is_set('start_date') or wrf_config.get('start_date') != start_date):
         wrf_config.set('start_date', start_date)
