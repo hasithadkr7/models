@@ -83,8 +83,7 @@ def set_initial_parameters(wrf_home_key='wrf_home', wrf_start_date_key='wrf_star
     except KeyError as e1:
         logging.warning('wrf_start_date variable is not available. execution_date will be used - %s' % str(e1))
         try:
-            start_date_dt = utils.datetime_floor(kwargs['execution_date'] + dt.timedelta(seconds=time.altzone),
-                                              3600)
+            start_date_dt = utils.datetime_floor(kwargs['execution_date'] + dt.timedelta(seconds=time.altzone), 3600)
         except KeyError as e2:
             logging.warning('execution_date is not available - %s' % str(e2))
     start_date = (start_date_dt - dt.timedelta(hours=wrf_config.get('offset'))).strftime('%Y-%m-%d_%H:%M')
