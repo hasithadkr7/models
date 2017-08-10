@@ -24,7 +24,7 @@ def download_single_inventory_task(url, dest):
     executor.download_single_inventory(url, dest, retries=1, delay=0)
 
 
-def download_i_th_inventory(i, gfs_url, gfs_inv, gfs_date, gfs_cycle, gfs_res, gfs_dir, nfs_dir):
+def download_i_th_inventory(i, gfs_url, gfs_inv, gfs_date, gfs_cycle, gfs_res, gfs_dir, nfs_dir, test_mode=False):
     logging.info('Downloading %d inventory' % i)
 
     url, dest = utils.get_gfs_data_url_dest_tuple(gfs_url, gfs_inv, gfs_date, gfs_cycle, str(i).zfill(3), gfs_res,
@@ -32,13 +32,16 @@ def download_i_th_inventory(i, gfs_url, gfs_inv, gfs_date, gfs_cycle, gfs_res, g
     dest_nfs = os.path.join(utils.get_nfs_gfs_dir(nfs_dir), ntpath.basename(dest))
     logging.info('URL %s, dest %s, nfs_des %s' % (url, dest, dest_nfs))
 
-    if os.path.exists(dest_nfs) and os.path.isfile(dest_nfs) and os.stat(dest_nfs).st_size != 0:
-        logging.info("File available in NFS. Copying to the GFS dir from NFS")
-        shutil.copyfile(dest_nfs, dest)
+    if not test_mode:
+        if os.path.exists(dest_nfs) and os.path.isfile(dest_nfs) and os.stat(dest_nfs).st_size != 0:
+            logging.info("File available in NFS. Copying to the GFS dir from NFS")
+            shutil.copyfile(dest_nfs, dest)
+        else:
+            logging.info("File not available in NFS. Downloading...")
+            executor.download_single_inventory(url, dest, retries=1, delay=0)
+            shutil.copyfile(dest, dest_nfs)
     else:
-        logging.info("File not available in NFS. Downloading...")
-        executor.download_single_inventory(url, dest, retries=1, delay=0)
-        shutil.copyfile(dest, dest_nfs)
+        logging.info('Running on test mode')
 
 
 class DownloadSingleInventoryTaskException(Exception):

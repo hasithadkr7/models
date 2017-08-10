@@ -34,7 +34,7 @@ dag = DAG(
 
 initialize_params = PythonOperator(
     task_id='initialize-params',
-    python_callable=dag_utils.set_initial_parameters,
+    python_callable=dag_utils.set_initial_parameters_fs,
     provide_context=True,
     op_args=[wrf_home_key, wrf_start_date_key, wrf_config_key],
     default_args=default_args,

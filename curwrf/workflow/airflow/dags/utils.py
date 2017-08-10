@@ -7,13 +7,15 @@ import time
 from airflow.models import DAG, Variable
 from airflow.operators.python_operator import PythonOperator
 
+from curwrf.workflow.airflow.extensions import tasks
+from curwrf.workflow.airflow.extensions.operators import CurwPythonOperator
 from curwrf.wrf import constants, utils
-from curwrf.wrf.execution import executor as wrf_exec
+from curwrf.wrf.execution import executor as wrf_exec, executor
 from curwrf.wrf.execution.executor import WrfConfig
 from curwrf.wrf.execution.tasks import download_inventory
 
 
-def get_gfs_download_subdag(parent_dag_name, child_dag_name, args, wrf_config_key='wrf_config'):
+def get_gfs_download_subdag(parent_dag_name, child_dag_name, args, wrf_config_key='wrf_config', test_mode=False):
     dag_subdag = DAG(
         dag_id='%s.%s' % (parent_dag_name, child_dag_name),
         default_args=args,
@@ -41,7 +43,7 @@ def get_gfs_download_subdag(parent_dag_name, child_dag_name, args, wrf_config_ke
             python_callable=download_inventory.download_i_th_inventory,
             task_id='%s-task-%s' % (child_dag_name, i),
             op_args=[i, wrf_config.get('gfs_url'), wrf_config.get('gfs_inv'), gfs_date, gfs_cycle,
-                     wrf_config.get('gfs_res'), wrf_config.get('gfs_dir'), wrf_config.get('nfs_dir')],
+                     wrf_config.get('gfs_res'), wrf_config.get('gfs_dir'), wrf_config.get('nfs_dir'), test_mode],
             # provide_context=True,
             default_args=args,
             dag=dag_subdag,
@@ -50,8 +52,60 @@ def get_gfs_download_subdag(parent_dag_name, child_dag_name, args, wrf_config_ke
     return dag_subdag
 
 
-def set_initial_parameters(wrf_home_key='wrf_home', wrf_start_date_key='wrf_start_date', wrf_config_key='wrf_config',
-                           **kwargs):
+def get_initial_parameters_subdag(parent_dag_name, child_dag_name, runs, args, wrf_home_key, wrf_start_date_key,
+                                  wrf_config_key):
+    dag_subdag = DAG(
+        dag_id='%s.%s' % (parent_dag_name, child_dag_name),
+        default_args=args,
+        schedule_interval=None,
+    )
+
+    for i in [str(x) for x in range(runs)]:
+        PythonOperator(
+            task_id='%s-task-%s' % (child_dag_name, i),
+            python_callable=set_initial_parameters_fs,
+            provide_context=True,
+            op_args=[wrf_home_key + i, wrf_start_date_key + i, wrf_config_key + i],
+            default_args=args,
+            dag=dag_subdag,
+        )
+
+    return dag_subdag
+
+
+def get_wrf_run_subdag(parent_dag_name, child_dag_name, runs, args, wrf_config_key):
+    dag_subdag = DAG(
+        dag_id='%s.%s' % (parent_dag_name, child_dag_name),
+        default_args=args,
+        schedule_interval=None,
+    )
+
+    for i in [str(x) for x in range(runs)]:
+        real = CurwPythonOperator(
+            task_id='%s-task-%s-%s' % (child_dag_name, 'real', i),
+            curw_task=tasks.Real,
+            init_args=[wrf_config_key + i],
+            provide_context=True,
+            default_args=args,
+            dag=dag_subdag,
+        )
+
+        wrf = CurwPythonOperator(
+            task_id='%s-task-%s-%s' % (child_dag_name, 'wrf', i),
+            curw_task=tasks.Wrf,
+            init_args=[wrf_config_key + i],
+            provide_context=True,
+            default_args=args,
+            dag=dag_subdag,
+        )
+
+        real >> wrf
+
+    return dag_subdag
+
+
+def set_initial_parameters_fs(wrf_home_key='wrf_home', wrf_start_date_key='wrf_start_date', wrf_config_key='wrf_config',
+                              **kwargs):
     # set wrf_home --> wrf_home Var > WRF_HOME env var > wrf_home default
     try:
         wrf_home = Variable.get(wrf_home_key)
@@ -97,8 +151,14 @@ def set_initial_parameters(wrf_home_key='wrf_home', wrf_start_date_key='wrf_star
         # date_splits = re.split('[-_:]', start_date)
         Variable.set(wrf_config_key, wrf_config.to_json_string())
 
+        logging.info('Replacing namelist.wps place-holders')
+        executor.replace_namelist_wps(wrf_config)
+
+        logging.info('Replacing namelist.input place-holders')
+        executor.replace_namelist_input(wrf_config)
+
     if 'ti' in kwargs:
-        kwargs['ti'].xcom_push(key='wrf_config_json', value=wrf_config.to_json_string())
+        kwargs['ti'].xcom_push(key=wrf_config_key, value=wrf_config.to_json_string())
 
 
 class WrfRunException(Exception):

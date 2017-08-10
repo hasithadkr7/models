@@ -31,18 +31,21 @@ class CurwTask(object):
 
 
 class WrfTask(CurwTask):
-    def __init__(self):
+    def __init__(self, wrf_config_key='wrf_config'):
+        self.wrf_config_key = wrf_config_key
         super(WrfTask, self).__init__()
 
     def set_config(self, **kwargs):
         if self.config is None:
             if 'ti' in kwargs:
-                wrf_config_json = kwargs['ti'].xcom_pull(task_ids=None, key='wrf_config_json')
-                logging.info('wrf_config from xcom: ' + wrf_config_json)
+                wrf_config_json = kwargs['ti'].xcom_pull(task_ids=None, key=self.wrf_config_key)
+                logging.info('wrf_config from xcom using %s key: %s' % (self.wrf_config_key, wrf_config_json))
                 self.config = WrfConfig(json.loads(wrf_config_json))
             else:
                 try:
-                    self.config = WrfConfig(Variable.get('wrf_config', deserialize_json=True))
+                    self.config = WrfConfig(Variable.get(self.wrf_config_key, deserialize_json=True))
+                    logging.info(
+                        'wrf_config from variable using %s key: %s' % (self.wrf_config_key, self.config.to_json_string))
                 except KeyError:
                     raise CurwAriflowTasksException('Unable to find WrfConfig')
 
@@ -59,9 +62,6 @@ class Ungrib(WrfTask):
         logging.info('Cleaning up files')
         utils.delete_files_with_prefix(wps_dir, 'FILE:*')
         utils.delete_files_with_prefix(wps_dir, 'PFILE:*')
-
-        logging.info('Replacing namellist.wps place-holders')
-        executor.replace_namelist_wps(wrf_config)
 
         # Linking VTable
         if not os.path.exists(os.path.join(wps_dir, 'Vtable')):
@@ -94,14 +94,11 @@ class Metgrid(WrfTask):
         super(Metgrid, self).__init__()
 
     def pre_process(self, *args, **kwargs):
-        logging.info('Running preporcessing for metgrid...')
+        logging.info('Running pre-processing for metgrid...')
 
         wrf_config = self.get_config(**kwargs)
         wps_dir = utils.get_wps_dir(wrf_config.get('wrf_home'))
         utils.delete_files_with_prefix(wps_dir, 'met_em*')
-
-        logging.info('Replacing namellist.wps place-holders')
-        executor.replace_namelist_wps(wrf_config)
 
     def process(self, *args, **kwargs):
         logging.info('Running metgrid...')
@@ -109,6 +106,16 @@ class Metgrid(WrfTask):
         wps_dir = utils.get_wps_dir(wrf_config.get('wrf_home'))
 
         utils.run_subprocess('./metgrid.exe', cwd=wps_dir)
+
+    def post_process(self, *args, **kwargs):
+        # make a sym link in the nfs dir
+        wrf_config = self.get_config(**kwargs)
+        wps_dir = utils.get_wps_dir(wrf_config.get('wrf_home'))
+
+        nfs_metgrid_dir = os.path.join(wrf_config.get('nfs_dir'), 'metgrid')
+
+        utils.delete_files_with_prefix(nfs_metgrid_dir, 'met_em.d*')
+        utils.create_symlink_with_prefix(wps_dir, 'met_em.d*', nfs_metgrid_dir)
 
 
 class Geogrid(WrfTask):
@@ -121,9 +128,6 @@ class Geogrid(WrfTask):
         wrf_config = self.get_config(**kwargs)
         wps_dir = utils.get_wps_dir(wrf_config.get('wrf_home'))
 
-        logging.info('Replacing namellist.wps place-holders')
-        executor.replace_namelist_wps(wrf_config)
-
         if not executor.check_geogrid_output(wps_dir):
             logging.info('Running Geogrid.exe')
             utils.run_subprocess('./geogrid.exe', cwd=wps_dir)
@@ -133,10 +137,9 @@ class Geogrid(WrfTask):
 
 class Real(WrfTask):
     def pre_process(self, *args, **kwargs):
-        wrf_home = self.get_config(**kwargs).get('wrf_home')
-
-        logging.info('Replacing namelist.input place-holders')
-        executor.replace_namelist_input(self.get_config(**kwargs))
+        wrf_config = self.get_config(**kwargs)
+        wrf_home = wrf_config.get('wrf_home')
+        nfs_metgrid_dir = os.path.join(wrf_config.get('nfs_dir'), 'metgrid')
 
         logging.info('Running em_real...')
         em_real_dir = utils.get_em_real_dir(wrf_home)
@@ -147,7 +150,7 @@ class Real(WrfTask):
 
         # Linking met_em.*
         logging.info('Creating met_em.d* symlinks')
-        utils.create_symlink_with_prefix(utils.get_wps_dir(wrf_home), 'met_em.d*', em_real_dir)
+        utils.create_symlink_with_prefix(nfs_metgrid_dir, 'met_em.d*', em_real_dir)
 
     def process(self, *args, **kwargs):
         wrf_home = self.get_config(**kwargs).get('wrf_home')

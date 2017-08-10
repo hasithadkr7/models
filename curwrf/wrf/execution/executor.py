@@ -5,7 +5,6 @@ import os
 import threading
 import time
 from urllib.error import HTTPError, URLError
-import numpy as np
 
 from curwrf.wrf import constants, utils
 from curwrf.wrf.resources import manager as res_mgr

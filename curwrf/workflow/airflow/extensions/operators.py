@@ -14,6 +14,8 @@ class CurwPythonOperator(BaseOperator):
     def __init__(
             self,
             curw_task,
+            init_args=None,
+            init_kwargs=None,
             pre_args=None,
             pre_kwargs=None,
             process_args=None,
@@ -21,9 +23,12 @@ class CurwPythonOperator(BaseOperator):
             post_args=None,
             post_kwargs=None,
             provide_context=False,
+            test_mode=False,
             *args, **kwargs):
         super(CurwPythonOperator, self).__init__(*args, **kwargs)
         self.curw_task = curw_task
+        self.curw_task_init_args = init_args or []
+        self.curw_task_init_kwargs = init_kwargs or {}
         self.pre_args = pre_args or []
         self.pre_kwargs = pre_kwargs or {}
         self.process_args = process_args or []
@@ -31,6 +36,7 @@ class CurwPythonOperator(BaseOperator):
         self.post_args = post_args or []
         self.post_kwargs = post_kwargs or {}
         self.provide_context = provide_context
+        self.test_mode = test_mode
 
     def execute(self, context):
         if not issubclass(self.curw_task, CurwTask):
@@ -41,16 +47,19 @@ class CurwPythonOperator(BaseOperator):
             self.post_kwargs.update(context)
             self.process_kwargs.update(context)
 
-        curw_task_instance = self.curw_task()
+        curw_task_instance = self.curw_task(*self.curw_task_init_args, **self.curw_task_init_kwargs)
 
-        return_value = curw_task_instance.pre_process(*self.pre_args, **self.pre_kwargs)
-        logging.info("Preporcess Done! Returned value was: " + str(return_value))
+        if not self.test_mode:
+            return_value = curw_task_instance.pre_process(*self.pre_args, **self.pre_kwargs)
+            logging.info("Preporcess Done! Returned value was: " + str(return_value))
 
-        return_value = curw_task_instance.process(*self.process_args, **self.process_kwargs)
-        logging.info("Process Done! Returned value was: " + str(return_value))
+            return_value = curw_task_instance.process(*self.process_args, **self.process_kwargs)
+            logging.info("Process Done! Returned value was: " + str(return_value))
 
-        return_value = curw_task_instance.post_process(*self.post_args, **self.post_kwargs)
-        logging.info("Post process Done! Returned value was: " + str(return_value))
+            return_value = curw_task_instance.post_process(*self.post_args, **self.post_kwargs)
+            logging.info("Post process Done! Returned value was: " + str(return_value))
+        else:
+            logging.info('Running on test mode')
 
         return 'DONE'
 

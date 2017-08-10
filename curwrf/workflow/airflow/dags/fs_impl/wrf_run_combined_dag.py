@@ -7,12 +7,14 @@ from curwrf.workflow.airflow.dags import utils as dag_utils
 from curwrf.workflow.airflow.extensions import tasks
 from curwrf.workflow.airflow.extensions.operators import CurwPythonOperator
 
-wrf_dag_name = 'wrf_run0'
-wrf_config_key = 'wrf_config0'
-wrf_home_key = 'wrf_home0'
-wrf_start_date_key = 'wrf_start_date0'
+wrf_dag_name = 'wrf_run'
+wrf_config_key_prefix = 'wrf_config'
+wrf_home_key_prefix = 'wrf_home'
+wrf_start_date_key_prefix = 'wrf_start_date'
 queue = 'wrf_fs_impl_queue'
 schedule_interval = None
+
+test_mode = True
 
 default_args = {
     'owner': 'curwsl admin',
@@ -30,21 +32,22 @@ default_args = {
 dag = DAG(
     wrf_dag_name,
     default_args=default_args,
-    description='Running WRF instantaneously',
+    description='Running 4 WRFs simultaneously',
     schedule_interval=schedule_interval)
 
-initialize_params = PythonOperator(
-    task_id='initialize-params',
-    python_callable=dag_utils.set_initial_parameters_fs,
-    provide_context=True,
-    op_args=[wrf_home_key, wrf_start_date_key, wrf_config_key],
+initialize_params = SubDagOperator(
+    task_id='initialize_params',
+    subdag=dag_utils.get_initial_parameters_subdag(wrf_dag_name, 'initialize_params', 4, default_args,
+                                                   wrf_home_key_prefix, wrf_start_date_key_prefix,
+                                                   wrf_config_key_prefix),
     default_args=default_args,
     dag=dag,
 )
 
 gfs_data_download = SubDagOperator(
     task_id='gfs_download',
-    subdag=dag_utils.get_gfs_download_subdag(wrf_dag_name, 'gfs_download', default_args, wrf_config_key=wrf_config_key),
+    subdag=dag_utils.get_gfs_download_subdag(wrf_dag_name, 'gfs_download', default_args,
+                                             wrf_config_key=wrf_config_key_prefix + '0', test_mode=test_mode),
     default_args=default_args,
     dag=dag,
 )
@@ -52,39 +55,36 @@ gfs_data_download = SubDagOperator(
 ungrib = CurwPythonOperator(
     task_id='ungrib',
     curw_task=tasks.Ungrib,
+    init_args=[wrf_config_key_prefix + '0'],
     provide_context=True,
     default_args=default_args,
     dag=dag,
+    test_mode=test_mode
 )
 
 geogrid = CurwPythonOperator(
     task_id='geogrid',
     curw_task=tasks.Geogrid,
+    init_args=[wrf_config_key_prefix + '0'],
     provide_context=True,
     default_args=default_args,
     dag=dag,
+    test_mode=test_mode
 )
 
 metgrid = CurwPythonOperator(
     task_id='metgrid',
     curw_task=tasks.Metgrid,
+    init_args=[wrf_config_key_prefix + '0'],
     provide_context=True,
     default_args=default_args,
     dag=dag,
+    test_mode=test_mode
 )
 
-real = CurwPythonOperator(
-    task_id='real',
-    curw_task=tasks.Real,
-    provide_context=True,
-    default_args=default_args,
-    dag=dag,
-)
-
-wrf = CurwPythonOperator(
-    task_id='wrf',
-    curw_task=tasks.Wrf,
-    provide_context=True,
+real_wrf = SubDagOperator(
+    task_id='real_wrf',
+    subdag=dag_utils.get_wrf_run_subdag(wrf_dag_name, 'real_wrf', 4, default_args, wrf_config_key_prefix),
     default_args=default_args,
     dag=dag,
 )
@@ -95,4 +95,4 @@ gfs_data_download >> ungrib
 
 metgrid << [geogrid, ungrib]
 
-metgrid >> real >> wrf
+metgrid >> real_wrf
