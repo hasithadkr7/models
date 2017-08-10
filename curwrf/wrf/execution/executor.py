@@ -292,6 +292,9 @@ class WrfConfig:
     def is_set(self, key):
         return key in self.configs
 
+    def is_empty(self):
+        return len(self.configs) == 0
+
     def __str__(self):
         return str(self.configs)
 
