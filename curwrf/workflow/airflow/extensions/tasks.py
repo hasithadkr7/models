@@ -90,9 +90,6 @@ class Ungrib(WrfTask):
 
 
 class Metgrid(WrfTask):
-    def __init__(self):
-        super(Metgrid, self).__init__()
-
     def pre_process(self, *args, **kwargs):
         logging.info('Running pre-processing for metgrid...')
 
@@ -119,9 +116,6 @@ class Metgrid(WrfTask):
 
 
 class Geogrid(WrfTask):
-    def __init__(self):
-        super(Geogrid, self).__init__()
-
     def process(self, *args, **kwargs):
         logging.info('Running geogrid...')
 
