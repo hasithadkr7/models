@@ -37,8 +37,11 @@ class WrfTask(CurwTask):
 
     def set_config(self, **kwargs):
         if self.config is None:
+            wrf_config_json = None
             if 'ti' in kwargs:
                 wrf_config_json = kwargs['ti'].xcom_pull(task_ids=None, key=self.wrf_config_key)
+
+            if wrf_config_json is not None:
                 logging.info('wrf_config from xcom using %s key: %s' % (self.wrf_config_key, wrf_config_json))
                 self.config = WrfConfig(json.loads(wrf_config_json))
             else:
