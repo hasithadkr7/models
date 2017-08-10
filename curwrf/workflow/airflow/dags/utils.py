@@ -73,7 +73,7 @@ def get_initial_parameters_subdag(parent_dag_name, child_dag_name, runs, args, w
     return dag_subdag
 
 
-def get_wrf_run_subdag(parent_dag_name, child_dag_name, runs, args, wrf_config_key):
+def get_wrf_run_subdag(parent_dag_name, child_dag_name, runs, args, wrf_config_key, test_mode = False):
     dag_subdag = DAG(
         dag_id='%s.%s' % (parent_dag_name, child_dag_name),
         default_args=args,
@@ -88,6 +88,7 @@ def get_wrf_run_subdag(parent_dag_name, child_dag_name, runs, args, wrf_config_k
             provide_context=True,
             default_args=args,
             dag=dag_subdag,
+            test_mode=test_mode
         )
 
         wrf = CurwPythonOperator(
@@ -97,6 +98,7 @@ def get_wrf_run_subdag(parent_dag_name, child_dag_name, runs, args, wrf_config_k
             provide_context=True,
             default_args=args,
             dag=dag_subdag,
+            test_mode=test_mode
         )
 
         real >> wrf

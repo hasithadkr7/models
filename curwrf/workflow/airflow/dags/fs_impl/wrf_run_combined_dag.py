@@ -84,7 +84,8 @@ metgrid = CurwPythonOperator(
 
 real_wrf = SubDagOperator(
     task_id='real_wrf',
-    subdag=dag_utils.get_wrf_run_subdag(wrf_dag_name, 'real_wrf', 4, default_args, wrf_config_key_prefix),
+    subdag=dag_utils.get_wrf_run_subdag(wrf_dag_name, 'real_wrf', 4, default_args, wrf_config_key_prefix,
+                                        test_mode=test_mode),
     default_args=default_args,
     dag=dag,
 )
