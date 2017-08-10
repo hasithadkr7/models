@@ -7,14 +7,14 @@ from curwrf.workflow.airflow.dags import utils as dag_utils
 from curwrf.workflow.airflow.extensions import tasks
 from curwrf.workflow.airflow.extensions.operators import CurwPythonOperator
 
-wrf_dag_name = 'wrf_run'
+wrf_dag_name = 'wrf_parallel_run'
 wrf_config_key_prefix = 'wrf_config'
 wrf_home_key_prefix = 'wrf_home'
 wrf_start_date_key_prefix = 'wrf_start_date'
 queue = 'wrf_fs_impl_queue'
-schedule_interval = None
+schedule_interval = '@daily'
 
-test_mode = True
+test_mode = False
 
 default_args = {
     'owner': 'curwsl admin',
