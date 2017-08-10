@@ -14,11 +14,11 @@ def connect(_query, host, user, passwd, db):
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format='%(asctime)s %(threadName)s %(module)s %(levelname)s %(message)s')
     parser = argparse.ArgumentParser()
-    parser.add_argument('-dag')
-    parser.add_argument('-u')
-    parser.add_argument('-h')
-    parser.add_argument('-p')
-    parser.add_argument('-db')
+    parser.add_argument('dag')
+    parser.add_argument('u')
+    parser.add_argument('h')
+    parser.add_argument('p')
+    parser.add_argument('db')
     args = parser.parse_args()
  
     query = {'delete from xcom where dag_id = "' + args.dag + '"',
