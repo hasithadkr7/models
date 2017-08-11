@@ -1,7 +1,6 @@
 import datetime as dt
 import airflow
 from airflow import DAG
-from airflow.operators.python_operator import PythonOperator
 from airflow.operators.subdag_operator import SubDagOperator
 from curwrf.workflow.airflow.dags import utils as dag_utils
 from curwrf.workflow.airflow.extensions import tasks
@@ -19,7 +18,7 @@ test_mode = False
 default_args = {
     'owner': 'curwsl admin',
     'depends_on_past': False,
-    'start_date': airflow.utils.dates.days_ago(0),
+    'start_date': airflow.utils.dates.days_ago(1),
     'email': ['admin@curwsl.com'],
     'email_on_failure': False,
     'email_on_retry': False,
