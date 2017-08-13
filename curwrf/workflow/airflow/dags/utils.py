@@ -141,6 +141,8 @@ def set_initial_parameters_fs(wrf_home_key='wrf_home', wrf_start_date_key='wrf_s
         logging.warning('wrf_start_date variable is not available. execution_date will be used - %s' % str(e1))
         try:
             start_date_dt = utils.datetime_floor(kwargs['execution_date'] + dt.timedelta(seconds=time.altzone), 3600)
+            # NOTE: airflow execution time is at the end of the (starting day + interval) period
+            start_date_dt = start_date_dt + dt.timedelta(days=1)
         except KeyError as e2:
             logging.warning('execution_date is not available - %s' % str(e2))
 
