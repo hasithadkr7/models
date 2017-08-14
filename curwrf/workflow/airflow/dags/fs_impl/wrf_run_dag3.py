@@ -4,7 +4,7 @@ from airflow import DAG
 from airflow.operators.python_operator import PythonOperator
 from airflow.operators.subdag_operator import SubDagOperator
 from curwrf.workflow.airflow.dags import utils as dag_utils
-from curwrf.workflow.airflow.extensions import tasks
+from curwrf.workflow.airflow.extensions import tasks, subdags
 from curwrf.workflow.airflow.extensions.operators import CurwPythonOperator
 
 wrf_dag_name = 'wrf_run3'
@@ -44,7 +44,7 @@ initialize_params = PythonOperator(
 
 gfs_data_download = SubDagOperator(
     task_id='gfs_download',
-    subdag=dag_utils.get_gfs_download_subdag(wrf_dag_name, 'gfs_download', default_args, wrf_config_key=wrf_config_key),
+    subdag=subdags.get_gfs_download_subdag(wrf_dag_name, 'gfs_download', default_args, wrf_config_key=wrf_config_key),
     default_args=default_args,
     dag=dag,
 )
