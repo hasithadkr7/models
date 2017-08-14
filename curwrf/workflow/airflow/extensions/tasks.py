@@ -6,6 +6,7 @@ from airflow.models import Variable
 from curwrf.wrf import utils
 from curwrf.wrf.execution import executor
 from curwrf.wrf.execution.executor import WrfConfig
+from curwrf.wrf.extraction import utils as ext_utils
 from curwrf.workflow.airflow.dags import utils as dag_utils
 
 
@@ -51,6 +52,10 @@ class WrfTask(CurwTask):
                     'wrf_config from variable using %s key: %s' % (self.wrf_config_key, self.config.to_json_string))
             except KeyError:
                 raise CurwAriflowTasksException('Unable to find WrfConfig')
+
+    def add_config_item(self, key, value):
+        self.config.set(key, value)
+        Variable.set(self.wrf_config_key, self.config.to_json_string())
 
 
 class Ungrib(WrfTask):
@@ -190,14 +195,19 @@ class Wrf(WrfTask):
 
         logging.info('Moving the WRF files to output directory')
         # move the d03 to nfs
-        d03_out = dag_utils.get_incremented_dir_path(
-            os.path.join(config.get('nfs_home'), 'output', config.get('start_date'), '0'))
-        utils.move_files_with_prefix(utils.get_em_real_dir(wrf_home), 'wrfout_d03*', d03_out)
-        utils.move_files_with_prefix(utils.get_em_real_dir(wrf_home), 'namelist.input', d03_out)
+        # ex: /mnt/disks/wrf-mod/nfs/output/wrf0/2017-08-13_00:00/0 .. n
+        d03_dir = dag_utils.get_incremented_dir_path(
+            os.path.join(config.get('nfs_home'), 'output', os.path.basename(wrf_home), config.get('start_date'), '0'))
+        self.add_config_item('wrf_output_dir', d03_dir)
+
+        d03_file = os.path.join(em_real_dir, 'wrfout_d03_' + config.get('start_date') + ':00')
+        ext_utils.ncks_extract_variables(d03_file, ['RAINC', 'RAINNC', 'XLAT', 'XLONG', 'Times'], d03_file + '_SL')
+        utils.move_files_with_prefix(em_real_dir, 'wrfout_d03*', d03_dir)
+        utils.move_files_with_prefix(em_real_dir, 'namelist.input', d03_dir)
 
         # move the rest to the OUTPUT dir of each run
         # todo: in the docker impl - FIND A BETTER WAY
-        utils.move_files_with_prefix(utils.get_em_real_dir(wrf_home), 'wrfout_d*', utils.get_output_dir(wrf_home))
+        utils.move_files_with_prefix(em_real_dir, 'wrfout_d*', utils.get_output_dir(wrf_home))
 
 
 class CurwAriflowTasksException(Exception):

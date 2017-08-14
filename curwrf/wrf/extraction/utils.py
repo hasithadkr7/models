@@ -41,6 +41,13 @@ def extract_variables(nc_f, vars, lat_min, lat_max, lon_min, lon_max, lat_var='X
     return vars_dict, lats[lat_inds[0]], lons[lon_inds[0]], times
 
 
+def ncks_extract_variables(nc_file, variables, dest):
+    v = ','.join(variables)
+    logging.info('ncks extraction of %s for %s vars to %s' % (nc_file, v, dest))
+    ncks_query = 'ncks -v %s %s %s' % (v, nc_file, dest)
+    utils.run_subprocess(ncks_query)
+
+
 def create_asc_file(data, lats, lons, out_file_path, cell_size=0.1, no_data_val=-99, overwrite=False):
     if not utils.file_exists_nonempty(out_file_path) or overwrite:
         with open(out_file_path, 'wb') as out_file:
@@ -77,7 +84,8 @@ def create_contour_plot(data, out_file_path, lat_min, lon_min, lat_max, lon_max,
         fig = plt.figure(figsize=(8.27, 11.69))
         ax = fig.add_axes([0.1, 0.1, 0.8, 0.8])
         if basemap is None:
-            basemap = Basemap(projection='merc', llcrnrlon=lon_min, llcrnrlat=lat_min, urcrnrlon=lon_max, urcrnrlat=lat_max,
+            basemap = Basemap(projection='merc', llcrnrlon=lon_min, llcrnrlat=lat_min, urcrnrlon=lon_max,
+                              urcrnrlat=lat_max,
                               resolution='h')
         basemap.drawcoastlines()
         parallels = np.arange(math.floor(lat_min) - 1, math.ceil(lat_max) + 1, 1)

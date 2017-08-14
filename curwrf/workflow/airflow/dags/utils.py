@@ -178,4 +178,4 @@ def get_incremented_dir_path(path):
 
 
 if __name__ == "__main__":
-    print(get_incremented_dir_path('/home/nira/temp/0'))
+    pass
