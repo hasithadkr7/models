@@ -2,8 +2,7 @@ import datetime as dt
 import airflow
 from airflow import DAG
 from airflow.operators.subdag_operator import SubDagOperator
-from curwrf.workflow.airflow.dags import utils as dag_utils
-from curwrf.workflow.airflow.extensions import tasks
+from curwrf.workflow.airflow.extensions import tasks, subdags
 from curwrf.workflow.airflow.extensions.operators import CurwPythonOperator
 
 wrf_dag_name = 'wrf_parallel_run'
@@ -36,17 +35,17 @@ dag = DAG(
 
 initialize_params = SubDagOperator(
     task_id='initialize_params',
-    subdag=dag_utils.get_initial_parameters_subdag(wrf_dag_name, 'initialize_params', 4, default_args,
-                                                   wrf_home_key_prefix, wrf_start_date_key_prefix,
-                                                   wrf_config_key_prefix),
+    subdag=subdags.get_initial_parameters_subdag(wrf_dag_name, 'initialize_params', 4, default_args,
+                                                 wrf_home_key_prefix, wrf_start_date_key_prefix,
+                                                 wrf_config_key_prefix),
     default_args=default_args,
     dag=dag,
 )
 
 gfs_data_download = SubDagOperator(
     task_id='gfs_download',
-    subdag=dag_utils.get_gfs_download_subdag(wrf_dag_name, 'gfs_download', default_args,
-                                             wrf_config_key=wrf_config_key_prefix + '0', test_mode=test_mode),
+    subdag=subdags.get_gfs_download_subdag(wrf_dag_name, 'gfs_download', default_args,
+                                           wrf_config_key=wrf_config_key_prefix + '0', test_mode=test_mode),
     default_args=default_args,
     dag=dag,
 )
@@ -83,8 +82,8 @@ metgrid = CurwPythonOperator(
 
 real_wrf = SubDagOperator(
     task_id='real_wrf',
-    subdag=dag_utils.get_wrf_run_subdag(wrf_dag_name, 'real_wrf', 4, default_args, wrf_config_key_prefix,
-                                        test_mode=test_mode),
+    subdag=subdags.get_wrf_run_subdag(wrf_dag_name, 'real_wrf', 4, default_args, wrf_config_key_prefix,
+                                      test_mode=test_mode),
     default_args=default_args,
     dag=dag,
 )

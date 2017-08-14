@@ -6,6 +6,7 @@ from airflow.models import Variable
 from curwrf.wrf import utils
 from curwrf.wrf.execution import executor
 from curwrf.wrf.execution.executor import WrfConfig
+from curwrf.workflow.airflow.dags import utils as dag_utils
 
 
 class CurwTask(object):
@@ -178,7 +179,8 @@ class Wrf(WrfTask):
         utils.run_subprocess('mpirun -np %d ./wrf.exe' % procs, cwd=em_real_dir)
 
     def post_process(self, *args, **kwargs):
-        wrf_home = self.get_config(**kwargs).get('wrf_home')
+        config = self.get_config(**kwargs)
+        wrf_home = config.get('wrf_home')
         em_real_dir = utils.get_em_real_dir(wrf_home)
         start_date = self.get_config(**kwargs).get('start_date')
 
@@ -187,6 +189,14 @@ class Wrf(WrfTask):
                                      os.path.join(utils.get_logs_dir(wrf_home), 'rsl-wrf-%s' % start_date))
 
         logging.info('Moving the WRF files to output directory')
+        # move the d03 to nfs
+        d03_out = dag_utils.get_incremented_dir_path(
+            os.path.join(config.get('nfs_home'), 'output', config.get('start_date'), '0'))
+        utils.move_files_with_prefix(utils.get_em_real_dir(wrf_home), 'wrfout_d03*', d03_out)
+        utils.move_files_with_prefix(utils.get_em_real_dir(wrf_home), 'namelist.input', d03_out)
+
+        # move the rest to the OUTPUT dir of each run
+        # todo: in the docker impl - FIND A BETTER WAY
         utils.move_files_with_prefix(utils.get_em_real_dir(wrf_home), 'wrfout_d*', utils.get_output_dir(wrf_home))
 
 
