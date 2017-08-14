@@ -187,7 +187,7 @@ class Wrf(WrfTask):
         config = self.get_config(**kwargs)
         wrf_home = config.get('wrf_home')
         em_real_dir = utils.get_em_real_dir(wrf_home)
-        start_date = self.get_config(**kwargs).get('start_date')
+        start_date = config.get('start_date')
 
         logging.info('Moving the WRF logs')
         utils.move_files_with_prefix(em_real_dir, 'rsl*',
@@ -197,10 +197,10 @@ class Wrf(WrfTask):
         # move the d03 to nfs
         # ex: /mnt/disks/wrf-mod/nfs/output/wrf0/2017-08-13_00:00/0 .. n
         d03_dir = dag_utils.get_incremented_dir_path(
-            os.path.join(config.get('nfs_home'), 'output', os.path.basename(wrf_home), config.get('start_date'), '0'))
+            os.path.join(config.get('nfs_dir'), 'output', os.path.basename(wrf_home), start_date, '0'))
         self.add_config_item('wrf_output_dir', d03_dir)
 
-        d03_file = os.path.join(em_real_dir, 'wrfout_d03_' + config.get('start_date') + ':00')
+        d03_file = os.path.join(em_real_dir, 'wrfout_d03_' + start_date + ':00')
         ext_utils.ncks_extract_variables(d03_file, ['RAINC', 'RAINNC', 'XLAT', 'XLONG', 'Times'], d03_file + '_SL')
         utils.move_files_with_prefix(em_real_dir, 'wrfout_d03*', d03_dir)
         utils.move_files_with_prefix(em_real_dir, 'namelist.input', d03_dir)
