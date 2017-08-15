@@ -4,7 +4,7 @@ import os
 import time
 from airflow.models import Variable
 from curwrf.wrf import constants, utils
-from curwrf.wrf.execution import executor as wrf_exec, executor
+from curwrf.wrf.execution import executor as wrf_exec
 
 
 # def get_gfs_download_subdag(parent_dag_name, child_dag_name, args, wrf_config_key='wrf_config', test_mode=False):
@@ -147,11 +147,11 @@ def set_initial_parameters_fs(wrf_home_key='wrf_home', wrf_start_date_key='wrf_s
         # date_splits = re.split('[-_:]', start_date)
         Variable.set(wrf_config_key, wrf_config.to_json_string())
 
-        logging.info('Replacing namelist.wps place-holders')
-        executor.replace_namelist_wps(wrf_config)
+    logging.info('Replacing namelist.wps place-holders')
+    wrf_exec.replace_namelist_wps(wrf_config)
 
-        logging.info('Replacing namelist.input place-holders')
-        executor.replace_namelist_input(wrf_config)
+    logging.info('Replacing namelist.input place-holders')
+    wrf_exec.replace_namelist_input(wrf_config)
 
     if 'ti' in kwargs:
         kwargs['ti'].xcom_push(key=wrf_config_key, value=wrf_config.to_json_string())
