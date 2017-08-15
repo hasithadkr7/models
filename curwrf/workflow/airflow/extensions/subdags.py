@@ -1,10 +1,13 @@
 import logging
+import os
+
 from airflow import DAG
 from airflow.models import Variable
 from airflow.operators.python_operator import PythonOperator
 from curwrf.workflow.airflow.dags import utils as dag_utils
 from curwrf.workflow.airflow.extensions import tasks
 from curwrf.workflow.airflow.extensions.operators import CurwPythonOperator
+from curwrf.workflow.airflow.extensions.sensors import CurwWrfFileLockSensor
 from curwrf.wrf import utils
 from curwrf.wrf.execution.executor import WrfConfig
 from curwrf.wrf.execution.tasks import download_inventory
@@ -76,6 +79,23 @@ def get_wrf_run_subdag(parent_dag_name, child_dag_name, runs, args, wrf_config_k
     )
 
     for i in [str(x) for x in range(runs)]:
+        lock_sensor = CurwWrfFileLockSensor(
+            config_key=wrf_config_key + i,
+            task_id='%s-task-%s-%s' % (child_dag_name, 'lock_sensor', i),
+            poke_interval=60,  # poke every minute
+            timeout=60 * 60 * 24,  # timeout after a day
+            default_args=args,
+            dag=dag_subdag
+        )
+
+        acquire_lock = PythonOperator(
+            task_id='%s-task-%s-%s' % (child_dag_name, 'acquire_lock', i),
+            python_callable=dag_utils.set_initial_parameters_fs,
+            op_args=[wrf_config_key + i],
+            default_args=args,
+            dag=dag_subdag
+        )
+
         real = CurwPythonOperator(
             task_id='%s-task-%s-%s' % (child_dag_name, 'real', i),
             curw_task=tasks.Real,
@@ -96,6 +116,28 @@ def get_wrf_run_subdag(parent_dag_name, child_dag_name, runs, args, wrf_config_k
             test_mode=test_mode
         )
 
-        real >> wrf
+        release_lock = PythonOperator(
+            task_id='%s-task-%s-%s' % (child_dag_name, 'release_lock', i),
+            op_args=[wrf_config_key + i],
+            default_args=args,
+            dag=dag_subdag
+        )
+
+        lock_sensor >> acquire_lock >> real >> wrf >> release_lock
 
     return dag_subdag
+
+
+def acquire_wrf_lock(wrf_config_key):
+    config = WrfConfig(Variable.get(wrf_config_key, deserialize_json=True))
+    file_path = os.path.join(utils.get_em_real_dir(config.get('wrf_home')), 'wrf.lock')
+    logging.info('acquiring lock %s' % file_path)
+    with open(file_path, 'w') as lock:
+        lock.write(config.to_string())
+
+
+def release_wrf_lock(wrf_config_key):
+    config = WrfConfig(Variable.get(wrf_config_key, deserialize_json=True))
+    file_path = os.path.join(utils.get_em_real_dir(config.get('wrf_home')), 'wrf.lock')
+    logging.info('releasing lock %s' % file_path)
+    os.remove(file_path)
