@@ -90,7 +90,7 @@ def get_wrf_run_subdag(parent_dag_name, child_dag_name, runs, args, wrf_config_k
 
         acquire_lock = PythonOperator(
             task_id='%s-task-%s-%s' % (child_dag_name, 'acquire_lock', i),
-            python_callable=dag_utils.set_initial_parameters_fs,
+            python_callable=acquire_wrf_lock,
             op_args=[wrf_config_key + i],
             default_args=args,
             dag=dag_subdag
@@ -118,6 +118,7 @@ def get_wrf_run_subdag(parent_dag_name, child_dag_name, runs, args, wrf_config_k
 
         release_lock = PythonOperator(
             task_id='%s-task-%s-%s' % (child_dag_name, 'release_lock', i),
+            python_callable=release_wrf_lock,
             op_args=[wrf_config_key + i],
             default_args=args,
             dag=dag_subdag
