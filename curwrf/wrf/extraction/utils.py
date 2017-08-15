@@ -9,14 +9,28 @@ from mpl_toolkits.basemap import Basemap, cm
 from curwrf.wrf import utils
 
 
-def extract_variables(nc_f, vars, lat_min, lat_max, lon_min, lon_max, lat_var='XLAT', lon_var='XLON', time_var='Times',
-                      output=None):
+def extract_variables(nc_f, var_str, lat_min, lat_max, lon_min, lon_max, lat_var='XLAT', lon_var='XLONG',
+                      time_var='Times'):
+    """
+    extrace variables from a netcdf file
+    :param nc_f: 
+    :param var_str: comma separated string for variables 
+    :param lat_min: 
+    :param lat_max: 
+    :param lon_min: 
+    :param lon_max: 
+    :param lat_var: 
+    :param lon_var: 
+    :param time_var: 
+    :return: 
+    variables dict {var_key --> var[time, lat, lon], xlat --> [lat], xlong --> [lon], times --> [time]}
+    """
     if not os.path.exists(nc_f):
         raise IOError('File %s not found' % nc_f)
 
     nc_fid = Dataset(nc_f, 'r')
 
-    times = [''.join(x) for x in nc_fid.variables[time_var][:]]
+    times = np.array([''.join([y.decode() for y in x]) for x in nc_fid.variables[time_var][:]])
     lats = nc_fid.variables[lat_var][0, :, 0]
     lons = nc_fid.variables[lon_var][0, 0, :]
 
@@ -24,21 +38,21 @@ def extract_variables(nc_f, vars, lat_min, lat_max, lon_min, lon_max, lat_var='X
     lon_inds = np.where((lons >= lon_min) & (lons <= lon_max))
 
     vars_dict = {}
-    for var in vars.replace(',', ' ').split():
+    for var in var_str.replace(',', ' ').split():
         vars_dict[var] = nc_fid.variables[var][:, lat_inds[0], lon_inds[0]]
 
     nc_fid.close()
 
-    if output is not None:
-        logging.info('%s will be archied to %s' % (nc_f, output))
-        nc_format = nc_fid.file_format
-        nc_out = Dataset('data/test.nc', 'w', format=nc_format)
+    vars_dict[time_var] = times
+    vars_dict[lat_var] = lats[lat_inds[0]]
+    vars_dict[lon_var] = lons[lon_inds[0]]
 
-        time = nc_out.createDimension('Time', len(times))
+    # todo: implement this archiving procedure
+    # if output is not None:
+    #     logging.info('%s will be archied to %s' % (nc_f, output))
+    #     ncks_extract_variables(nc_f, var_str, output)
 
-    # todo: complete this function
-
-    return vars_dict, lats[lat_inds[0]], lons[lon_inds[0]], times
+    return vars_dict
 
 
 def ncks_extract_variables(nc_file, variables, dest):
@@ -115,11 +129,14 @@ def create_contour_plot(data, out_file_path, lat_min, lon_min, lat_max, lon_max,
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO, format='%(asctime)s %(threadName)s %(module)s %(levelname)s %(message)s')
-    lon_min = 79.994117
-    lat_min = 6.754167
-    lon_max = 80.773182
-    lat_max = 7.229167
+    # logging.basicConfig(level=logging.INFO, format='%(asctime)s %(threadName)s %(module)s %(levelname)s %(message)s')
+    # lat_min = 5.722969
+    # lon_min = 79.52146
+    # lat_max = 10.06425
+    # lon_max = 82.18992
+    #
+    # # f = '/home/curw/Desktop/wrfout_d03_2017-07-31_00:00:00'
+    # f = '/home/curw/Desktop/wrfout_d03_2017-08-13_00:00:00_SL'
+    # a = extract_variables(f, 'RAINC RAINNC', lat_min, lat_max, lon_min, lon_max)
 
-    f = '/home/nira/curw/OUTPUT/wrfout_d03_2017-04-30_00:00:00'
-    extract_variables(f, 'RAINC RAINNC', lat_min, lat_max, lon_min, lon_max)
+    pass

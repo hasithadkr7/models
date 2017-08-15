@@ -1,8 +1,11 @@
 import json
 import logging
 import os
+import numpy as np
 
 from airflow.models import Variable
+from mpl_toolkits.basemap import cm, Basemap
+
 from curwrf.wrf import utils
 from curwrf.wrf.execution import executor
 from curwrf.wrf.execution.executor import WrfConfig
@@ -208,6 +211,62 @@ class Wrf(WrfTask):
         # move the rest to the OUTPUT dir of each run
         # todo: in the docker impl - FIND A BETTER WAY
         utils.move_files_with_prefix(em_real_dir, 'wrfout_d*', utils.get_output_dir(wrf_home))
+
+
+class RainfallExtraction(WrfTask):
+    def process(self, *args, **kwargs):
+        config = self.get_config(**kwargs)
+        start_date = config.get('start_date')
+        d03_dir = config.get('wrf_output_dir')
+        d03_sl = os.path.join(d03_dir, 'wrfout_d03_' + start_date + ':00_SL')
+
+        lat_min = 5.722969
+        lon_min = 79.52146
+        lat_max = 10.06425
+        lon_max = 82.18992
+
+        variables = ext_utils.extract_variables(d03_sl, 'RAINC, RAINNC', lat_min, lat_max, lon_min, lon_max)
+
+        lats = variables['XLAT']
+        lons = variables['XLONG']
+
+        # cell size is calc based on the mean between the lat and lon points
+        cell_size = np.round(
+            np.mean(np.append(lons[1:len(lons)] - lons[0: len(lons) - 1], lats[1:len(lats)] - lats[0: len(lats) - 1])),
+            3)
+        clevs = np.concatenate(([-1, 0], np.array([pow(2, i) for i in range(0, 9)])))
+
+        basemap = Basemap(projection='merc', llcrnrlon=lon_min, llcrnrlat=lat_min, urcrnrlon=lon_max,
+                          urcrnrlat=lat_max, resolution='h')
+
+        for i in range(1, len(variables['Times'])):
+            time = variables['Times'][i]
+            logging.info('processing %s', time)
+
+            cum_precip = variables['RAINC'][i] + variables['RAINNC'][i]
+            # instantaneous precipitation (hourly)
+            inst_precip = cum_precip - (variables['RAINC'][i - 1] + variables['RAINNC'][i - 1])
+
+            inst_file = os.path.join(d03_dir, 'wrf_inst_' + time)
+            ext_utils.create_asc_file(np.flip(inst_precip, 0), lats, lons, inst_file + '.asc', cell_size=cell_size)
+            ext_utils.create_contour_plot(inst_precip, inst_file + '.png', lat_min, lon_min, lat_max, lon_max,
+                                          os.path.basename(inst_file), clevs=clevs, cmap=cm.s3pcpn, basemap=basemap)
+
+            if i == len(variables['Times']) - 1:
+                cum_file = os.path.join(d03_dir, 'wrf_cum_' + time)
+                ext_utils.create_asc_file(np.flip(cum_precip, 0), lats, lons, cum_file + '.asc', cell_size=cell_size)
+                ext_utils.create_contour_plot(cum_precip, cum_file + '.png', lat_min, lon_min, lat_max, lon_max,
+                                              os.path.basename(cum_file), clevs=clevs, cmap=cm.s3pcpn, basemap=basemap)
+
+
+def test_rainfall_extraction():
+    rf_task = RainfallExtraction()
+    rf_task.config = WrfConfig({
+        'wrf_output_dir': '/home/curw/Desktop/temp',
+        'start_date': '2017-08-13_00:00'
+    })
+
+    rf_task.process()
 
 
 class CurwAriflowTasksException(Exception):
