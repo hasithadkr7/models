@@ -171,8 +171,11 @@ def get_incremented_dir_path(path):
     :return:
     """
     while os.path.exists(path):
-        base = int(os.path.basename(path)) + 1
-        path = os.path.join(os.path.dirname(path), str(base))
+        try:
+            base = str(int(os.path.basename(path)) + 1)
+            path = os.path.join(os.path.dirname(path), base)
+        except ValueError:
+            path = os.path.join(path, '0')
 
     return path
 
