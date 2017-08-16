@@ -3,6 +3,8 @@ import math
 import logging
 import numpy as np
 import matplotlib
+matplotlib.use('Agg')
+
 import matplotlib.pyplot as plt
 from netCDF4._netCDF4 import Dataset
 from mpl_toolkits.basemap import Basemap, cm
@@ -95,7 +97,6 @@ def create_contour_plot(data, out_file_path, lat_min, lon_min, lat_max, lon_max,
     :param overwrite:
     :return:
     """
-    matplotlib.use('Agg')
     if not utils.file_exists_nonempty(out_file_path) or overwrite:
         fig = plt.figure(figsize=(8.27, 11.69))
         ax = fig.add_axes([0.1, 0.1, 0.8, 0.8])
