@@ -54,10 +54,9 @@ def extract_metro_colombo(nc_f, date, wrf_output):
         os.makedirs(output_dir)
 
     alpha_file_path = wrf_output + '/colombo/alphas.txt'
-    basin_rf = 1.0
+    basin_rf = np.sum(diff[5:29, :, :]) / float(width * height)
     with open(alpha_file_path, 'a') as alpha_file:
-        basin_rf = np.sum(diff[5:29, :, :]) / float(width * height)
-        alpha_file.write('%s %f\n' % (date.strftime('%Y-%m-%d'), basin_rf))
+        alpha_file.write('%s %f\n' % (date.strftime('%Y-%m-%d'), basin_rf[0]))
 
     subsection_file_path = wrf_output + '/colombo/sub-means-' + date.strftime('%Y-%m-%d') + '.txt'
     subsection_file = open(subsection_file_path, 'w')
@@ -92,7 +91,7 @@ def extract_metro_colombo(nc_f, date, wrf_output):
     subsection_file.close()
 
     nc_fid.close()
-    return basin_rf
+    return basin_rf[0]
 
 
 def extract_weather_stations(nc_f, date, times, weather_stations, wrf_output):
@@ -520,7 +519,8 @@ def extract_all(wrf_home, start_date, end_date):
     logging.info('WRF home : %s' % wrf_home)
 
     weather_st_file = res_mgr.get_resource_path('extraction/local/kelani_basin_stations.txt')
-    kelani_basin_file = res_mgr.get_resource_path('extraction/local/kelani_basin_points.txt')
+    # kelani_basin_file = res_mgr.get_resource_path('extraction/local/kelani_basin_points.txt')
+    kelani_basin_file = res_mgr.get_resource_path('extraction/local/kelani_basin_points_250m.txt')
     kelani_basin_shp_file = res_mgr.get_resource_path('extraction/shp/kelani-upper-basin.shp')
     jaxa_weather_st_file = res_mgr.get_resource_path('extraction/local/jaxa_weather_stations.txt')
 

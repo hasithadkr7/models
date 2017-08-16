@@ -99,7 +99,7 @@ def create_contour_plot(data, out_file_path, lat_min, lon_min, lat_max, lon_max,
     """
     if not utils.file_exists_nonempty(out_file_path) or overwrite:
         fig = plt.figure(figsize=(8.27, 11.69))
-        ax = fig.add_axes([0.1, 0.1, 0.8, 0.8])
+        # ax = fig.add_axes([0.1, 0.1, 0.8, 0.8])
         if basemap is None:
             basemap = Basemap(projection='merc', llcrnrlon=lon_min, llcrnrlat=lat_min, urcrnrlon=lon_max,
                               urcrnrlat=lat_max,

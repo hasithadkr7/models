@@ -11,5 +11,5 @@ setup(
     author='niranda perera',
     author_email='niranda.17@cse.mrt.ac.lk',
     description='',
-    requires=['airflow', 'pyyaml', 'shapely', 'joblib', 'netCDF4']
+    requires=['airflow', 'pyyaml', 'shapely', 'joblib', 'netCDF4', 'matplotlib']
 )
