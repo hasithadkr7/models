@@ -158,7 +158,7 @@ class Real(WrfTask):
 
         # Linking met_em.*
         logging.info('Creating met_em.d* symlinks')
-        utils.create_symlink_with_prefix(nfs_metgrid_dir, 'met_em.d*', em_real_dir)
+        utils.copy_files_with_prefix(nfs_metgrid_dir, 'met_em.d*', em_real_dir)
 
     def process(self, *args, **kwargs):
         wrf_home = self.get_config(**kwargs).get('wrf_home')
