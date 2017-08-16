@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import shutil
 import numpy as np
 
 from airflow.models import Variable
@@ -206,7 +207,7 @@ class Wrf(WrfTask):
         d03_file = os.path.join(em_real_dir, 'wrfout_d03_' + start_date + ':00')
         ext_utils.ncks_extract_variables(d03_file, ['RAINC', 'RAINNC', 'XLAT', 'XLONG', 'Times'], d03_file + '_SL')
         utils.move_files_with_prefix(em_real_dir, 'wrfout_d03*', d03_dir)
-        utils.move_files_with_prefix(em_real_dir, 'namelist.input', d03_dir)
+        shutil.copy2(os.path.join(em_real_dir, 'namelist.input'), d03_dir)
 
         # move the rest to the OUTPUT dir of each run
         # todo: in the docker impl - FIND A BETTER WAY
