@@ -5,6 +5,7 @@ import shutil
 import numpy as np
 
 from airflow.models import Variable
+import matplotlib
 from mpl_toolkits.basemap import cm, Basemap
 
 from curwrf.wrf import utils
@@ -240,6 +241,7 @@ class RainfallExtraction(WrfTask):
             3)
         clevs = np.concatenate(([-1, 0], np.array([pow(2, i) for i in range(0, 9)])))
 
+        matplotlib.use('Agg') # for OS with no GUI
         basemap = Basemap(projection='merc', llcrnrlon=lon_min, llcrnrlat=lat_min, urcrnrlon=lon_max,
                           urcrnrlat=lat_max, resolution='h')
 
