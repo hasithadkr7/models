@@ -215,7 +215,7 @@ def copy_files_with_prefix(src_dir, prefix, dest_dir):
 def move_files_with_prefix(src_dir, prefix, dest_dir):
     create_dir_if_not_exists(dest_dir)
     for filename in glob.glob(os.path.join(src_dir, prefix)):
-        os.rename(filename, os.path.join(dest_dir, ntpath.basename(filename)))
+        shutil.move(filename, os.path.join(dest_dir, ntpath.basename(filename)))
 
 
 def create_symlink_with_prefix(src_dir, prefix, dest_dir):
