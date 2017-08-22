@@ -49,9 +49,9 @@ def extract_jaxa_satellite_data(start_ts_utc, end_ts_utc, output_dir, cleanup=Tr
         return _url
 
     # tmp_dir = os.path.join(output_dir, 'tmp_jaxa/')
+    # if not os.path.exists(tmp_dir):
+    #     os.mkdir(tmp_dir)
     tmp_dir = tempfile.mkdtemp(prefix='tmp_jaxa')
-    if not os.path.exists(tmp_dir):
-        os.mkdir(tmp_dir)
 
     url_dest_list = []
     for timestamp in np.arange(start, end, dt.timedelta(hours=1)).astype(dt.datetime):
@@ -67,7 +67,7 @@ def extract_jaxa_satellite_data(start_ts_utc, end_ts_utc, output_dir, cleanup=Tr
 
     logging.info('Processing files in parallel')
     Parallel(n_jobs=procs)(
-        delayed(process_jaxa_zip_file)(i[1], i[2], lat_min, lon_min, lat_max, lon_max, True) for i in url_dest_list)
+        delayed(process_jaxa_zip_file)(i[1], i[2], lat_min, lon_min, lat_max, lon_max, cum) for i in url_dest_list)
     logging.info('Processing files complete')
 
     if cum:
