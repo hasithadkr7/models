@@ -4,6 +4,7 @@ import logging
 import multiprocessing
 import os
 import shutil
+import tempfile
 import zipfile
 
 import matplotlib
@@ -47,7 +48,8 @@ def extract_jaxa_satellite_data(start_ts_utc, end_ts_utc, output_dir, cleanup=Tr
             _url = _url.replace(k, v)
         return _url
 
-    tmp_dir = os.path.join(output_dir, 'tmp_jaxa/')
+    # tmp_dir = os.path.join(output_dir, 'tmp_jaxa/')
+    tmp_dir = tempfile.mkdtemp(prefix='tmp_jaxa')
     if not os.path.exists(tmp_dir):
         os.mkdir(tmp_dir)
 
