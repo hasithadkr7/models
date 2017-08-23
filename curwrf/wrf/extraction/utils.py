@@ -3,6 +3,7 @@ import math
 import logging
 import numpy as np
 import matplotlib
+
 matplotlib.use('Agg')
 
 import matplotlib.pyplot as plt
@@ -78,6 +79,17 @@ def create_asc_file(data, lats, lons, out_file_path, cell_size=0.1, no_data_val=
             np.savetxt(out_file, data, fmt='%g')
     else:
         logging.info('%s already exits' % out_file_path)
+
+
+def read_asc_file(path):
+    meta = {}
+    with open(path) as f:
+        for i in range(6):
+            line = next(f).split()
+            meta[line[0]] = float(line[1])
+
+    data = np.genfromtxt(path, skip_header=6)
+    return data, meta
 
 
 def create_contour_plot(data, out_file_path, lat_min, lon_min, lat_max, lon_max, plot_title, basemap=None, clevs=None,
