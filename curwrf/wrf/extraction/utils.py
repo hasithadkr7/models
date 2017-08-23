@@ -82,6 +82,11 @@ def create_asc_file(data, lats, lons, out_file_path, cell_size=0.1, no_data_val=
 
 
 def read_asc_file(path):
+    """
+    reads a esri asci file 
+    :param path: file path
+    :return: (data, meta data)
+    """
     meta = {}
     with open(path) as f:
         for i in range(6):
@@ -143,7 +148,14 @@ def create_contour_plot(data, out_file_path, lat_min, lon_min, lat_max, lon_max,
         logging.info('%s already exists' % out_file_path)
 
 
-def shrink_2d_array(data, new_shape, func=np.average):
+def shrink_2d_array(data, new_shape, agg_func=np.average):
+    """
+    shrinks a 2d np array 
+    :param data: np data array dim(x, y)
+    :param new_shape: tuple of (row dim, col dim) ex: (x1, y1)
+    :param agg_func: ex: np.sum, np.average, np.max 
+    :return: array with dim (x1, y1)
+    """
     cur_shape = np.shape(data)
     row_bins = np.round(np.arange(new_shape[0] + 1) * cur_shape[0] / new_shape[0]).astype(int)
     col_bins = np.round(np.arange(new_shape[1] + 1) * cur_shape[1] / new_shape[1]).astype(int)
@@ -151,7 +163,7 @@ def shrink_2d_array(data, new_shape, func=np.average):
     output = np.zeros(new_shape)
     for i in range(len(row_bins) - 1):
         for j in range(len(col_bins) - 1):
-            output[i, j] = func(data[row_bins[i]:row_bins[i + 1], col_bins[j]:col_bins[j + 1]])
+            output[i, j] = agg_func(data[row_bins[i]:row_bins[i + 1], col_bins[j]:col_bins[j + 1]])
 
     return output
 
