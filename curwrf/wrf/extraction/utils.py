@@ -143,6 +143,19 @@ def create_contour_plot(data, out_file_path, lat_min, lon_min, lat_max, lon_max,
         logging.info('%s already exists' % out_file_path)
 
 
+def shrink_2d_array(data, new_shape, func=np.average):
+    cur_shape = np.shape(data)
+    row_bins = np.round(np.arange(new_shape[0] + 1) * cur_shape[0] / new_shape[0]).astype(int)
+    col_bins = np.round(np.arange(new_shape[1] + 1) * cur_shape[1] / new_shape[1]).astype(int)
+
+    output = np.zeros(new_shape)
+    for i in range(len(row_bins) - 1):
+        for j in range(len(col_bins) - 1):
+            output[i, j] = func(data[row_bins[i]:row_bins[i + 1], col_bins[j]:col_bins[j + 1]])
+
+    return output
+
+
 if __name__ == "__main__":
     # logging.basicConfig(level=logging.INFO, format='%(asctime)s %(threadName)s %(module)s %(levelname)s %(message)s')
     # lat_min = 5.722969
