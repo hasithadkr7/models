@@ -165,10 +165,10 @@ def get_gfs_data_dest(inv, date_str, cycle, fcst_id, res, gfs_dir):
     return dest
 
 
-def get_gfs_inventory_url_dest_list(date, period, url, inv, step, cycle, res, gfs_dir):
-    date_str = date.strftime('%Y%m%d')
+def get_gfs_inventory_url_dest_list(date, period, url, inv, step, cycle, res, gfs_dir, start=0):
+    date_str = date.strftime('%Y%m%d') if type(date) is dt.datetime else date
     return [get_gfs_data_url_dest_tuple(url, inv, date_str, cycle, str(i).zfill(3), res, gfs_dir) for i in
-            range(0, period * 24 + 1, step)]
+            range(start, int(period * 24) + 1, step)]
 
 
 def get_gfs_inventory_dest_list(date, period, inv, step, cycle, res, gfs_dir):
@@ -342,6 +342,23 @@ def get_appropriate_gfs_inventory(wrf_config):
         'gfs_step')
 
     return gfs_date, gfs_cycle, start_inv
+
+
+def get_incremented_dir_path(path):
+    """
+    returns the incremented dir path
+    ex: /a/b/c/0 if not exists returns /a/b/c/0 else /a/b/c/1
+    :param path:
+    :return:
+    """
+    while os.path.exists(path):
+        try:
+            base = str(int(os.path.basename(path)) + 1)
+            path = os.path.join(os.path.dirname(path), base)
+        except ValueError:
+            path = os.path.join(path, '0')
+
+    return path
 
 
 # def namedtuple_with_defaults(typename, field_names, default_values=()):

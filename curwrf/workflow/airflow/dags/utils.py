@@ -163,22 +163,5 @@ class WrfRunException(Exception):
         Exception.__init__(self, msg)
 
 
-def get_incremented_dir_path(path):
-    """
-    returns the incremented dir path
-    ex: /a/b/c/0 if not exists returns /a/b/c/0 else /a/b/c/1
-    :param path:
-    :return:
-    """
-    while os.path.exists(path):
-        try:
-            base = str(int(os.path.basename(path)) + 1)
-            path = os.path.join(os.path.dirname(path), base)
-        except ValueError:
-            path = os.path.join(path, '0')
-
-    return path
-
-
 if __name__ == "__main__":
     pass

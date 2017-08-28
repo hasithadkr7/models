@@ -47,42 +47,61 @@ class InventoryDownloadThread(threading.Thread):
             logging.error('Error in downloading from thread %d' % self.thread_id)
 
 
-def download_gfs_data(date, wrf_conf):
+def download_gfs_data(wrf_conf):
     logging.info('Downloading GFS data: START')
 
     if wrf_conf.get('gfs_clean'):
         logging.info('Cleaning the GFS dir: %s' % wrf_conf.get('gfs_dir'))
         utils.cleanup_dir(wrf_conf.get('gfs_dir'))
 
-    inventories = utils.get_gfs_inventory_url_dest_list(date, wrf_conf.get('period'), wrf_conf.get('gfs_url'),
+    gfs_date, gfs_cycle, start_inv = utils.get_appropriate_gfs_inventory(wrf_conf)
+
+    inventories = utils.get_gfs_inventory_url_dest_list(gfs_date, wrf_conf.get('period'), wrf_conf.get('gfs_url'),
                                                         wrf_conf.get('gfs_inv'), wrf_conf.get('gfs_step'),
-                                                        wrf_conf.get('gfs_cycle'), wrf_conf.get('gfs_res'),
-                                                        wrf_conf.get('gfs_dir'))
+                                                        gfs_cycle, wrf_conf.get('gfs_res'),
+                                                        wrf_conf.get('gfs_dir'), start=start_inv)
     gfs_threads = wrf_conf.get('gfs_threads')
     logging.info(
         'Following data will be downloaded in %d parallel threads\n%s' % (gfs_threads, '\n'.join(
             ' '.join(map(str, i)) for i in inventories)))
 
     start_time = time.time()
-    inv_count = len(inventories)
-    logging.debug('Initializing threads')
-    for k in range(0, inv_count, gfs_threads):
-        threads = []
-        for j in range(0, gfs_threads):
-            i = k + j
-            if i < inv_count:
-                url0 = inventories[i][0]
-                dest0 = inventories[i][1]
-                thread = InventoryDownloadThread(i, url0, dest0, wrf_conf.get('gfs_retries'), wrf_conf.get('gfs_delay'))
-                thread.start()
-                threads.append(thread)
-
-        logging.debug('Joining threads')
-        for t in threads:
-            t.join()
-
+    utils.download_parallel(inventories, procs=gfs_threads)
+    # inv_count = len(inventories)
+    # logging.debug('Initializing threads')
+    # for k in range(start_inv, inv_count, gfs_threads):
+    #     threads = []
+    #     for j in range(0, gfs_threads):
+    #         i = k + j
+    #         if i < inv_count:
+    #             url0 = inventories[i][0]
+    #             dest0 = inventories[i][1]
+    #             thread = InventoryDownloadThread(i, url0, dest0, wrf_conf.get('gfs_retries'), wrf_conf.get('gfs_delay'))
+    #             thread.start()
+    #             threads.append(thread)
+    #
+    #     logging.debug('Joining threads')
+    #     for t in threads:
+    #         t.join()
     elapsed_time = time.time() - start_time
     logging.info('Downloading GFS data: END Elapsed time: %f' % elapsed_time)
+
+    return gfs_date, start_inv
+
+
+def test_download_gfs_data():
+    wrf_home = '/tmp/wrf'
+    gfs_dir = wrf_home + '/gfs'
+    utils.create_dir_if_not_exists(wrf_home)
+    utils.create_dir_if_not_exists(gfs_dir)
+    conf = get_wrf_config(wrf_home, start_date='2017-08-27_00:00', gfs_dir=gfs_dir, period=0.25)
+
+    gfs_date, start_inv = download_gfs_data(conf)
+    logging.info('gfs date %s and start inventory %s' % (gfs_date, start_inv))
+
+    files = os.listdir(gfs_dir)
+
+    assert len(files) == int(24*conf.get('period')/conf.get('gfs_step')) + 1
 
 
 def check_gfs_data_availability(date, wrf_config):
