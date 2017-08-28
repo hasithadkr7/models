@@ -4,6 +4,7 @@ import os
 from airflow import DAG
 from airflow.models import Variable
 from airflow.operators.python_operator import PythonOperator
+from airflow.utils.trigger_rule import TriggerRule
 from curwrf.workflow.airflow.dags import utils as dag_utils
 from curwrf.workflow.airflow.extensions import tasks
 from curwrf.workflow.airflow.extensions.operators import CurwPythonOperator
@@ -124,6 +125,15 @@ def get_wrf_run_subdag(parent_dag_name, child_dag_name, runs, args, wrf_config_k
             dag=dag_subdag
         )
 
+        release_lock_if_failed = PythonOperator(
+            task_id='%s-task-%s-%s' % (child_dag_name, 'release_lock_failed', i),
+            python_callable=release_wrf_lock,
+            op_args=[wrf_config_key + i],
+            default_args=args,
+            dag=dag_subdag,
+            trigger_rule=TriggerRule.ONE_FAILED
+        )
+
         rf_extraction = CurwPythonOperator(
             task_id='%s-task-%s-%s' % (child_dag_name, 'extraction', i),
             curw_task=tasks.RainfallExtraction,
@@ -135,6 +145,7 @@ def get_wrf_run_subdag(parent_dag_name, child_dag_name, runs, args, wrf_config_k
         )
 
         lock_sensor >> acquire_lock >> real >> wrf >> release_lock >> rf_extraction
+        wrf >> release_lock_if_failed
 
     return dag_subdag
 

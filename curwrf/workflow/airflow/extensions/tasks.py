@@ -126,6 +126,7 @@ class Metgrid(WrfTask):
         utils.create_dir_if_not_exists(nfs_metgrid_dir)
         # utils.delete_files_with_prefix(nfs_metgrid_dir, 'met_em.d*')
         # utils.create_symlink_with_prefix(wps_dir, 'met_em.d*', nfs_metgrid_dir)
+        utils.delete_files_with_prefix(nfs_metgrid_dir, 'met_em.d*')
         utils.move_files_with_prefix(wps_dir, 'met_em.d*', nfs_metgrid_dir)
 
 
