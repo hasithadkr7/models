@@ -201,7 +201,7 @@ class Wrf(WrfTask):
         logging.info('Moving the WRF files to output directory')
         # move the d03 to nfs
         # ex: /mnt/disks/wrf-mod/nfs/output/wrf0/2017-08-13_00:00/0 .. n
-        d03_dir = dag_utils.get_incremented_dir_path(
+        d03_dir = utils.get_incremented_dir_path(
             os.path.join(config.get('nfs_dir'), 'output', os.path.basename(wrf_home), start_date, '0'))
         self.add_config_item('wrf_output_dir', d03_dir)
 
@@ -215,7 +215,7 @@ class Wrf(WrfTask):
 
         # move the rest to the OUTPUT dir of each run
         # todo: in the docker impl - FIND A BETTER WAY
-        archive_dir = dag_utils.get_incremented_dir_path(os.path.join(utils.get_output_dir(wrf_home), start_date))
+        archive_dir = utils.get_incremented_dir_path(os.path.join(utils.get_output_dir(wrf_home), start_date))
         utils.move_files_with_prefix(em_real_dir, 'wrfout_d*', archive_dir)
 
 

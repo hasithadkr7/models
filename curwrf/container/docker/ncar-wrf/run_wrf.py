@@ -1,13 +1,15 @@
 import argparse
 import logging
 import os
+import random
+import string
 
-from curwrf.workflow.airflow.extensions.tasks import Ungrib, Geogrid, Metgrid, Real, Wrf
 from curwrf.wrf.execution import executor
 
 
 def parse_args():
     parser = argparse.ArgumentParser()
+    parser.add_argument('-run_id', default=id_generator())
     parser.add_argument('-wrf_home', default='/wrf')
     parser.add_argument('-mode', default='wps')
     parser.add_argument('-nl_wps', default=None)
@@ -21,38 +23,29 @@ def parse_args():
     return parser.parse_args()
 
 
-def run_wrf(wrf_config):
-    logging.info('Adding the WRF tasks')
-    wrf_tasks = [Real(config=wrf_config), Wrf(config=wrf_config)]
+def id_generator(size=8, chars=string.ascii_uppercase + string.digits):
+    return ''.join(random.choice(chars) for _ in range(size))
 
-    run_curw_tasks(wrf_tasks)
+
+def run_wrf(wrf_config):
+    logging.info('Running WRF')
+
+    logging.info('Replacing the namelist input file')
+    executor.replace_namelist_input(wrf_config)
+
+    logging.info('Running WRF...')
+    executor.run_em_real(wrf_config)
 
 
 def run_wps(wrf_config):
     logging.info('Downloading GFS data')
     executor.download_gfs_data(wrf_config)
 
-    logging.info('Adding the WPS tasks')
-    wps_tasks = [Ungrib(config=wrf_config), Geogrid(config=wrf_config), Metgrid(config=wrf_config)]
+    logging.info('Replacing the namelist wps file')
+    executor.replace_namelist_wps(wrf_config)
 
-    run_curw_tasks(wps_tasks)
-
-
-def run_curw_tasks(tasks):
-    for task in tasks:
-        name = task.__class__.__name__
-        logging.info('Starting ' + name)
-
-        logging.info('Running %s: Pre-process')
-        task.pre_process()
-
-        logging.info('Running %s: Process')
-        task.pre_process()
-
-        logging.info('Running %s: Process')
-        task.post_process()
-
-        logging.info(name + ' completed!')
+    logging.info('Running WPS...')
+    executor.run_wps(wrf_config)
 
 
 class CurwDockerException(Exception):
@@ -63,9 +56,10 @@ class CurwDockerException(Exception):
 
 if __name__ == "__main__":
     args = parse_args()
-
-    config = executor.get_wrf_config(wrf_home=args.wrf_home, start_date=args.start, output_dir=args.output_dir,
-                                     period=int(args.period), gfs_dir=args.gfs_dir, geog_dir=args.geog_dir)
+    logging.info('**** WRF RUN **** Run ID: ' + args.run_id)
+    config = executor.get_wrf_config(wrf_home=args.wrf_home, start_date=args.start, nfs_dir=args.output_dir,
+                                     period=int(args.period), gfs_dir=args.gfs_dir, geog_dir=args.geog_dir,
+                                     run_id=args.run_id)
 
     if args.nl_wps is not None:
         logging.info('Reading namelist wps')
@@ -93,9 +87,13 @@ if __name__ == "__main__":
     mode = args.mode.strip().lower()
     if mode == 'wps':
         logging.info('Running WPS')
-        # run_wps(config)
+        run_wps(config)
     elif mode == 'wrf':
         logging.info('Running WRF')
-        # run_wrf(config)
+        run_wrf(config)
+    elif mode == "all":
+        logging.info("Running both WPS and WRF")
+        run_wps(config)
+        run_wrf(config)
     else:
         raise CurwDockerException('Unknown mode ' + mode)

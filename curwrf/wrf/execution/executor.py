@@ -6,6 +6,8 @@ import threading
 import time
 from urllib.error import HTTPError, URLError
 
+import shutil
+
 from curwrf.wrf import constants, utils
 from curwrf.wrf.resources import manager as res_mgr
 
@@ -86,6 +88,8 @@ def download_gfs_data(wrf_conf):
     elapsed_time = time.time() - start_time
     logging.info('Downloading GFS data: END Elapsed time: %f' % elapsed_time)
 
+    logging.info('Downloading GFS data: END')
+
     return gfs_date, start_inv
 
 
@@ -101,7 +105,7 @@ def test_download_gfs_data():
 
     files = os.listdir(gfs_dir)
 
-    assert len(files) == int(24*conf.get('period')/conf.get('gfs_step')) + 1
+    assert len(files) == int(24 * conf.get('period') / conf.get('gfs_step')) + 1
 
 
 def check_gfs_data_availability(date, wrf_config):
@@ -128,8 +132,9 @@ def check_geogrid_output(wps_dir):
     return True
 
 
-def run_wps(wrf_home, start_date):
-    logging.info('Running WPS...')
+def run_wps(wrf_config):
+    logging.info('Running WPS: START')
+    wrf_home = wrf_config.get('wrf_home')
     wps_dir = utils.get_wps_dir(wrf_home)
 
     logging.info('Cleaning up files')
@@ -143,8 +148,11 @@ def run_wps(wrf_home, start_date):
         os.symlink(os.path.join(wps_dir, 'ungrib/Variable_Tables/Vtable.NAM'), os.path.join(wps_dir, 'Vtable'))
 
     # Running link_grib.csh
+    gfs_date, gfs_cycle, start = utils.get_appropriate_gfs_inventory(wrf_config)
+    dest = utils.get_gfs_data_url_dest_tuple(wrf_config.get('gfs_url'), wrf_config.get('gfs_inv'), gfs_date, gfs_cycle,
+                                             '', wrf_config.get('gfs_res'), '')[1]
     utils.run_subprocess(
-        'csh link_grib.csh %s/%s' % (utils.get_gfs_dir(wrf_home), start_date.strftime('%Y%m%d')), cwd=wps_dir)
+        'csh link_grib.csh %s/%s' % (wrf_config.get('gfs_dir'), dest), cwd=wps_dir)
 
     # Starting ungrib.exe
     utils.run_subprocess('./ungrib.exe', cwd=wps_dir)
@@ -156,6 +164,13 @@ def run_wps(wrf_home, start_date):
 
     # Starting metgrid.exe'
     utils.run_subprocess('./metgrid.exe', cwd=wps_dir)
+
+    logging.info('Running WPS: DONE')
+
+    logging.info('Moving metgrid data')
+    dest_dir = os.path.join(wrf_config.get('nfs_dir'), 'metgrid', wrf_config.get('run_id'))
+    utils.cleanup_dir(dest_dir)
+    utils.move_files_with_prefix(wps_dir, 'met_em.d*', dest_dir)
 
 
 def replace_namelist_wps(wrf_config, start_date=None, end_date=None):
@@ -208,27 +223,43 @@ def replace_file_with_values(wrf_config, src, dest, aux_dict, start_date=None, e
     utils.replace_file_with_values(src, dest, d)
 
 
-def run_em_real(wrf_home, start_date, procs):
+def run_em_real(wrf_config):
     logging.info('Running em_real...')
+
+    wrf_home = wrf_config.get('wrf_home')
     em_real_dir = utils.get_em_real_dir(wrf_home)
+    procs = wrf_config.get('procs')
+    start_date = wrf_config.get('start_date')
+    run_id = wrf_config.get('run_id')
 
     logging.info('Cleaning up files')
     utils.delete_files_with_prefix(em_real_dir, 'met_em*')
     utils.delete_files_with_prefix(em_real_dir, 'rsl*')
 
     # Linking met_em.*
-    logging.info('Creating met_em.d* symlinks')
-    utils.create_symlink_with_prefix(utils.get_wps_dir(wrf_home), 'met_em.d*', em_real_dir)
+    # logging.info('Creating met_em.d* symlinks')
+    # utils.create_symlink_with_prefix(utils.get_wps_dir(wrf_home), 'met_em.d*', em_real_dir)
+    logging.info('Copying met_em.d* files')
+    utils.copy_files_with_prefix(utils.get_wps_dir(wrf_home), 'met_em.d*', em_real_dir)
 
     # Starting real.exe
+    # logs destination: nfs/logs/xxxx/rsl*
     utils.run_subprocess('mpirun -np %d ./real.exe' % procs, cwd=em_real_dir)
-    utils.move_files_with_prefix(em_real_dir, 'rsl*', os.path.join(utils.get_logs_dir(wrf_home),
-                                                                   'rsl-real-%s' % start_date.strftime('%Y%m%d')))
+    logging.info('Real complete. Moving log files...')
+    utils.move_files_with_prefix(em_real_dir, 'rsl*',
+                                 os.path.join(wrf_config.get('nfs_dir'), 'logs', run_id, 'rsl-real-%s' % start_date))
 
     # Starting wrf.exe'
     utils.run_subprocess('mpirun -np %d ./wrf.exe' % procs, cwd=em_real_dir)
-    utils.move_files_with_prefix(em_real_dir, 'rsl*', os.path.join(utils.get_logs_dir(wrf_home),
-                                                                   'rsl-wrf-%s' % start_date.strftime('%Y%m%d')))
+    logging.info('WRF complete. Moving log files...')
+    utils.move_files_with_prefix(em_real_dir, 'rsl*',
+                                 os.path.join(wrf_config.get('nfs_dir'), 'logs', run_id, 'rsl-wrf-%s' % start_date))
+
+    logging.info('WRF em_real: DONE! Moving data to the output dir')
+    # destination : nfs/output/XXXX/datetime/i/*.nc files
+    dest_dir = utils.get_incremented_dir_path(
+        os.path.join(wrf_config.get('nfs_dir'), 'output', wrf_config.get('run_id'), start_date))
+    utils.move_files_with_prefix(em_real_dir, 'met_em.d*', dest_dir)
 
 
 def run_wrf(date, wrf_config):
