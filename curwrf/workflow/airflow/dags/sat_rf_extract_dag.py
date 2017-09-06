@@ -33,8 +33,8 @@ dag = DAG(
     schedule_interval=schedule_interval)
 
 cmd_str = 'python3 %s/curwrf/wrf/extraction/sat_extractor.py ' \
-          '-start {{ macros.datetime.strftime(execution_date - macros.timedelta(hours=1), \'%%Y-%%m-%%d_%%H:%%M\') }} ' \
-          '-end {{ execution_date.strftime(\'%%Y-%%m-%%d_%%H:%%M\') }} ' \
+          '-end {{ macros.datetime.strftime(execution_date + macros.timedelta(hours=1), \'%%Y-%%m-%%d_%%H:%%M\') }} ' \
+          '-start {{ execution_date.strftime(\'%%Y-%%m-%%d_%%H:%%M\') }} ' \
           '-output %s' % (curw_py_dir, output_dir)
 
 BashOperator(
