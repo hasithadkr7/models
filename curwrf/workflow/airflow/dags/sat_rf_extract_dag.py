@@ -7,7 +7,7 @@ from airflow.operators.bash_operator import BashOperator
 
 sat_dag_name = 'sat_rf_extraction'
 # queue = 'wrf_fs_impl_queue'
-schedule_interval = '@hourly'
+schedule_interval = '30 * * * *'
 curw_py_dir = '/opt/git/models'
 output_dir = '/mnt/disks/curwsl_nfs/sat'
 # curw_py_dir = '/home/curw/git/models'
