@@ -102,17 +102,44 @@ def mutual_information_2d(x, y, sigma=1, normalized=False):
 
     return mi
 
-
+import scipy
 
 a = scipy.signal.correlate2d(sat_s, wrf_s, mode='same')
 aa = ndimage.measurements.center_of_mass(a)
+
+
+
 plt.imshow(a)
-plt.imshow(ndimage.gaussian_filter(sat_s, 2))
+plt.imshow(ndimage.gaussian_filter(sat_s, 1))
 
 wrf_file = '/home/curw/wrf_compare/mnt/disks/curwsl_nfs/output/wrf0/2017-08-17_00:00/1/wrf_inst_2017-08-18_12:00:00.asc'
-wrf_s = np.round(shrink_2D_array(wrf, (int(sat_meta['NROWS']), int(sat_meta['NCOLS']))), 3)
 wrf, wrf_meta = read_asc_file(wrf_file)
-plt.imshow(ndimage.gaussian_filter(wrf_s, 2))
+
+wrf[wrf<0.25] = 0
+plt.figure(1)
+plt.imshow(wrf)
+plt.colorbar()
+
+plt.imshow(ndimage.median_filter(wrf, 3))
+
+wrf_s = np.round(shrink_2D_array(wrf, (int(sat_meta['NROWS']), int(sat_meta['NCOLS']))), 3)
+plt.hist(wrf_s, bins='auto')
+plt.figure(1)
+plt.imshow(wrf_s)
+plt.colorbar()
+
+plt.figure(0)
+plt.imshow(sat_s)
+plt.colorbar()
+
+wrf_sg = ndimage.gaussian_filter(wrf_s, 1)
+plt.hist(wrf_sg, bins='auto')
+plt.legend()
+
+# wrf_s[wrf_s<0.5] = 0
+plt.imshow(ndimage.gaussian_filter(wrf_s, 1))
+plt.imshow(ndimage.median_filter(wrf_s, 3))
+plt.colorbar()
 
 plt.plot(s_c[1], s_c[0],'bo') 
 plt.plot(w_c[1], w_c[0],'ro')
