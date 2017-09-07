@@ -444,7 +444,8 @@ def extract_all(wrf_home, start_date, end_date):
     logging.info('WRF home : %s' % wrf_home)
 
     weather_st_file = res_mgr.get_resource_path('extraction/local/kelani_basin_stations.txt')
-    kelani_basin_file = res_mgr.get_resource_path('extraction/local/kelani_basin_points.txt')
+    # kelani_basin_file = res_mgr.get_resource_path('extraction/local/kelani_basin_points.txt')
+    kelani_basin_file = res_mgr.get_resource_path('extraction/local/kelani_basin_points_250m.txt')
     kelani_basin_shp_file = res_mgr.get_resource_path('extraction/shp/kelani-upper-basin.shp')
     jaxa_weather_st_file = res_mgr.get_resource_path('extraction/local/jaxa_weather_stations.txt')
 
