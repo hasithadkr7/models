@@ -307,26 +307,31 @@ def file_exists_nonempty(filename):
     return os.path.exists(filename) and os.stat(filename).st_size != 0
 
 
-def download_file(url, dest, overwrite=False):
-    try:
-        logging.info("Downloading %s to %s" % (url, dest))
-        if not overwrite and file_exists_nonempty(dest):
-            logging.info('File already exists. Skipping download!')
+def download_file(url, dest, retries=0, delay=60, overwrite=False):
+    try_count = 1
+    last_e = None
+    while try_count <= retries + 1:
+        try:
+            logging.info("Downloading %s to %s" % (url, dest))
+            if not overwrite and file_exists_nonempty(dest):
+                logging.info('File already exists. Skipping download!')
+            else:
+                f = urlopen(url)
+                with open(dest, "wb") as local_file:
+                    local_file.write(f.read())
             return
-        else:
-            f = urlopen(url)
-            with open(dest, "wb") as local_file:
-                local_file.write(f.read())
-    except HTTPError as e:
-        logging.error("HTTP Error:", e.code, url)
-        raise e
-    except URLError as e:
-        logging.error("URL Error:", e.reason, url)
-        raise e
+
+        except (HTTPError, URLError) as e:
+            logging.error(
+                'Error in downloading %s Attempt %d : %s . Retrying in %d seconds' % (url, try_count, e.message, delay))
+            try_count += 1
+            last_e = e
+            time.sleep(delay)
+    raise last_e
 
 
-def download_parallel(url_dest_list, procs=multiprocessing.cpu_count()):
-    Parallel(n_jobs=procs)(delayed(download_file)(i[0], i[1]) for i in url_dest_list)
+def download_parallel(url_dest_list, procs=multiprocessing.cpu_count(), retries=0, delay=60, overwrite=False):
+    Parallel(n_jobs=procs)(delayed(download_file)(i[0], i[1], retries, delay, overwrite) for i in url_dest_list)
 
 
 def get_appropriate_gfs_inventory(wrf_config):

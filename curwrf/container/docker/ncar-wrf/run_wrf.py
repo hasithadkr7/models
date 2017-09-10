@@ -79,7 +79,7 @@ if __name__ == "__main__":
             f.write(content)
         config.set('namelist_input', nl_input)
 
-    logging.info('WRF config: %s' % config.to_string())
+    logging.info('WRF config: %s' % config.to_json_string())
 
     if args.start is None:
         raise CurwDockerException('start_date is None')

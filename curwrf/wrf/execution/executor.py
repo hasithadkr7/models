@@ -68,7 +68,8 @@ def download_gfs_data(wrf_conf):
             ' '.join(map(str, i)) for i in inventories)))
 
     start_time = time.time()
-    utils.download_parallel(inventories, procs=gfs_threads)
+    utils.download_parallel(inventories, procs=gfs_threads, retries=wrf_conf.get('gfs_retries'),
+                            delay=wrf_conf.get('gfs_delay'))
     # inv_count = len(inventories)
     # logging.debug('Initializing threads')
     # for k in range(start_inv, inv_count, gfs_threads):
@@ -337,7 +338,7 @@ class WrfConfig:
         return str(self.configs)
 
     def to_json_string(self):
-        return json.dumps(self.configs)
+        return json.dumps(self.configs, sort_keys=True)
 
     def is_set(self, key):
         return key in self.configs
