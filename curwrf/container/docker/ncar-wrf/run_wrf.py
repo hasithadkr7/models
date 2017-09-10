@@ -17,7 +17,7 @@ def parse_args():
     parser.add_argument('-output_dir', default='/wrf/output')
     parser.add_argument('-geog_dir', default='/wrf/geog')
     parser.add_argument('-start', default=None)
-    parser.add_argument('-period', default=3)
+    parser.add_argument('-period', default=3.0, type=float)
     parser.add_argument('-gfs_dir', default='/wrf/gfs')
 
     return parser.parse_args()
@@ -55,10 +55,11 @@ class CurwDockerException(Exception):
 
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s %(threadName)s %(module)s %(levelname)s %(message)s')
     args = parse_args()
     logging.info('**** WRF RUN **** Run ID: ' + args.run_id)
     config = executor.get_wrf_config(wrf_home=args.wrf_home, start_date=args.start, nfs_dir=args.output_dir,
-                                     period=int(args.period), gfs_dir=args.gfs_dir, geog_dir=args.geog_dir,
+                                     period=args.period, gfs_dir=args.gfs_dir, geog_dir=args.geog_dir,
                                      run_id=args.run_id)
 
     if args.nl_wps is not None:
@@ -67,16 +68,18 @@ if __name__ == "__main__":
         content = args.nl_wps.replace('\\n', '\n')
         logging.info('namelist.wps content: \n%s' % content)
         with open(nl_wps, 'w') as f:
-            f.write(content.encode())
+            f.write(content)
+            f.write('\n')
         config.set('namelist_wps', nl_wps)
 
     if args.nl_input is not None:
         logging.info('Reading namelist input')
         nl_input = os.path.join(args.wrf_home, 'namelist.input')
-        content = args.nl_wps.replace('\\n', '\n')
+        content = args.nl_input.replace('\\n', '\n')
         logging.info('namelist.input content: \n%s' % content)
         with open(nl_input, 'w') as f:
             f.write(content)
+            f.write('\n')
         config.set('namelist_input', nl_input)
 
     logging.info('WRF config: %s' % config.to_json_string())

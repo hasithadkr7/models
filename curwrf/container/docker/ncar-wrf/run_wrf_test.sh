@@ -42,7 +42,7 @@ nl_wps=$(cat << EOM
 EOM
 )
 
-nl_iput=$(cat << EOM
+nl_input=$(cat << EOM
  &time_control
  run_days                            = 0,
  run_hours                           = 6,
@@ -154,4 +154,4 @@ nl_iput=$(cat << EOM
 EOM
 )
 
-python3 /opt/git/models/curwrf/container/docker/ncar-wrf/run_wrf.py -wrf_home=/mnt/disks/wrf-mod/temp -mode=all -nl_wps="$nl_wps" -nl_input="$nl_iput" -output_dir=/mnt/disks/wrf-mod/temp/output -geog_dir=/mnt/disks/wrf-mod/DATA/geog -start=2017-09-05_06:00 -period=0.25 -gfs_dir=/mnt/disks/wrf-mod/temp/gfs
+python3 /opt/git/models/curwrf/container/docker/ncar-wrf/run_wrf.py -wrf_home=/mnt/disks/wrf-mod/temp -mode=all -nl_wps="$nl_wps" -nl_input="$nl_input" -output_dir=/mnt/disks/wrf-mod/temp/output -geog_dir=/mnt/disks/wrf-mod/DATA/geog -start=2017-09-05_06:00 -period=0.25 -gfs_dir=/mnt/disks/wrf-mod/temp/gfs

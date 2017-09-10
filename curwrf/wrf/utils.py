@@ -197,7 +197,7 @@ def replace_file_with_values(source, destination, val_dict):
 
 
 def cleanup_dir(gfs_dir):
-    shutil.rmtree(gfs_dir)
+    shutil.rmtree(gfs_dir, ignore_errors=True)
     os.makedirs(gfs_dir)
 
 
