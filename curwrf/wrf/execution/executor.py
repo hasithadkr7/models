@@ -241,7 +241,8 @@ def run_em_real(wrf_config):
     # logging.info('Creating met_em.d* symlinks')
     # utils.create_symlink_with_prefix(utils.get_wps_dir(wrf_home), 'met_em.d*', em_real_dir)
     logging.info('Copying met_em.d* files')
-    utils.copy_files_with_prefix(utils.get_wps_dir(wrf_home), 'met_em.d*', em_real_dir)
+    metgrid_dir = os.path.join(wrf_config.get('nfs_dir'), 'metgrid', wrf_config.get('run_id'))
+    utils.copy_files_with_prefix(metgrid_dir, 'met_em.d*', em_real_dir)
 
     # Starting real.exe
     # logs destination: nfs/logs/xxxx/rsl*
