@@ -85,5 +85,16 @@ RUN yum clean all \
     && chmod 700 /root/.ssh \
     && cp /root/.ssh/id_rsa.pub /root/.ssh/authorized_keys
 #
+
 VOLUME /wrf
-#CMD ["/wrf/run-wrf"]
+
+RUN yum -y install https://centos7.iuscommunity.org/ius-release.rpm
+RUN yum -y install git python36u python36u-pip python36u-devel
+RUN pip3.6 install joblib shapely
+
+# curwsl git repo
+RUN git clone -b airflow-integ https://github.com/nirandaperera/models.git curwsl
+RUN pip3.6 install -e curwsl/
+
+# update the git repo everytime a container is initialized
+ENTRYPOINT cd /curwsl && git pull && cd -
