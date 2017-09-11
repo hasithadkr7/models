@@ -92,6 +92,8 @@ RUN pip3.6 install joblib shapely
 
 # curwsl git repo
 RUN cd /wrf
+RUN mkdir gfs output geog
+
 #RUN git clone https://github.com/nirandaperera/models.git && cd models && git checkout airflow-integ
 RUN git clone -b airflow-integ https://github.com/nirandaperera/models.git curwsl
 RUN pip3.6 install -e curwsl/

@@ -166,6 +166,18 @@ export CURW_wrf_config=$(cat << EOM
 EOM
 )
 
+#export CURW_wrf_config=$(cat << EOM
+#{
+#	"wrf_home": "/wrf",
+#	"gfs_dir": "/wrf/gfs",
+#	"nfs_dir": "/wrf/output",
+#	"period": 0.25,
+#	"geog_dir": "/wrf/geog",
+#	"start_date": "2017-09-05_06:00"
+#}
+#EOM
+#)
+
 export CURW_mode=all
 
 python3 run_wrf.py
