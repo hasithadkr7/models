@@ -1,4 +1,5 @@
 import argparse
+import json
 import logging
 import os
 import random
@@ -48,6 +49,10 @@ def run_wps(wrf_config):
     executor.run_wps(wrf_config)
 
 
+def get_env_vars(prefix):
+    return {k.replace(prefix, ''): v for (k, v) in os.environ.items() if prefix in k}
+
+
 class CurwDockerException(Exception):
     def __init__(self, msg):
         self.msg = msg
@@ -56,38 +61,44 @@ class CurwDockerException(Exception):
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format='%(asctime)s %(threadName)s %(module)s %(levelname)s %(message)s')
-    args = parse_args()
-    logging.info('**** WRF RUN **** Run ID: ' + args.run_id)
-    config = executor.get_wrf_config(wrf_home=args.wrf_home, start_date=args.start, nfs_dir=args.output_dir,
-                                     period=args.period, gfs_dir=args.gfs_dir, geog_dir=args.geog_dir,
-                                     run_id=args.run_id)
+    # args = parse_args()
+    env_vars = get_env_vars('CURW_')
 
-    if args.nl_wps is not None:
+    run_id = env_vars.pop('run_id', id_generator())
+    logging.info('**** WRF RUN **** Run ID: ' + run_id)
+
+    wrf_home = env_vars.pop('wrf_home')
+    mode = env_vars.pop('mode').strip().lower()
+    start = env_vars.pop('start')
+    nl_wps = env_vars.pop('nl_wps', None)
+    nl_input = env_vars.pop('nl_input', None)
+
+    wrf_config_dict = json.loads(env_vars.pop('wrf_config', '{}'))
+
+    config = executor.get_wrf_config(wrf_home=wrf_home, start_date=start, run_id=run_id, **wrf_config_dict)
+
+    if nl_wps is not None:
         logging.info('Reading namelist wps')
-        nl_wps = os.path.join(args.wrf_home, 'namelist.wps')
-        content = args.nl_wps.replace('\\n', '\n')
+        nl_wps_path = os.path.join(wrf_home, 'namelist.wps')
+        content = nl_wps.replace('\\n', '\n')
         logging.info('namelist.wps content: \n%s' % content)
-        with open(nl_wps, 'w') as f:
+        with open(nl_wps_path, 'w') as f:
             f.write(content)
             f.write('\n')
-        config.set('namelist_wps', nl_wps)
+        config.set('namelist_wps', nl_wps_path)
 
-    if args.nl_input is not None:
+    if nl_input is not None:
         logging.info('Reading namelist input')
-        nl_input = os.path.join(args.wrf_home, 'namelist.input')
-        content = args.nl_input.replace('\\n', '\n')
+        nl_input_path = os.path.join(wrf_home, 'namelist.input')
+        content = nl_input.replace('\\n', '\n')
         logging.info('namelist.input content: \n%s' % content)
-        with open(nl_input, 'w') as f:
+        with open(nl_input_path, 'w') as f:
             f.write(content)
             f.write('\n')
-        config.set('namelist_input', nl_input)
+        config.set('namelist_input', nl_input_path)
 
     logging.info('WRF config: %s' % config.to_json_string())
 
-    if args.start is None:
-        raise CurwDockerException('start_date is None')
-
-    mode = args.mode.strip().lower()
     if mode == 'wps':
         logging.info('Running WPS')
         run_wps(config)

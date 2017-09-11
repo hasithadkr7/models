@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-nl_wps=$(cat << EOM
+export CURW_nl_wps=$(cat << EOM
 &share
  wrf_core = 'ARW',
  max_dom = 3,
@@ -42,7 +42,7 @@ nl_wps=$(cat << EOM
 EOM
 )
 
-nl_input=$(cat << EOM
+export CURW_nl_input=$(cat << EOM
  &time_control
  run_days                            = 0,
  run_hours                           = 6,
@@ -154,4 +154,21 @@ nl_input=$(cat << EOM
 EOM
 )
 
-python3 /opt/git/models/curwrf/container/docker/ncar-wrf/run_wrf.py -wrf_home=/mnt/disks/wrf-mod/temp -mode=all -nl_wps="$nl_wps" -nl_input="$nl_input" -output_dir=/mnt/disks/wrf-mod/temp/output -geog_dir=/mnt/disks/wrf-mod/DATA/geog -start=2017-09-05_06:00 -period=0.25 -gfs_dir=/mnt/disks/wrf-mod/temp/gfs
+export CURW_wrf_config=$(cat << EOM
+{
+	"wrf_home": "/mnt/disks/wrf-mod/temp",
+	"gfs_dir": "/mnt/disks/wrf-mod/temp/gfs",
+	"nfs_dir": "/mnt/disks/wrf-mod/temp/output",
+	"period": 0.25,
+	"geog_dir": "/mnt/disks/wrf-mod/DATA/geog"
+	"start_date": "2017-09-05_06:00"
+}
+EOM
+)
+
+export CURW_wrf_home=/mnt/disks/wrf-mod/temp
+export CURW_start=2017-09-05_06:00
+export CURW_mode=all
+
+python3 /opt/git/models/curwrf/container/docker/ncar-wrf/run_wrf.py
+
