@@ -96,11 +96,11 @@ RUN cd /wrf
 RUN git clone -b airflow-integ https://github.com/nirandaperera/models.git curwsl
 RUN pip3.6 install -e curwsl/
 
-COPY update-curwsl-git.sh /wrf
-RUN chmod +x /wrf/update-curwsl-git.sh
+COPY run_wrf.sh /wrf
+RUN chmod +x /wrf/run_wrf.sh
 
 # update the git repo everytime a container is initialized
-ENTRYPOINT ["bash","/wrf/update-curwsl-git.sh"]
+CMD ["/wrf/run_wrf.sh"]
 
 VOLUME /wrf
 
