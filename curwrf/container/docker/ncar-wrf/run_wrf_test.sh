@@ -160,15 +160,14 @@ export CURW_wrf_config=$(cat << EOM
 	"gfs_dir": "/mnt/disks/wrf-mod/temp/gfs",
 	"nfs_dir": "/mnt/disks/wrf-mod/temp/output",
 	"period": 0.25,
-	"geog_dir": "/mnt/disks/wrf-mod/DATA/geog"
+	"geog_dir": "/mnt/disks/wrf-mod/DATA/geog",
 	"start_date": "2017-09-05_06:00"
 }
 EOM
 )
 
-export CURW_wrf_home=/mnt/disks/wrf-mod/temp
-export CURW_start=2017-09-05_06:00
 export CURW_mode=all
 
-python3 /opt/git/models/curwrf/container/docker/ncar-wrf/run_wrf.py
+python3 run_wrf.py
+
 

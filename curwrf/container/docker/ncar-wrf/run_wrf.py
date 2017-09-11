@@ -67,15 +67,15 @@ if __name__ == "__main__":
     run_id = env_vars.pop('run_id', id_generator())
     logging.info('**** WRF RUN **** Run ID: ' + run_id)
 
-    wrf_home = env_vars.pop('wrf_home')
     mode = env_vars.pop('mode').strip().lower()
-    start = env_vars.pop('start')
     nl_wps = env_vars.pop('nl_wps', None)
     nl_input = env_vars.pop('nl_input', None)
-
     wrf_config_dict = json.loads(env_vars.pop('wrf_config', '{}'))
 
-    config = executor.get_wrf_config(wrf_home=wrf_home, start_date=start, run_id=run_id, **wrf_config_dict)
+    config = executor.get_wrf_config(**wrf_config_dict)
+    config.set('run_id', run_id)
+
+    wrf_home = config.get('wrf_home')
 
     if nl_wps is not None:
         logging.info('Reading namelist wps')
