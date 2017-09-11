@@ -249,12 +249,12 @@ def run_em_real(wrf_config):
 
     # Starting real.exe
     # logs destination: nfs/logs/xxxx/rsl*
-    utils.run_subprocess('mpirun -np %d ./real.exe' % procs, cwd=em_real_dir)
+    utils.run_subprocess('mpirun -np %d ./real.exe --allow-run-as-root' % procs, cwd=em_real_dir)
     logging.info('Real complete. Moving log files...')
     utils.move_files_with_prefix(em_real_dir, 'rsl*', os.path.join(logs_dir, 'real-%s' % start_date))
 
     # Starting wrf.exe'
-    utils.run_subprocess('mpirun -np %d ./wrf.exe' % procs, cwd=em_real_dir)
+    utils.run_subprocess('mpirun -np %d ./wrf.exe --allow-run-as-root' % procs, cwd=em_real_dir)
     logging.info('WRF complete. Moving log files...')
     utils.move_files_with_prefix(em_real_dir, 'rsl*', os.path.join(logs_dir, 'wrf-%s' % start_date))
 
