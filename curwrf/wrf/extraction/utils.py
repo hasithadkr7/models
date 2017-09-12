@@ -13,12 +13,12 @@ from mpl_toolkits.basemap import Basemap, cm
 from curwrf.wrf import utils
 
 
-def extract_variables(nc_f, var_str, lat_min, lat_max, lon_min, lon_max, lat_var='XLAT', lon_var='XLONG',
+def extract_variables(nc_f, var_list, lat_min, lat_max, lon_min, lon_max, lat_var='XLAT', lon_var='XLONG',
                       time_var='Times'):
     """
-    extrace variables from a netcdf file
+    extract variables from a netcdf file
     :param nc_f: 
-    :param var_str: comma separated string for variables 
+    :param var_list: comma separated string for variables / list of strings 
     :param lat_min: 
     :param lat_max: 
     :param lon_min: 
@@ -42,7 +42,8 @@ def extract_variables(nc_f, var_str, lat_min, lat_max, lon_min, lon_max, lat_var
     lon_inds = np.where((lons >= lon_min) & (lons <= lon_max))
 
     vars_dict = {}
-    for var in var_str.replace(',', ' ').split():
+    var_list = var_list.replace(',', ' ').split() if isinstance(var_list, str) else var_list
+    for var in var_list:
         vars_dict[var] = nc_fid.variables[var][:, lat_inds[0], lon_inds[0]]
 
     nc_fid.close()
