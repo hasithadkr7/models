@@ -196,9 +196,9 @@ def replace_file_with_values(source, destination, val_dict):
     logging.debug('replace file final content \n' + out)
 
 
-def cleanup_dir(gfs_dir):
-    shutil.rmtree(gfs_dir, ignore_errors=True)
-    os.makedirs(gfs_dir)
+def cleanup_dir(path):
+    shutil.rmtree(path, ignore_errors=True)
+    os.makedirs(path)
 
 
 def delete_files_with_prefix(src_dir, prefix):
@@ -365,6 +365,19 @@ def get_incremented_dir_path(path):
 
     return path
 
+
+def backup_dir(path):
+    bck_str = '__backup'
+    if os.path.exists(path):
+        bck_files = [l for l in os.listdir(path) if bck_str not in l]
+        if len(bck_files) > 0:
+            bck_dir = get_incremented_dir_path(os.path.join(path, bck_str))
+            os.makedirs(bck_dir)
+            for file in bck_files:
+                shutil.move(os.path.join(path, file), bck_dir)
+            return bck_dir
+
+    return None
 
 # def namedtuple_with_defaults(typename, field_names, default_values=()):
 #     T = namedtuple(typename, field_names)

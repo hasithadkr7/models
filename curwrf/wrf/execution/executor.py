@@ -135,7 +135,9 @@ def run_wps(wrf_config):
     logging.info('Running WPS: START')
     wrf_home = wrf_config.get('wrf_home')
     wps_dir = utils.get_wps_dir(wrf_home)
-    logs_dir = utils.create_dir_if_not_exists(os.path.join(wrf_config.get('nfs_dir'), 'logs', wrf_config.get('run_id')))
+    output_dir = utils.create_dir_if_not_exists(
+        os.path.join(wrf_config.get('nfs_dir'), 'results', wrf_config.get('run_id')))
+    logs_dir = utils.create_dir_if_not_exists(os.path.join(output_dir, 'logs'))
 
     logging.info('Cleaning up files')
     utils.delete_files_with_prefix(wps_dir, 'FILE:*')
@@ -145,7 +147,7 @@ def run_wps(wrf_config):
     # Linking VTable
     if not os.path.exists(os.path.join(wps_dir, 'Vtable')):
         logging.info('Creating Vtable symlink')
-        os.symlink(os.path.join(wps_dir, 'ungrib/Variable_Tables/Vtable.NAM'), os.path.join(wps_dir, 'Vtable'))
+    os.symlink(os.path.join(wps_dir, 'ungrib/Variable_Tables/Vtable.NAM'), os.path.join(wps_dir, 'Vtable'))
 
     # Running link_grib.csh
     gfs_date, gfs_cycle, start = utils.get_appropriate_gfs_inventory(wrf_config)
@@ -175,6 +177,7 @@ def run_wps(wrf_config):
         utils.move_files_with_prefix(wps_dir, 'metgrid.log', logs_dir)
 
     logging.info('Running WPS: DONE')
+    utils.move_files_with_prefix(wps_dir, 'namelist.wps', output_dir)
 
     logging.info('Moving metgrid data')
     dest_dir = os.path.join(wrf_config.get('nfs_dir'), 'metgrid', wrf_config.get('run_id'))
@@ -240,7 +243,9 @@ def run_em_real(wrf_config):
     procs = wrf_config.get('procs')
     start_date = wrf_config.get('start_date')
     run_id = wrf_config.get('run_id')
-    logs_dir = utils.create_dir_if_not_exists(os.path.join(wrf_config.get('nfs_dir'), 'logs', run_id))
+    output_dir = utils.create_dir_if_not_exists(
+        os.path.join(wrf_config.get('nfs_dir'), 'results', wrf_config.get('run_id')))
+    logs_dir = utils.create_dir_if_not_exists(os.path.join(output_dir, 'logs'))
 
     logging.info('Cleaning up files')
     utils.delete_files_with_prefix(em_real_dir, 'met_em*')
@@ -270,8 +275,9 @@ def run_em_real(wrf_config):
 
     logging.info('WRF em_real: DONE! Moving data to the output dir')
     # destination : nfs/output/XXXX/datetime/i/*.nc files
-    dest_dir = utils.get_incremented_dir_path(os.path.join(wrf_config.get('nfs_dir'), 'output', run_id, start_date))
-    utils.move_files_with_prefix(em_real_dir, 'met_em.d*', dest_dir)
+    # dest_dir = utils.get_incremented_dir_path(os.path.join(wrf_config.get('nfs_dir'), 'results', run_id, start_date))
+    utils.move_files_with_prefix(em_real_dir, 'wrfout_*', output_dir)
+    utils.move_files_with_prefix(em_real_dir, 'namelist.input', output_dir)
 
 
 def run_wrf(date, wrf_config):

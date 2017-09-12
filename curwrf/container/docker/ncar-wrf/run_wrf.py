@@ -5,6 +5,7 @@ import os
 import random
 import string
 
+from curwrf.wrf import utils
 from curwrf.wrf.execution import executor
 
 
@@ -98,6 +99,9 @@ if __name__ == "__main__":
         config.set('namelist_input', nl_input_path)
 
     logging.info('WRF config: %s' % config.to_json_string())
+
+    logging.info('Backup the output dir')
+    utils.backup_dir(os.path.join(config.get('nfs_dir'), run_id, 'results'))
 
     if mode == 'wps':
         logging.info('Running WPS')
