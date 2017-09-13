@@ -99,7 +99,7 @@ from curwrf.wrf.execution import executor as wrf_exec
 
 
 def set_initial_parameters_fs(wrf_home_key='wrf_home', wrf_start_date_key='wrf_start_date', wrf_config_key='wrf_config',
-                              **kwargs):
+                              ignore_namelists=False, **kwargs):
     # set wrf_home --> wrf_home Var > WRF_HOME env var > wrf_home default
     try:
         wrf_home = Variable.get(wrf_home_key)
@@ -147,11 +147,12 @@ def set_initial_parameters_fs(wrf_home_key='wrf_home', wrf_start_date_key='wrf_s
         # date_splits = re.split('[-_:]', start_date)
         Variable.set(wrf_config_key, wrf_config.to_json_string())
 
-    logging.info('Replacing namelist.wps place-holders')
-    wrf_exec.replace_namelist_wps(wrf_config)
+    if not ignore_namelists:
+        logging.info('Replacing namelist.wps place-holders')
+        wrf_exec.replace_namelist_wps(wrf_config)
 
-    logging.info('Replacing namelist.input place-holders')
-    wrf_exec.replace_namelist_input(wrf_config)
+        logging.info('Replacing namelist.input place-holders')
+        wrf_exec.replace_namelist_input(wrf_config)
 
     if 'ti' in kwargs:
         kwargs['ti'].xcom_push(key=wrf_config_key, value=wrf_config.to_json_string())

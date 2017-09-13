@@ -4,6 +4,7 @@ import logging
 import os
 import random
 import string
+import pprint
 
 from curwrf.wrf import utils
 from curwrf.wrf.execution import executor
@@ -12,15 +13,16 @@ from curwrf.wrf.execution import executor
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('-run_id', default=id_generator())
-    parser.add_argument('-wrf_home', default='/wrf')
     parser.add_argument('-mode', default='wps')
     parser.add_argument('-nl_wps', default=None)
     parser.add_argument('-nl_input', default=None)
-    parser.add_argument('-output_dir', default='/wrf/output')
-    parser.add_argument('-geog_dir', default='/wrf/geog')
-    parser.add_argument('-start', default=None)
-    parser.add_argument('-period', default=3.0, type=float)
-    parser.add_argument('-gfs_dir', default='/wrf/gfs')
+    parser.add_argument('-wrf_config', default='{}')
+    # parser.add_argument('-wrf_home', default='/wrf')
+    # parser.add_argument('-output_dir', default='/wrf/output')
+    # parser.add_argument('-geog_dir', default='/wrf/geog')
+    # parser.add_argument('-start', default=None)
+    # parser.add_argument('-period', default=3.0, type=float)
+    # parser.add_argument('-gfs_dir', default='/wrf/gfs')
 
     return parser.parse_args()
 
@@ -54,6 +56,13 @@ def get_env_vars(prefix):
     return {k.replace(prefix, ''): v for (k, v) in os.environ.items() if prefix in k}
 
 
+def get_var(var, env_vars, args, default=None):
+    val = env_vars.pop(var, None)
+    if val is None:
+        return args.pop(var, default)
+    return val
+
+
 class CurwDockerException(Exception):
     def __init__(self, msg):
         self.msg = msg
@@ -62,16 +71,17 @@ class CurwDockerException(Exception):
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format='%(asctime)s %(threadName)s %(module)s %(levelname)s %(message)s')
-    # args = parse_args()
-    env_vars = get_env_vars('CURW_')
+    args = vars(parse_args()).update(get_env_vars('CURW_'))
 
-    run_id = env_vars.pop('run_id', id_generator())
+    logging.info('Running arguments:\n%s' % str(args))
+
+    run_id = args['run_id']  # env_vars.pop('run_id', id_generator())
     logging.info('**** WRF RUN **** Run ID: ' + run_id)
 
-    mode = env_vars.pop('mode').strip().lower()
-    nl_wps = env_vars.pop('nl_wps', None)
-    nl_input = env_vars.pop('nl_input', None)
-    wrf_config_dict = json.loads(env_vars.pop('wrf_config', '{}'))
+    mode = args['mode'].strip().lower()  # env_vars.pop('mode').strip().lower()
+    nl_wps = args['nl_wps']  # env_vars.pop('nl_wps', None)
+    nl_input = args['nl_input']  # env_vars.pop('nl_input', None)
+    wrf_config_dict = json.loads(args['wrf_config'])  # env_vars.pop('wrf_config', '{}')
 
     config = executor.get_wrf_config(**wrf_config_dict)
     config.set('run_id', run_id)
@@ -82,7 +92,7 @@ if __name__ == "__main__":
         logging.info('Reading namelist wps')
         nl_wps_path = os.path.join(wrf_home, 'namelist.wps')
         content = nl_wps.replace('\\n', '\n')
-        logging.info('namelist.wps content: \n%s' % content)
+        logging.debug('namelist.wps content: \n%s' % content)
         with open(nl_wps_path, 'w') as f:
             f.write(content)
             f.write('\n')
@@ -92,7 +102,7 @@ if __name__ == "__main__":
         logging.info('Reading namelist input')
         nl_input_path = os.path.join(wrf_home, 'namelist.input')
         content = nl_input.replace('\\n', '\n')
-        logging.info('namelist.input content: \n%s' % content)
+        logging.debug('namelist.input content: \n%s' % content)
         with open(nl_input_path, 'w') as f:
             f.write(content)
             f.write('\n')

@@ -156,30 +156,49 @@ EOM
 
 export CURW_wrf_config=$(cat << EOM
 {
-	"wrf_home": "/mnt/disks/wrf-mod/temp",
-	"gfs_dir": "/mnt/disks/wrf-mod/temp/gfs",
-	"nfs_dir": "/mnt/disks/wrf-mod/temp/output",
+	"wrf_home": "/wrf",
+	"gfs_dir": "/wrf/gfs",
+	"nfs_dir": "/wrf/output",
 	"period": 0.25,
-	"geog_dir": "/mnt/disks/wrf-mod/DATA/geog",
+	"geog_dir": "/wrf/geog",
 	"start_date": "2017-09-05_06:00"
 }
 EOM
 )
 
+export CURW_mode=all
+
+
+while getopts ":a:" opt; do
+  case $opt in
+    a)
+      echo "-a was triggered, Parameter: $OPTARG" >&2
+      ;;
+    \?)
+      echo "Invalid option: -$OPTARG" >&2
+      exit 1
+      ;;
+    :)
+      echo "Option -$OPTARG requires an argument." >&2
+      exit 1
+      ;;
+  esac
+done
+
+python3 run_wrf.py
+
 #export CURW_wrf_config=$(cat << EOM
 #{
-#	"wrf_home": "/wrf",
-#	"gfs_dir": "/wrf/gfs",
-#	"nfs_dir": "/wrf/output",
+#	"wrf_home": "/mnt/disks/wrf-mod/temp",
+#	"gfs_dir": "/mnt/disks/wrf-mod/temp/gfs",
+#	"nfs_dir": "/mnt/disks/wrf-mod/temp/output",
 #	"period": 0.25,
-#	"geog_dir": "/wrf/geog",
+#	"geog_dir": "/mnt/disks/wrf-mod/DATA/geog",
 #	"start_date": "2017-09-05_06:00"
 #}
 #EOM
 #)
 
-export CURW_mode=all
 
-python3 run_wrf.py
 
 
