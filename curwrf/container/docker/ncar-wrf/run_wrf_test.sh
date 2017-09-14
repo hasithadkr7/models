@@ -36,7 +36,7 @@ export CURW_nl_wps=$(cat << EOM
 
 &metgrid
  fg_name = 'FILE'
- io_form_metgrid = 2, 
+ io_form_metgrid = 2,
 /
 
 EOM
@@ -131,8 +131,8 @@ export CURW_nl_input=$(cat << EOM
  khdif                               = 0,      0,      0,
  kvdif                               = 0,      0,      0,
  non_hydrostatic                     = .true., .true., .true.,
- moist_adv_opt                       = 1,      1,      1,     
- scalar_adv_opt                      = 1,      1,      1,     
+ moist_adv_opt                       = 1,      1,      1,
+ scalar_adv_opt                      = 1,      1,      1,
  /
 
  &bdy_control
@@ -166,26 +166,12 @@ export CURW_wrf_config=$(cat << EOM
 EOM
 )
 
-export CURW_mode=all
+export CURW_mode=test
 
-
-while getopts ":a:" opt; do
-  case $opt in
-    a)
-      echo "-a was triggered, Parameter: $OPTARG" >&2
-      ;;
-    \?)
-      echo "Invalid option: -$OPTARG" >&2
-      exit 1
-      ;;
-    :)
-      echo "Option -$OPTARG requires an argument." >&2
-      exit 1
-      ;;
-  esac
-done
+export CURW_run_id=test_run1
 
 python3 run_wrf.py
+python3 run_wrf.py -wrf_config="$CURW_wrf_config" -mode="$CURW_mode" -nl_wps="$CURW_nl_wps" -nl_input="$CURW_nl_input"
 
 #export CURW_wrf_config=$(cat << EOM
 #{
