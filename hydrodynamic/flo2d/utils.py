@@ -5,9 +5,28 @@ from sqlalchemy.orm.util import randomize_unitofwork
 
 from curwrf.wrf.extraction import utils as rf_ext_utils
 from curwrf.wrf.resources import manager as res_mgr
+from curwmysqladapter import mysqladapter
 
 
-def create_raincell_from_wrf(run_ts, wrf_out, raincell_points_file, observed_points_polygon, output):
+def get_observed_rf(start, end, points):
+    adapter = mysqladapter(host='localhost',
+                           user='root',
+                           password='cfcwm07',
+                           db='curw')
+
+
+
+
+
+def create_raincell_from_wrf(run_ts, wrf_out, raincell_points_file, observation_points, output):
+    """
+    
+    :param run_ts: running timestamp %Y:%m:%d_%H:%M:%S 
+    :param wrf_out: corresponding wrf output location 
+    :param raincell_points_file: file with the flo2d raincell points - [id, lat, lon]
+    :param observation_points: observation points array of array [[id, lat, lon]]
+    :param output: output file location 
+    """
     raincell_points = np.genfromtxt(raincell_points_file, delimiter=',')
 
     lon_min = np.min(raincell_points, 0)[1]
@@ -23,11 +42,9 @@ def create_raincell_from_wrf(run_ts, wrf_out, raincell_points_file, observed_poi
     for i in range(1, len(rf_vars)):
         cum_precip = cum_precip + rf_values[rf_vars[i]]
 
-    # run_ts = run_ts if isinstance(run_ts, dt.datetime) else dt.datetime.strptime(run_ts, '%Y-%m-%d %H:%M:%S')
-    # first_ts = dt.datetime.strptime(rf_values['Times'][0], '%Y-%m-%d %H:%M:%S')
-
     ts_idx = int(np.argwhere(rf_values['Times'] == run_ts))
 
+    observed = get_observed_rf(start, end, points)
 
     pass
 

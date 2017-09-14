@@ -11,7 +11,7 @@ lon_min = 79.52146
 lat_max = 10.06425
 lon_max = 82.18992
 
-clevs = 10 * np.array([0.1, 0.5, 1, 2, 3, 5, 10, 15, 20, 25, 30])
+clevs = 10 * np.array([0.1, 0.5, 1, 2, 3, 5, 10, 15, 20, 25, 30,50, 100])
 basemap = Basemap(projection='merc', llcrnrlon=lon_min, llcrnrlat=lat_min, urcrnrlon=lon_max,
                   urcrnrlat=lat_max, resolution='h')
 
