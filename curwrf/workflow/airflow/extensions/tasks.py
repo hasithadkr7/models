@@ -2,16 +2,17 @@ import json
 import logging
 import os
 import shutil
+
 import numpy as np
+import datetime as dt
+import matplotlib.pyplot as plt
 
 from airflow.models import Variable
-from mpl_toolkits.basemap import cm, Basemap
-
 from curwrf.wrf import utils
 from curwrf.wrf.execution import executor
 from curwrf.wrf.execution.executor import WrfConfig
 from curwrf.wrf.extraction import utils as ext_utils
-from curwrf.workflow.airflow.dags import utils as dag_utils
+from mpl_toolkits.basemap import cm, Basemap
 
 
 class CurwTask(object):
@@ -243,32 +244,40 @@ class RainfallExtraction(WrfTask):
         lons = variables['XLONG']
 
         # cell size is calc based on the mean between the lat and lon points
-        cell_size = np.round(
-            np.mean(np.append(lons[1:len(lons)] - lons[0: len(lons) - 1], lats[1:len(lats)] - lats[0: len(lats) - 1])),
-            3)
-        clevs = np.concatenate(([-1, 0], np.array([pow(2, i) for i in range(0, 9)])))
+        cz = np.round(np.mean(np.append(lons[1:len(lons)] - lons[0: len(lons) - 1], lats[1:len(lats)]
+                                        - lats[0: len(lats) - 1])), 3)
+        clevs = 10 * np.array([0.1, 0.5, 1, 2, 3, 5, 10, 15, 20, 25, 30, 50, 80])
+        cmap = plt.get_cmap('gnuplot_r')
 
         basemap = Basemap(projection='merc', llcrnrlon=lon_min, llcrnrlat=lat_min, urcrnrlon=lon_max,
                           urcrnrlat=lat_max, resolution='h')
 
+        variables['PRECIP'] = variables['RAINC'] + variables['RAINNC']
+
         for i in range(1, len(variables['Times'])):
             time = variables['Times'][i]
+            lk_ts = utils.datetime_utc_to_lk(dt.datetime.strptime(time, '%Y-%m-%d_%H:%M:%S'))
             logging.info('processing %s', time)
 
-            cum_precip = variables['RAINC'][i] + variables['RAINNC'][i]
             # instantaneous precipitation (hourly)
-            inst_precip = cum_precip - (variables['RAINC'][i - 1] + variables['RAINNC'][i - 1])
+            inst_precip = variables['PRECIP'][i] - variables['PRECIP'][i - 1]
 
             inst_file = os.path.join(temp_dir, 'wrf_inst_' + time)
-            ext_utils.create_asc_file(np.flip(inst_precip, 0), lats, lons, inst_file + '.asc', cell_size=cell_size)
+            title = 'Hourly rf for %s LK\n%s UTC' % (lk_ts.strftime('%Y-%m-%d_%H:%M:%S'), time)
+            ext_utils.create_asc_file(np.flip(inst_precip, 0), lats, lons, inst_file + '.asc', cell_size=cz)
             ext_utils.create_contour_plot(inst_precip, inst_file + '.png', lat_min, lon_min, lat_max, lon_max,
-                                          os.path.basename(inst_file), clevs=clevs, cmap=cm.s3pcpn, basemap=basemap)
+                                          title, clevs=clevs, cmap=cmap, basemap=basemap)
 
-            if i == len(variables['Times']) - 1:
-                cum_file = os.path.join(temp_dir, 'wrf_cum_' + time)
-                ext_utils.create_asc_file(np.flip(cum_precip, 0), lats, lons, cum_file + '.asc', cell_size=cell_size)
-                ext_utils.create_contour_plot(cum_precip, cum_file + '.png', lat_min, lon_min, lat_max, lon_max,
-                                              os.path.basename(cum_file), clevs=clevs, cmap=cm.s3pcpn, basemap=basemap)
+            if i % 24 == 0:
+                t = 'Daily rf from %s LK to %s LK' % (
+                    (lk_ts - dt.timedelta(hours=24)).strftime('%Y-%m-%d_%H:%M:%S'), lk_ts.strftime('%Y-%m-%d_%H:%M:%S'))
+                d = int(i / 24) - 1
+                cum_file = os.path.join(temp_dir, 'wrf_cum_d%d' % d)
+                ext_utils.create_asc_file(np.flip(variables['PRECIP'][i], 0), lats, lons, cum_file + '.asc',
+                                          cell_size=cz)
+                ext_utils.create_contour_plot(variables['PRECIP'][i] - variables['PRECIP'][i - 24], cum_file + '.png',
+                                              lat_min, lon_min, lat_max, lon_max, t, clevs=clevs, cmap=cmap,
+                                              basemap=basemap)
 
         # move all the data in the tmp dir to the nfs
         utils.move_files_with_prefix(temp_dir, '*.png', d03_dir)
