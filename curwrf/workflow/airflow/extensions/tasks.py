@@ -12,7 +12,9 @@ from curwrf.wrf import utils
 from curwrf.wrf.execution import executor
 from curwrf.wrf.execution.executor import WrfConfig
 from curwrf.wrf.extraction import utils as ext_utils
-from mpl_toolkits.basemap import cm, Basemap
+import matplotlib
+matplotlib.use('Agg')
+from mpl_toolkits.basemap import Basemap
 
 
 class CurwTask(object):
