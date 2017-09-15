@@ -5,16 +5,17 @@ import shutil
 
 import numpy as np
 import datetime as dt
-import matplotlib.pyplot as plt
 
 from airflow.models import Variable
 from curwrf.wrf import utils
 from curwrf.wrf.execution import executor
 from curwrf.wrf.execution.executor import WrfConfig
 from curwrf.wrf.extraction import utils as ext_utils
+from mpl_toolkits.basemap import Basemap
+
 import matplotlib
 matplotlib.use('Agg')
-from mpl_toolkits.basemap import Basemap
+import matplotlib.pyplot as plt
 
 
 class CurwTask(object):

@@ -2,15 +2,14 @@ import os
 import math
 import logging
 import numpy as np
-import matplotlib
-
-matplotlib.use('Agg')
-
-import matplotlib.pyplot as plt
 from netCDF4._netCDF4 import Dataset
 from mpl_toolkits.basemap import Basemap, cm
 
 from curwrf.wrf import utils
+
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
 
 
 def extract_variables(nc_f, var_list, lat_min, lat_max, lon_min, lon_max, lat_var='XLAT', lon_var='XLONG',
