@@ -2,18 +2,20 @@ from curwrf.wrf.extraction import utils
 from curwrf.wrf import utils as wrfutils
 from mpl_toolkits.basemap import cm, Basemap
 import matplotlib.pyplot as plt
+from matplotlib import colors
 import numpy as np
 
-nc = '/home/curw/wrfout_d03_2017-09-05_06:00:00'
+nc = '/home/nira/Desktop/wrfout_d03_2017-09-05_06:00:00'
 
 lat_min = 5.722969
 lon_min = 79.52146
 lat_max = 10.06425
 lon_max = 82.18992
 
-clevs = 10 * np.array([0.1, 0.5, 1, 2, 3, 5, 10, 15, 20, 25, 30,50, 100])
+clevs = 10 * np.array([0.1, 0.5, 1, 2, 3, 5, 10, 15, 20, 25, 30, 50, 75, 100])
 basemap = Basemap(projection='merc', llcrnrlon=lon_min, llcrnrlat=lat_min, urcrnrlon=lon_max,
                   urcrnrlat=lat_max, resolution='h')
+norm = colors.BoundaryNorm(boundaries=clevs, ncolors=256)
 
 rf_vars = ['RAINC', 'RAINNC', 'SNOWNC', 'GRAUPELNC']
 
@@ -31,10 +33,9 @@ def make_plots(v, out_dir, basemap, start=0, end=-1):
         out = out_dir + '/' + v['Times'][j] + 'cum.png'
         if j != 0:
             utils.create_contour_plot(v['PRECIP'][j] - start_rf, out, lat_min, lon_min, lat_max, lon_max, out,
-                                      basemap=basemap, clevs=clevs, cmap=plt.get_cmap('gnuplot_r'), overwrite=True)
+                                      basemap=basemap, clevs=clevs, cmap=plt.get_cmap('jet'), overwrite=True, norm=norm)
         else:
             utils.create_contour_plot(v['PRECIP'][j], out, lat_min, lon_min, lat_max, lon_max, out,
-                                      basemap=basemap, clevs=clevs, cmap=plt.get_cmap('gnuplot_r'), overwrite=True)
+                                      basemap=basemap, clevs=clevs, cmap=plt.get_cmap('jet'), overwrite=True, norm=norm)
 
-
-make_plots(rf_values, '/home/curw/temp/temp', basemap)
+make_plots(rf_values, '/home/nira/Desktop/temp', basemap)

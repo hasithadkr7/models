@@ -16,6 +16,7 @@ from mpl_toolkits.basemap import Basemap
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
+from matplotlib import colors
 
 
 class CurwTask(object):
@@ -249,8 +250,11 @@ class RainfallExtraction(WrfTask):
         # cell size is calc based on the mean between the lat and lon points
         cz = np.round(np.mean(np.append(lons[1:len(lons)] - lons[0: len(lons) - 1], lats[1:len(lats)]
                                         - lats[0: len(lats) - 1])), 3)
-        clevs = 10 * np.array([0.1, 0.5, 1, 2, 3, 5, 10, 15, 20, 25, 30, 50, 80])
-        cmap = plt.get_cmap('gnuplot_r')
+        clevs = 10 * np.array([0.1, 0.5, 1, 2, 3, 5, 10, 15, 20, 25, 30])
+        clevs_cum = 10 * np.array([0.1, 0.5, 1, 2, 3, 5, 10, 15, 20, 25, 30, 50, 75, 100])
+        norm = colors.BoundaryNorm(boundaries=clevs, ncolors=256)
+        norm_cum = colors.BoundaryNorm(boundaries=clevs_cum, ncolors=256)
+        cmap = plt.get_cmap('jet')
 
         basemap = Basemap(projection='merc', llcrnrlon=lon_min, llcrnrlat=lat_min, urcrnrlon=lon_max,
                           urcrnrlat=lat_max, resolution='h')
@@ -259,7 +263,8 @@ class RainfallExtraction(WrfTask):
 
         for i in range(1, len(variables['Times'])):
             time = variables['Times'][i]
-            lk_ts = utils.datetime_utc_to_lk(dt.datetime.strptime(time, '%Y-%m-%d_%H:%M:%S'))
+            ts = dt.datetime.strptime(time, '%Y-%m-%d_%H:%M:%S')
+            lk_ts = utils.datetime_utc_to_lk(ts)
             logging.info('processing %s', time)
 
             # instantaneous precipitation (hourly)
@@ -269,22 +274,28 @@ class RainfallExtraction(WrfTask):
             title = 'Hourly rf for %s LK\n%s UTC' % (lk_ts.strftime('%Y-%m-%d_%H:%M:%S'), time)
             ext_utils.create_asc_file(np.flip(inst_precip, 0), lats, lons, inst_file + '.asc', cell_size=cz)
             ext_utils.create_contour_plot(inst_precip, inst_file + '.png', lat_min, lon_min, lat_max, lon_max,
-                                          title, clevs=clevs, cmap=cmap, basemap=basemap)
+                                          title, clevs=clevs, cmap=cmap, basemap=basemap, norm=norm)
 
             if i % 24 == 0:
                 t = 'Daily rf from %s LK to %s LK' % (
                     (lk_ts - dt.timedelta(hours=24)).strftime('%Y-%m-%d_%H:%M:%S'), lk_ts.strftime('%Y-%m-%d_%H:%M:%S'))
                 d = int(i / 24) - 1
-                cum_file = os.path.join(temp_dir, 'wrf_cum_d%d' % d)
+                cum_file = os.path.join(temp_dir, 'wrf_cum_%dd' % d)
                 ext_utils.create_asc_file(np.flip(variables['PRECIP'][i], 0), lats, lons, cum_file + '.asc',
                                           cell_size=cz)
                 ext_utils.create_contour_plot(variables['PRECIP'][i] - variables['PRECIP'][i - 24], cum_file + '.png',
                                               lat_min, lon_min, lat_max, lon_max, t, clevs=clevs, cmap=cmap,
-                                              basemap=basemap)
+                                              basemap=basemap, norm=norm_cum)
+
+                gif_file = os.path.join(temp_dir, 'wrf_inst_%dd' % d)
+                images = [os.path.join(temp_dir, 'wrf_inst_' + i.strftime('%Y-%m-%d_%H:%M:%S') + '.png') for i in
+                          np.arange(ts - dt.timedelta(hours=23), ts, dt.timedelta(hours=1)).astype(dt.datetime)]
+                ext_utils.create_gif(images, gif_file + '.gif')
 
         # move all the data in the tmp dir to the nfs
         utils.move_files_with_prefix(temp_dir, '*.png', d03_dir)
         utils.move_files_with_prefix(temp_dir, '*.asc', d03_dir)
+        utils.move_files_with_prefix(temp_dir, '*.gif', d03_dir)
         shutil.rmtree(temp_dir)
 
 

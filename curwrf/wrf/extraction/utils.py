@@ -1,9 +1,12 @@
 import os
 import math
 import logging
+
+import imageio
 import numpy as np
+import datetime as dt
 from netCDF4._netCDF4 import Dataset
-from mpl_toolkits.basemap import Basemap, cm
+from mpl_toolkits.basemap import Basemap
 
 from curwrf.wrf import utils
 
@@ -98,7 +101,7 @@ def read_asc_file(path):
 
 
 def create_contour_plot(data, out_file_path, lat_min, lon_min, lat_max, lon_max, plot_title, basemap=None, clevs=None,
-                        cmap=plt.get_cmap('Reds'), overwrite=False):
+                        cmap=plt.get_cmap('Reds'), overwrite=False, norm=None):
     """
     create a contour plot using basemap
     :param cmap: color map
@@ -135,7 +138,7 @@ def create_contour_plot(data, out_file_path, lat_min, lon_min, lat_max, lon_max,
             clevs = np.arange(-1, np.max(data) + 1, 1)
 
         # cs = basemap.contourf(lons, lats, data, clevs, cmap=cm.s3pcpn_l, latlon=True)
-        cs = basemap.contourf(lons, lats, data, clevs, cmap=cmap, latlon=True)
+        cs = basemap.contourf(lons, lats, data, clevs, cmap=cmap, latlon=True, norm=norm)
 
         cbar = basemap.colorbar(cs, location='bottom', pad="5%")
         cbar.set_label('mm')
@@ -166,6 +169,13 @@ def shrink_2d_array(data, new_shape, agg_func=np.average):
             output[i, j] = agg_func(data[row_bins[i]:row_bins[i + 1], col_bins[j]:col_bins[j + 1]])
 
     return output
+
+
+def create_gif(filenames, output, duration=0.5):
+    images = []
+    for filename in filenames:
+        images.append(imageio.imread(filename))
+    imageio.mimsave(output, images, duration=duration)
 
 
 if __name__ == "__main__":
