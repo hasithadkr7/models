@@ -29,5 +29,6 @@ for poly in shapely.ops.polygonize(lines):
 
 polyy = shapely.ops.polygonize(lines)
 
+
 # fig = plt.figure(1)
 # PolygonPatch(polyy)
