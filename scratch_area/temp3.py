@@ -33,5 +33,6 @@ polyy = shapely.ops.polygonize(lines)
 
 
 
+
 # fig = plt.figure(1)
 # PolygonPatch(polyy)
