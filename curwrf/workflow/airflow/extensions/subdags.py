@@ -29,7 +29,7 @@ def get_gfs_download_subdag(parent_dag_name, child_dag_name, args, wrf_config_ke
 
     period = wrf_config.get('period')
     step = wrf_config.get('gfs_step')
-
+    gfs_dir = wrf_config.get('gfs_dir')
     try:
         gfs_date, gfs_cycle, start = utils.get_appropriate_gfs_inventory(wrf_config)
     except KeyError as e:
@@ -37,12 +37,16 @@ def get_gfs_download_subdag(parent_dag_name, child_dag_name, args, wrf_config_ke
         logging.error('Unable to find the key: %s. Returining an empty subdag' % str(e))
         return dag_subdag
 
+    if wrf_config.get('gfs_clean'):
+        logging.info('Cleaning the GFS dir: %s' % gfs_dir)
+        utils.cleanup_dir(gfs_dir)
+
     for i in range(int(start), int(start) + period * 24 + 1, step):
         PythonOperator(
             python_callable=download_inventory.download_i_th_inventory,
             task_id='%s-task-%s' % (child_dag_name, i),
             op_args=[i, wrf_config.get('gfs_url'), wrf_config.get('gfs_inv'), gfs_date, gfs_cycle,
-                     wrf_config.get('gfs_res'), wrf_config.get('gfs_dir'), wrf_config.get('nfs_dir'), test_mode],
+                     wrf_config.get('gfs_res'), gfs_dir, wrf_config.get('nfs_dir'), test_mode],
             # provide_context=True,
             default_args=args,
             dag=dag_subdag,
