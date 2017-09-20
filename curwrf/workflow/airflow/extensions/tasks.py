@@ -10,10 +10,11 @@ from airflow.models import Variable
 from curwrf.wrf import utils
 from curwrf.wrf.execution import executor
 from curwrf.wrf.execution.executor import WrfConfig
-from curwrf.wrf.extraction import utils as ext_utils
+from curwrf.wrf.extraction import wt_extractor, utils as ext_utils
 from mpl_toolkits.basemap import Basemap
 
 import matplotlib
+
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from matplotlib import colors
@@ -104,6 +105,33 @@ class Ungrib(WrfTask):
             'csh link_grib.csh %s/%s' % (wrf_config.get('gfs_dir'), dest), cwd=wps_dir)
 
         utils.run_subprocess('./ungrib.exe', cwd=wps_dir)
+
+
+class FindWeatherType(WrfTask):
+    def __init__(self, wrf_config_keys, wt_namelists, wt_namelists_path):
+        self.wrf_config_keys = wrf_config_keys
+        self.wt_namelists = wt_namelists
+        self.wt_namelists_path = wt_namelists_path
+        super(FindWeatherType, self).__init__(wrf_config_key=wrf_config_keys[0])
+
+    def process(self, *args, **kwargs):
+        wrf_config0 = self.get_config()
+        start_date = dt.datetime.strptime(wrf_config0.get('start_date'), '%Y-%m-%d_%H:%M')
+
+        inv_24 = utils.get_gfs_data_url_dest_tuple(wrf_config0.get('gfs_url'), wrf_config0.get('gfs_inv'),
+                                          start_date.strftime('%Y%m%d'), wrf_config0.get('gfs_cycle'), 24,
+                                          wrf_config0.get('gfs_res'), wrf_config0.get('gfs_dir'))
+        wt = wt_extractor.get_weather_type(inv_24[1])
+        logging.info('Weather type in 24h %s' %wt)
+
+        wt_var = Variable.get(self.wt_namelists, deserialize_json=True)
+
+        logging.info('Changing the wrf_configs according to the weather type')
+        wt_namelists = wt_var[wt]
+        for i in range(len(self.wrf_config_keys)):
+            var = Variable.get(self.wrf_config_keys[i], deserialize_json=True)
+            var['namelist_input'] = os.path.join(self.wt_namelists_path, wt_namelists[i])
+            Variable.set(self.wrf_config_keys[i], var, serialize_json=True)
 
 
 class Metgrid(WrfTask):

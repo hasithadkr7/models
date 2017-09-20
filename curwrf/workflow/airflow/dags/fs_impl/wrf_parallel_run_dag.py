@@ -9,6 +9,9 @@ wrf_dag_name = 'wrf_parallel_run'
 wrf_config_key_prefix = 'wrf_config'
 wrf_home_key_prefix = 'wrf_home'
 wrf_start_date_key_prefix = 'wrf_start_date'
+parallel_runs = 4
+wt_namelists = 'wt_namelists'
+wt_namelists_path = '/mnt/disks/wrf-mod/namelist/'
 queue = 'wrf_fs_impl_queue'
 schedule_interval = '@daily'
 
@@ -35,7 +38,7 @@ dag = DAG(
 
 initialize_params = SubDagOperator(
     task_id='initialize_params',
-    subdag=subdags.get_initial_parameters_subdag(wrf_dag_name, 'initialize_params', 4, default_args,
+    subdag=subdags.get_initial_parameters_subdag(wrf_dag_name, 'initialize_params', parallel_runs, default_args,
                                                  wrf_home_key_prefix, wrf_start_date_key_prefix,
                                                  wrf_config_key_prefix),
     default_args=default_args,
@@ -54,6 +57,16 @@ ungrib = CurwPythonOperator(
     task_id='ungrib',
     curw_task=tasks.Ungrib,
     init_args=[wrf_config_key_prefix + '0'],
+    provide_context=True,
+    default_args=default_args,
+    dag=dag,
+    test_mode=test_mode
+)
+
+find_weather_type = CurwPythonOperator(
+    task_id='find_weather_type',
+    curw_task=tasks.FindWeatherType,
+    init_args=[[wrf_config_key_prefix + str(x) for x in range(parallel_runs)], wt_namelists, wt_namelists_path],
     provide_context=True,
     default_args=default_args,
     dag=dag,
@@ -82,7 +95,7 @@ metgrid = CurwPythonOperator(
 
 real_wrf = SubDagOperator(
     task_id='real_wrf',
-    subdag=subdags.get_wrf_run_subdag(wrf_dag_name, 'real_wrf', 4, default_args, wrf_config_key_prefix,
+    subdag=subdags.get_wrf_run_subdag(wrf_dag_name, 'real_wrf', parallel_runs, default_args, wrf_config_key_prefix,
                                       test_mode=test_mode),
     default_args=default_args,
     dag=dag,
@@ -92,6 +105,8 @@ initialize_params >> [gfs_data_download, geogrid, ungrib]
 
 gfs_data_download >> ungrib
 
+gfs_data_download >> find_weather_type
+
 metgrid << [geogrid, ungrib]
 
-metgrid >> real_wrf
+real_wrf << [find_weather_type, metgrid]
