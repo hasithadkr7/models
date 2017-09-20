@@ -39,7 +39,10 @@ def get_gfs_download_subdag(parent_dag_name, child_dag_name, args, wrf_config_ke
 
     if wrf_config.get('gfs_clean'):
         logging.info('Cleaning the GFS dir: %s' % gfs_dir)
-        utils.cleanup_dir(gfs_dir)
+        try:
+            utils.cleanup_dir(gfs_dir)
+        except (OSError, PermissionError) as e:
+            logging.error('Unable ro cleanup dir %s : %s' % (gfs_dir, str(e)))
 
     for i in range(int(start), int(start) + period * 24 + 1, step):
         PythonOperator(
