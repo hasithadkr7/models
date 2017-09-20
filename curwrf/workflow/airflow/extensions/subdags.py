@@ -138,6 +138,7 @@ def get_wrf_run_subdag(parent_dag_name, child_dag_name, runs, args, wrf_config_k
             trigger_rule=TriggerRule.ONE_FAILED
         )
 
+        args['retries'] = 3
         rf_extraction = CurwPythonOperator(
             task_id='%s-task-%s-%s' % (child_dag_name, 'extraction', i),
             curw_task=tasks.RainfallExtraction,
