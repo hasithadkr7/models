@@ -1,24 +1,46 @@
+import json
+
+import logging
+import unittest
+
 import numpy as np
 import datetime as dt
 
-from sqlalchemy.orm.util import randomize_unitofwork
+from curwrf.wrf.resources import manager as res_mgr
 
 from curwrf.wrf.extraction import utils as rf_ext_utils
 from curwrf.wrf.resources import manager as res_mgr
 from curwmysqladapter import mysqladapter
 
 
-def get_observed_rf(start, end, points):
-    adapter = mysqladapter(host='localhost',
-                           user='root',
-                           password='cfcwm07',
-                           db='curw')
+def get_observed_rf(start, end, points, mysql_config_path=None):
+    adapter = get_curw_adapter(mysql_config_path)
+    opts = {
+        'from': start.strftime('%Y-%m-%d %H:%M:%S'),
+        'to': end.strftime('%Y-%m-%d %H:%M:%S')
+    }
+
+    metaQuery = {
+        'station': points,
+        'variable': 'Precipitation',
+        'type': 'Observed'
+    }
+
+    result = adapter.retrieveTimeseries(metaQuery, opts)
+    pass
 
 
+def get_curw_adapter(mysql_config_path=None):
+    if mysql_config_path is None:
+        mysql_config_path = res_mgr.get_resource_path('config/mysql_config.json')
+
+    with open(mysql_config_path) as data_file:
+        config = json.load(data_file)
+
+    return mysqladapter(host=config['host'], user=config['user'], password=config['password'], db=config['db'])
 
 
-
-def create_raincell_from_wrf(run_ts, wrf_out, raincell_points_file, observation_points, output):
+def create_raincell_from_wrf(run_ts, wrf_out, raincell_points_file, observation_points, output, mysql_config_path=None):
     """
     
     :param run_ts: running timestamp %Y:%m:%d_%H:%M:%S 
@@ -44,15 +66,34 @@ def create_raincell_from_wrf(run_ts, wrf_out, raincell_points_file, observation_
 
     ts_idx = int(np.argwhere(rf_values['Times'] == run_ts))
 
-    observed = get_observed_rf(start, end, points)
+    observed = get_observed_rf(start, end, points, mysql_config_path)
 
     pass
 
 
-def test_create_raincell_from_wrf():
-    create_raincell_from_wrf('2017-08-22_06:00:00',
-                             '/home/curw/wrf_compare/mnt/disks/curwsl_nfs/output/wrf0/2017-08-22_00:00/0/wrfout_d03_2017-08-22_00:00:00_SL',
-                             res_mgr.get_resource_path('extraction/local/kelani_basin_points_250m.txt'),
-                             res_mgr.get_resource_path('extraction/shp/kelani-upper-basin.shp'),
-                             '/tmp/raincell'
-                             )
+def suite():
+    s = unittest.TestSuite()
+    s.addTest(TestFlo2dUtils)
+    return s
+
+
+class TestFlo2dUtils(unittest.TestCase):
+    # def test_get_weather_type(self):
+    #     logging.basicConfig(level=logging.INFO,
+    #                         format='%(asctime)s %(threadName)s %(module)s %(levelname)s %(message)s')
+    #
+    #     create_raincell_from_wrf('2017-08-22_06:00:00',
+    #                              '/home/curw/wrf_compare/mnt/disks/curwsl_nfs/output/wrf0/2017-08-22_00:00/0/'
+    #                              'wrfout_d03_2017-08-22_00:00:00_SL',
+    #                              res_mgr.get_resource_path('extraction/local/kelani_basin_points_250m.txt'),
+    #                              res_mgr.get_resource_path('extraction/shp/kelani-upper-basin.shp'),
+    #                              '/tmp/raincell'
+    #                              )
+
+    def test_get_observed_rf(self):
+        start = dt.datetime.strptime('2017-09-12 00:00:00', '%Y-%m-%d %H:%M:%S')
+        end = dt.datetime.strptime('2017-09-13 00:00:00', '%Y-%m-%d %H:%M:%S')
+
+        points = ['Kompannaveediya', 'Borella']
+
+        get_observed_rf(start, end, points)
