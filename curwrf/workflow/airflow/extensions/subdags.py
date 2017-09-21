@@ -44,8 +44,16 @@ def get_gfs_download_subdag(parent_dag_name, child_dag_name, args, wrf_config_ke
         except (OSError, PermissionError) as e:
             logging.error('Unable ro cleanup dir %s : %s' % (gfs_dir, str(e)))
 
+    gfs_clean = PythonOperator(
+            python_callable=gfs_cleanup,
+            task_id='%s-task-%s' % (child_dag_name, 'gfs_cleanup'),
+            op_args=[wrf_config.get('gfs_clean'), gfs_dir],
+            default_args=args,
+            dag=dag_subdag,
+        )
+
     for i in range(int(start), int(start) + period * 24 + 1, step):
-        PythonOperator(
+        t = PythonOperator(
             python_callable=download_inventory.download_i_th_inventory,
             task_id='%s-task-%s' % (child_dag_name, i),
             op_args=[i, wrf_config.get('gfs_url'), wrf_config.get('gfs_inv'), gfs_date, gfs_cycle,
@@ -54,6 +62,7 @@ def get_gfs_download_subdag(parent_dag_name, child_dag_name, args, wrf_config_ke
             default_args=args,
             dag=dag_subdag,
         )
+        gfs_clean >> t
 
     return dag_subdag
 
@@ -171,3 +180,12 @@ def release_wrf_lock(wrf_config_key):
     file_path = os.path.join(utils.get_em_real_dir(config.get('wrf_home')), 'wrf.lock')
     logging.info('releasing lock %s' % file_path)
     os.remove(file_path)
+
+
+def gfs_cleanup(gfs_clean, gfs_dir):
+    if bool(gfs_clean):
+        logging.info('Cleaning the GFS dir: %s' % gfs_dir)
+        try:
+            utils.cleanup_dir(gfs_dir)
+        except (OSError, PermissionError) as e:
+            logging.error('Unable ro cleanup dir %s : %s' % (gfs_dir, str(e)))
