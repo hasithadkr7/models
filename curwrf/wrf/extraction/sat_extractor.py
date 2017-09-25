@@ -6,14 +6,17 @@ import os
 import shutil
 import tempfile
 import zipfile
+import numpy as np
+
+from joblib import Parallel, delayed
+
+from curwrf.wrf import utils
+from curwrf.wrf.extraction import utils as ext_utils
 
 import matplotlib
 
 matplotlib.use('Agg')
-import numpy as np
-from curwrf.wrf import utils
-from curwrf.wrf.extraction import utils as ext_utils
-from joblib import Parallel, delayed
+from matplotlib import colors, pyplot as plt
 from mpl_toolkits.basemap import cm
 
 
@@ -94,9 +97,12 @@ def process_cumulative_plot(url_dest_list, start_ts_utc, end_ts_utc, output_dir,
             else:
                 total += np.genfromtxt(url_dest[2] + '.archive', dtype=float)
         title = 'Cumulative rainfall ' + from_to
-        clevs = np.concatenate(([-1, 0], np.array([pow(2, i) for i in range(0, 9)])))
-        ext_utils.create_contour_plot(total, cum_filename, lat_min, lon_min, lat_max, lon_max, title, clevs=clevs,
-                                      cmap=cm.s3pcpn)
+        # clevs = np.concatenate(([-1, 0], np.array([pow(2, i) for i in range(0, 9)])))
+        clevs_cum = 10 * np.array([0.1, 0.5, 1, 2, 3, 5, 10, 15, 20, 25, 30, 50, 75, 100])
+        norm_cum = colors.BoundaryNorm(boundaries=clevs_cum, ncolors=256)
+        cmap = plt.get_cmap('jet')
+        ext_utils.create_contour_plot(total, cum_filename, lat_min, lon_min, lat_max, lon_max, title, clevs=clevs_cum,
+                                      cmap=cmap, norm=norm_cum)
     else:
         logging.info('%s already exits' % cum_filename)
 
@@ -114,10 +120,17 @@ def process_jaxa_zip_file(zip_file_path, out_file_path, lat_min, lon_min, lat_ma
 
     ext_utils.create_asc_file(np.flip(data, 0), lats, lons, out_file_path)
 
-    clevs = np.concatenate(([-1, 0], np.array([pow(2, i) for i in range(0, 9)])))
-    title = 'Hourly rainfall ' + os.path.basename(out_file_path).replace('jaxa_sat_rf_', '').replace('.asc', '')
-    ext_utils.create_contour_plot(data, out_file_path + '.png', lat_min, lon_min, lat_max, lon_max, title, clevs=clevs,
-                                  cmap=cm.s3pcpn)
+    # clevs = np.concatenate(([-1, 0], np.array([pow(2, i) for i in range(0, 9)])))
+    clevs = 10 * np.array([0.1, 0.5, 1, 2, 3, 5, 10, 15, 20, 25, 30])
+    norm = colors.BoundaryNorm(boundaries=clevs, ncolors=256)
+    cmap = plt.get_cmap('jet')
+
+    title_opts = {
+        'label': 'Sat rf ' + os.path.basename(out_file_path).replace('jaxa_sat_rf_', '').replace('.asc', '') + ' UTC',
+        'fontsize': 30
+    }
+    ext_utils.create_contour_plot(data, out_file_path + '.png', lat_min, lon_min, lat_max, lon_max, title_opts,
+                                  clevs=clevs, cmap=cmap, norm=norm)
 
     if archive_data and not utils.file_exists_nonempty(out_file_path + '.archive'):
         np.savetxt(out_file_path + '.archive', data, fmt='%g')

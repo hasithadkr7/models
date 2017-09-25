@@ -11,8 +11,10 @@ from mpl_toolkits.basemap import Basemap
 from curwrf.wrf import utils
 
 import matplotlib
+
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
+from matplotlib import colors
 
 
 def extract_variables(nc_f, var_list, lat_min, lat_max, lon_min, lon_max, lat_var='XLAT', lon_var='XLONG',
@@ -44,7 +46,9 @@ def extract_variables(nc_f, var_list, lat_min, lat_max, lon_min, lon_max, lat_va
     lon_inds = np.where((lons >= lon_min) & (lons <= lon_max))
 
     vars_dict = {}
-    var_list = var_list.replace(',', ' ').split() if isinstance(var_list, str) else var_list
+    if isinstance(var_list, str):
+        var_list = var_list.replace(',', ' ').split()
+    # var_list = var_list.replace(',', ' ').split() if isinstance(var_list, str) else var_list
     for var in var_list:
         vars_dict[var] = nc_fid.variables[var][:, lat_inds[0], lon_inds[0]]
 
@@ -104,6 +108,7 @@ def create_contour_plot(data, out_file_path, lat_min, lon_min, lat_max, lon_max,
                         cmap=plt.get_cmap('Reds'), overwrite=False, norm=None):
     """
     create a contour plot using basemap
+    :param title_ops:
     :param cmap: color map
     :param clevs: color levels
     :param basemap: creating basemap takes time, hence you can create it outside and pass it over
@@ -143,12 +148,46 @@ def create_contour_plot(data, out_file_path, lat_min, lon_min, lat_max, lon_max,
         cbar = basemap.colorbar(cs, location='bottom', pad="5%")
         cbar.set_label('mm')
 
-        plt.title(plot_title)
+        if isinstance(plot_title, str):
+            plt.title(plot_title)
+        elif isinstance(plot_title, dict):
+            plt.title(plot_title.pop('label'), **plot_title)
         plt.draw()
         fig.savefig(out_file_path)
         plt.close()
     else:
         logging.info('%s already exists' % out_file_path)
+
+
+def test_create_contour_plot():
+    nc = '/home/nira/Desktop/temp/wrfout_d03_2017-09-24_00-00-00_SL'
+    out_dir = '/home/nira/Desktop/temp'
+
+    lat_min = 5.722969
+    lon_min = 79.52146
+    lat_max = 10.06425
+    lon_max = 82.18992
+
+    clevs = 10 * np.array([0.1, 0.5, 1, 2, 3, 5, 10, 15, 20, 25, 30])
+    basemap = Basemap(projection='merc', llcrnrlon=lon_min, llcrnrlat=lat_min, urcrnrlon=lon_max,
+                      urcrnrlat=lat_max, resolution='h')
+    norm = colors.BoundaryNorm(boundaries=clevs, ncolors=256)
+
+    rf_vars = ['RAINC', 'RAINNC']
+
+    rf_values = extract_variables(nc, rf_vars, lat_min, lat_max, lon_min, lon_max)
+
+    rf_values['PRECIP'] = rf_values[rf_vars[0]]
+    for i in range(1, len(rf_vars)):
+        rf_values['PRECIP'] = rf_values['PRECIP'] + rf_values[rf_vars[i]]
+
+    os.makedirs(out_dir, exist_ok=True)
+    create_contour_plot(rf_values['PRECIP'][24], out_dir + '/out.png', lat_min, lon_min, lat_max, lon_max, 'Title',
+                        basemap=basemap, clevs=clevs, cmap=plt.get_cmap('jet'), overwrite=True, norm=norm)
+
+    title_opts = {'label': 'Title', 'fontsize': 30}
+    create_contour_plot(rf_values['PRECIP'][24], out_dir + '/out1.png', lat_min, lon_min, lat_max, lon_max, title_opts,
+                        basemap=basemap, clevs=clevs, cmap=plt.get_cmap('jet'), overwrite=True, norm=norm)
 
 
 def shrink_2d_array(data, new_shape, agg_func=np.average):
