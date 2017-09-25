@@ -119,10 +119,10 @@ class FindWeatherType(WrfTask):
         start_date = dt.datetime.strptime(wrf_config0.get('start_date'), '%Y-%m-%d_%H:%M')
 
         inv_24 = utils.get_gfs_data_url_dest_tuple(wrf_config0.get('gfs_url'), wrf_config0.get('gfs_inv'),
-                                          start_date.strftime('%Y%m%d'), wrf_config0.get('gfs_cycle'), '024',
-                                          wrf_config0.get('gfs_res'), wrf_config0.get('gfs_dir'))
+                                                   start_date.strftime('%Y%m%d'), wrf_config0.get('gfs_cycle'), '024',
+                                                   wrf_config0.get('gfs_res'), wrf_config0.get('gfs_dir'))
         wt = wt_extractor.get_weather_type(inv_24[1])
-        logging.info('Weather type in 24h %s' %wt)
+        logging.info('Weather type in 24h %s' % wt)
 
         wt_var = Variable.get(self.wt_namelists, deserialize_json=True)
 
@@ -241,9 +241,13 @@ class Wrf(WrfTask):
         d03_file = os.path.join(em_real_dir, 'wrfout_d03_' + start_date + ':00')
         ext_utils.ncks_extract_variables(d03_file, ['RAINC', 'RAINNC', 'XLAT', 'XLONG', 'Times'], d03_file + '_SL')
 
+        d01_file = os.path.join(em_real_dir, 'wrfout_d01_' + start_date + ':00')
+        ext_utils.ncks_extract_variables(d03_file, ['RAINC', 'RAINNC', 'XLAT', 'XLONG', 'Times'], d01_file + '_SL')
+
         # move the wrfout_SL and the namelist files to the nfs
         utils.create_dir_if_not_exists(d03_dir)
         shutil.move(d03_file + '_SL', d03_dir)
+        shutil.move(d01_file + '_SL', d03_dir)
         shutil.copy2(os.path.join(em_real_dir, 'namelist.input'), d03_dir)
 
         # move the rest to the OUTPUT dir of each run
@@ -299,7 +303,10 @@ class RainfallExtraction(WrfTask):
             inst_precip = variables['PRECIP'][i] - variables['PRECIP'][i - 1]
 
             inst_file = os.path.join(temp_dir, 'wrf_inst_' + time)
-            title = 'Hourly rf for %s LK\n%s UTC' % (lk_ts.strftime('%Y-%m-%d_%H:%M:%S'), time)
+            title = {
+                'label': 'Hourly rf for %s LK\n%s UTC' % (lk_ts.strftime('%Y-%m-%d_%H:%M:%S'), time),
+                'fontsize': 30
+            }
             ext_utils.create_asc_file(np.flip(inst_precip, 0), lats, lons, inst_file + '.asc', cell_size=cz)
             ext_utils.create_contour_plot(inst_precip, inst_file + '.png', lat_min, lon_min, lat_max, lon_max,
                                           title, clevs=clevs, cmap=cmap, basemap=basemap, norm=norm)
@@ -323,7 +330,97 @@ class RainfallExtraction(WrfTask):
         # move all the data in the tmp dir to the nfs
         utils.move_files_with_prefix(temp_dir, '*.png', d03_dir)
         utils.move_files_with_prefix(temp_dir, '*.asc', d03_dir)
-        utils.move_files_with_prefix(temp_dir, '*.gif', d03_dir)
+        utils.copy_files_with_prefix(temp_dir, '*.gif', d03_dir)
+
+        d03_latest_dir = os.path.join(config.get('nfs_dir'), 'latest', os.path.basename(config.get('wrf_home')))
+        # <nfs>/latest/wrf0 .. 3
+        utils.create_dir_if_not_exists(d03_latest_dir)
+        # todo: this needs to be adjusted to handle the multiple runs
+        utils.copy_files_with_prefix(temp_dir, '*.gif', d03_latest_dir)
+        shutil.rmtree(temp_dir)
+
+
+class RainfallExtractionD01(WrfTask):
+    def process(self, *args, **kwargs):
+        config = self.get_config(**kwargs)
+        start_date = config.get('start_date')
+        d03_dir = config.get('wrf_output_dir')
+        d03_sl = os.path.join(d03_dir, 'wrfout_d01_' + start_date + ':00_SL')
+
+        # create a temp work dir & get a local copy of the d03.._SL
+        temp_dir = utils.create_dir_if_not_exists(os.path.join(config.get('wrf_home'), 'temp_d01'))
+        shutil.copy2(d03_sl, temp_dir)
+
+        d03_sl = os.path.join(temp_dir, os.path.basename(d03_sl))
+
+        lat_min = -3.06107
+        lon_min = 71.2166
+        lat_max = 18.1895
+        lon_max = 90.3315
+
+        variables = ext_utils.extract_variables(d03_sl, 'RAINC, RAINNC', lat_min, lat_max, lon_min, lon_max)
+
+        lats = variables['XLAT']
+        lons = variables['XLONG']
+
+        # cell size is calc based on the mean between the lat and lon points
+        cz = np.round(np.mean(np.append(lons[1:len(lons)] - lons[0: len(lons) - 1], lats[1:len(lats)]
+                                        - lats[0: len(lats) - 1])), 3)
+        clevs = 10 * np.array([0.1, 0.5, 1, 2, 3, 5, 10, 15, 20, 25, 30])
+        clevs_cum = 10 * np.array([0.1, 0.5, 1, 2, 3, 5, 10, 15, 20, 25, 30, 50, 75, 100])
+        norm = colors.BoundaryNorm(boundaries=clevs, ncolors=256)
+        norm_cum = colors.BoundaryNorm(boundaries=clevs_cum, ncolors=256)
+        cmap = plt.get_cmap('jet')
+
+        basemap = Basemap(projection='merc', llcrnrlon=lon_min, llcrnrlat=lat_min, urcrnrlon=lon_max,
+                          urcrnrlat=lat_max, resolution='h')
+
+        variables['PRECIP'] = variables['RAINC'] + variables['RAINNC']
+
+        for i in range(1, len(variables['Times'])):
+            time = variables['Times'][i]
+            ts = dt.datetime.strptime(time, '%Y-%m-%d_%H:%M:%S')
+            lk_ts = utils.datetime_utc_to_lk(ts)
+            logging.info('processing %s', time)
+
+            # instantaneous precipitation (hourly)
+            inst_precip = variables['PRECIP'][i] - variables['PRECIP'][i - 1]
+
+            inst_file = os.path.join(temp_dir, 'wrf_inst_' + time)
+            title = {
+                'label': '3Hourly rf for %s LK\n%s UTC' % (lk_ts.strftime('%Y-%m-%d_%H:%M:%S'), time),
+                'fontsize': 30
+            }
+            # ext_utils.create_asc_file(np.flip(inst_precip, 0), lats, lons, inst_file + '.asc', cell_size=cz)
+            ext_utils.create_contour_plot(inst_precip, inst_file + '.png', lat_min, lon_min, lat_max, lon_max,
+                                          title, clevs=clevs, cmap=cmap, basemap=basemap, norm=norm)
+
+            if i % 24 == 0:
+                t = 'Daily rf from %s LK to %s LK' % (
+                    (lk_ts - dt.timedelta(hours=24)).strftime('%Y-%m-%d_%H:%M:%S'), lk_ts.strftime('%Y-%m-%d_%H:%M:%S'))
+                d = int(i / 24) - 1
+                # cum_file = os.path.join(temp_dir, 'wrf_cum_%dd' % d)
+                # ext_utils.create_asc_file(np.flip(variables['PRECIP'][i], 0), lats, lons, cum_file + '.asc',
+                #                           cell_size=cz)
+                # ext_utils.create_contour_plot(variables['PRECIP'][i] - variables['PRECIP'][i - 24], cum_file + '.png',
+                #                               lat_min, lon_min, lat_max, lon_max, t, clevs=clevs, cmap=cmap,
+                #                               basemap=basemap, norm=norm_cum)
+
+                gif_file = os.path.join(temp_dir, 'wrf_inst_D01_%dd' % d)
+                images = [os.path.join(temp_dir, 'wrf_inst_' + i.strftime('%Y-%m-%d_%H:%M:%S') + '.png') for i in
+                          np.arange(ts - dt.timedelta(hours=24 - 3), ts, dt.timedelta(hours=3)).astype(dt.datetime)]
+                ext_utils.create_gif(images, gif_file + '.gif')
+
+        # move all the data in the tmp dir to the nfs
+        # utils.move_files_with_prefix(temp_dir, '*.png', d03_dir)
+        # utils.move_files_with_prefix(temp_dir, '*.asc', d03_dir)
+        utils.copy_files_with_prefix(temp_dir, '*.gif', d03_dir)
+
+        d03_latest_dir = os.path.join(config.get('nfs_dir'), 'latest', os.path.basename(config.get('wrf_home')))
+        # <nfs>/latest/wrf0 .. 3
+        utils.create_dir_if_not_exists(d03_latest_dir)
+        # todo: this needs to be adjusted to handle the multiple runs
+        utils.copy_files_with_prefix(temp_dir, '*.gif', d03_latest_dir)
         shutil.rmtree(temp_dir)
 
 
@@ -333,6 +430,18 @@ def test_rainfall_extraction():
         'wrf_home': '/home/curw/Desktop/temp',
         'wrf_output_dir': '/home/curw/Desktop/temp',
         'start_date': '2017-08-13_00:00'
+    })
+
+    rf_task.process()
+
+
+def test_rainfall_extraction2():
+    rf_task = RainfallExtractionD01()
+    rf_task.config = WrfConfig({
+        'wrf_home': '/home/nira/Desktop/temp',
+        'wrf_output_dir': '/home/nira/Desktop/temp',
+        'nfs_dir': '/home/nira/Desktop/temp',
+        'start_date': '2017-09-24_00:00'
     })
 
     rf_task.process()

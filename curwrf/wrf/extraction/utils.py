@@ -1,12 +1,12 @@
 import os
 import math
 import logging
-
 import imageio
 import numpy as np
 import datetime as dt
 from netCDF4._netCDF4 import Dataset
 from mpl_toolkits.basemap import Basemap
+from scipy import ndimage
 
 from curwrf.wrf import utils
 
@@ -105,9 +105,11 @@ def read_asc_file(path):
 
 
 def create_contour_plot(data, out_file_path, lat_min, lon_min, lat_max, lon_max, plot_title, basemap=None, clevs=None,
-                        cmap=plt.get_cmap('Reds'), overwrite=False, norm=None):
+                        cmap=plt.get_cmap('Reds'), overwrite=False, norm=None, additional_changes=None, **kwargs):
     """
     create a contour plot using basemap
+    :param additional_changes:
+    :param norm:
     :param title_ops:
     :param cmap: color map
     :param clevs: color levels
@@ -152,8 +154,18 @@ def create_contour_plot(data, out_file_path, lat_min, lon_min, lat_max, lon_max,
             plt.title(plot_title)
         elif isinstance(plot_title, dict):
             plt.title(plot_title.pop('label'), **plot_title)
+
+        # make any additional changes to the plot
+        if additional_changes is not None:
+            additional_changes(plt, data, **kwargs)
+
+        # draw_center_of_mass(data)
+        # com = ndimage.measurements.center_of_mass(data)
+        # plt.plot(com[1], com[0], 'ro')
+
         plt.draw()
-        fig.savefig(out_file_path)
+        plt.savefig(out_file_path)
+        # fig.savefig(out_file_path)
         plt.close()
     else:
         logging.info('%s already exists' % out_file_path)
@@ -172,6 +184,8 @@ def test_create_contour_plot():
     basemap = Basemap(projection='merc', llcrnrlon=lon_min, llcrnrlat=lat_min, urcrnrlon=lon_max,
                       urcrnrlat=lat_max, resolution='h')
     norm = colors.BoundaryNorm(boundaries=clevs, ncolors=256)
+    cmap = plt.get_cmap('jet')
+    # cmap = cm.s3pcpn
 
     rf_vars = ['RAINC', 'RAINNC']
 
@@ -183,11 +197,11 @@ def test_create_contour_plot():
 
     os.makedirs(out_dir, exist_ok=True)
     create_contour_plot(rf_values['PRECIP'][24], out_dir + '/out.png', lat_min, lon_min, lat_max, lon_max, 'Title',
-                        basemap=basemap, clevs=clevs, cmap=plt.get_cmap('jet'), overwrite=True, norm=norm)
+                        basemap=basemap, clevs=clevs, cmap=cmap, overwrite=True, norm=norm)
 
     title_opts = {'label': 'Title', 'fontsize': 30}
     create_contour_plot(rf_values['PRECIP'][24], out_dir + '/out1.png', lat_min, lon_min, lat_max, lon_max, title_opts,
-                        basemap=basemap, clevs=clevs, cmap=plt.get_cmap('jet'), overwrite=True, norm=norm)
+                        basemap=basemap, clevs=clevs, cmap=cmap, overwrite=True, norm=norm)
 
 
 def shrink_2d_array(data, new_shape, agg_func=np.average):
@@ -215,6 +229,12 @@ def create_gif(filenames, output, duration=0.5):
     for filename in filenames:
         images.append(imageio.imread(filename))
     imageio.mimsave(output, images, duration=duration)
+
+
+# def draw_center_of_mass(data, com_dot='ro'):
+#     com = ndimage.measurements.center_of_mass(data)
+#     plt.plot(com[1], com[0], com_dot)
+#     # plt.annotate(str(com), xy=com)
 
 
 if __name__ == "__main__":

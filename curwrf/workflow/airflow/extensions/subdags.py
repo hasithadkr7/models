@@ -154,7 +154,17 @@ def get_wrf_run_subdag(parent_dag_name, child_dag_name, runs, args, wrf_config_k
             test_mode=test_mode
         )
 
-        lock_sensor >> acquire_lock >> real >> wrf >> release_lock >> rf_extraction
+        rf_extraction2 = CurwPythonOperator(
+            task_id='%s-task-%s-%s' % (child_dag_name, 'extraction-D01', i),
+            curw_task=tasks.RainfallExtractionD01,
+            init_args=[wrf_config_key + i],
+            provide_context=True,
+            default_args=args,
+            dag=dag_subdag,
+            test_mode=test_mode
+        )
+
+        lock_sensor >> acquire_lock >> real >> wrf >> release_lock >> [rf_extraction, rf_extraction2]
         wrf >> release_lock_if_failed
 
     return dag_subdag

@@ -56,6 +56,7 @@ plt.imshow(wrf_s)
 plt.imshow(sat_s)
 plt.plot(s_c[1], s_c[0], 'bo')
 plt.plot(w_c[1], w_c[0], 'ro')
+plt.annotate
 
 import scipy.signal
 

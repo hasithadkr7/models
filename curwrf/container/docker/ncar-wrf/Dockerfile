@@ -103,7 +103,7 @@ COPY run_wrf.sh /wrf
 RUN chmod +x /wrf/run_wrf.sh
 
 # update the git repo everytime a container is initialized
-CMD ["/wrf/run_wrf.sh"]
+CMD ["/wrf/run_wrf.sh", "$CURW_"]
 
 VOLUME /wrf
 
