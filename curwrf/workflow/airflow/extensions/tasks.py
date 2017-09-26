@@ -391,36 +391,29 @@ class RainfallExtractionD01(WrfTask):
                 'label': '3Hourly rf for %s LK\n%s UTC' % (lk_ts.strftime('%Y-%m-%d_%H:%M:%S'), time),
                 'fontsize': 30
             }
-            # ext_utils.create_asc_file(np.flip(inst_precip, 0), lats, lons, inst_file + '.asc', cell_size=cz)
             ext_utils.create_contour_plot(inst_precip, inst_file + '.png', lat_min, lon_min, lat_max, lon_max,
                                           title, clevs=clevs, cmap=cmap, basemap=basemap, norm=norm)
 
-            if i % 24 == 0:
-                t = 'Daily rf from %s LK to %s LK' % (
-                    (lk_ts - dt.timedelta(hours=24)).strftime('%Y-%m-%d_%H:%M:%S'), lk_ts.strftime('%Y-%m-%d_%H:%M:%S'))
-                d = int(i / 24) - 1
-                # cum_file = os.path.join(temp_dir, 'wrf_cum_%dd' % d)
-                # ext_utils.create_asc_file(np.flip(variables['PRECIP'][i], 0), lats, lons, cum_file + '.asc',
-                #                           cell_size=cz)
-                # ext_utils.create_contour_plot(variables['PRECIP'][i] - variables['PRECIP'][i - 24], cum_file + '.png',
-                #                               lat_min, lon_min, lat_max, lon_max, t, clevs=clevs, cmap=cmap,
-                #                               basemap=basemap, norm=norm_cum)
-
+            if i % 8 == 0:
+                d = int(i / 8) - 1
+                logging.info('Creating gif for D%d' % d)
                 gif_file = os.path.join(temp_dir, 'wrf_inst_D01_%dd' % d)
                 images = [os.path.join(temp_dir, 'wrf_inst_' + i.strftime('%Y-%m-%d_%H:%M:%S') + '.png') for i in
                           np.arange(ts - dt.timedelta(hours=24 - 3), ts, dt.timedelta(hours=3)).astype(dt.datetime)]
                 ext_utils.create_gif(images, gif_file + '.gif')
 
         # move all the data in the tmp dir to the nfs
-        # utils.move_files_with_prefix(temp_dir, '*.png', d03_dir)
-        # utils.move_files_with_prefix(temp_dir, '*.asc', d03_dir)
+        logging.info('Copying gifs to ' + d03_dir)
         utils.copy_files_with_prefix(temp_dir, '*.gif', d03_dir)
 
         d03_latest_dir = os.path.join(config.get('nfs_dir'), 'latest', os.path.basename(config.get('wrf_home')))
         # <nfs>/latest/wrf0 .. 3
         utils.create_dir_if_not_exists(d03_latest_dir)
         # todo: this needs to be adjusted to handle the multiple runs
+        logging.info('Copying gifs to ' + d03_latest_dir)
         utils.copy_files_with_prefix(temp_dir, '*.gif', d03_latest_dir)
+
+        logging.info('Cleaning up the dir ' + temp_dir)
         shutil.rmtree(temp_dir)
 
 
