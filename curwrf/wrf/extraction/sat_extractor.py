@@ -6,18 +6,16 @@ import os
 import shutil
 import tempfile
 import zipfile
-import numpy as np
 
+import matplotlib
+import numpy as np
 from joblib import Parallel, delayed
 
 from curwrf.wrf import utils
 from curwrf.wrf.extraction import utils as ext_utils
 
-import matplotlib
-
 matplotlib.use('Agg')
 from matplotlib import colors, pyplot as plt
-from mpl_toolkits.basemap import cm
 
 
 def extract_jaxa_satellite_hourly_data(ts, output_dir):
@@ -26,7 +24,19 @@ def extract_jaxa_satellite_hourly_data(ts, output_dir):
     extract_jaxa_satellite_data(ts - dt.timedelta(hours=1), ts, output_dir)
 
 
-def extract_jaxa_satellite_data(start_ts_utc, end_ts_utc, output_dir, cleanup=True, cum=False):
+def create_daily_gif(start, output_dir, output_filename):
+    tmp_dir = tempfile.mkdtemp(prefix='tmp_jaxa_daily')
+
+    utils.copy_files_with_prefix(output_dir, 'jaxa_sat_rf_' + start.strftime('%Y-%m-%d') + '*.png', tmp_dir)
+    logging.info('Writing gif ' + output_filename)
+    gif_list = [os.path.join(tmp_dir, i) for i in sorted(os.listdir(tmp_dir))]
+    ext_utils.create_gif(gif_list, os.path.join(output_dir, output_filename))
+
+    logging.info('Cleaning up ' + tmp_dir)
+    shutil.rmtree(tmp_dir)
+
+
+def extract_jaxa_satellite_data(start_ts_utc, end_ts_utc, output_dir, cleanup=True, cum=False, tmp_dir=None):
     start = utils.datetime_floor(start_ts_utc, 3600)
     end = utils.datetime_floor(end_ts_utc, 3600)
 
@@ -54,7 +64,8 @@ def extract_jaxa_satellite_data(start_ts_utc, end_ts_utc, output_dir, cleanup=Tr
     # tmp_dir = os.path.join(output_dir, 'tmp_jaxa/')
     # if not os.path.exists(tmp_dir):
     #     os.mkdir(tmp_dir)
-    tmp_dir = tempfile.mkdtemp(prefix='tmp_jaxa')
+    if tmp_dir is None:
+        tmp_dir = tempfile.mkdtemp(prefix='tmp_jaxa')
 
     url_dest_list = []
     for timestamp in np.arange(start, end, dt.timedelta(hours=1)).astype(dt.datetime):
@@ -73,6 +84,15 @@ def extract_jaxa_satellite_data(start_ts_utc, end_ts_utc, output_dir, cleanup=Tr
         delayed(process_jaxa_zip_file)(i[1], i[2], lat_min, lon_min, lat_max, lon_max, cum) for i in url_dest_list)
     logging.info('Processing files complete')
 
+    logging.info('Creating sat rf gif for today')
+    create_daily_gif(start, output_dir, 'jaxa_sat_today.gif')
+
+    prev_day_gif = os.path.join(output_dir, 'jaxa_sat_yesterday.gif')
+    if not utils.file_exists_nonempty(prev_day_gif) or start.strptime('%H:%M') == '00:00':
+        logging.info('Creating sat rf gif for yesterday')
+        create_daily_gif(utils.datetime_floor(start, 3600 * 24) - dt.timedelta(days=1), output_dir,
+                         'jaxa_sat_yesterday.gif')
+
     if cum:
         logging.info('Processing cumulative')
         process_cumulative_plot(url_dest_list, start_ts_utc, end_ts_utc, output_dir, lat_min, lon_min, lat_max, lon_max)
@@ -83,6 +103,14 @@ def extract_jaxa_satellite_data(start_ts_utc, end_ts_utc, output_dir, cleanup=Tr
         logging.info('Cleaning up')
         shutil.rmtree(tmp_dir)
         utils.delete_files_with_prefix(output_dir, '*.archive')
+
+
+def test_extract_jaxa_satellite_data():
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s %(threadName)s %(module)s %(levelname)s %(message)s')
+    end = dt.datetime.utcnow() - dt.timedelta(hours=6)
+    start = end - dt.timedelta(days=1)
+
+    extract_jaxa_satellite_data(start, end, '/home/curw/temp/jaxa', cleanup=False, tmp_dir='/home/curw/temp/jaxa/data')
 
 
 def process_cumulative_plot(url_dest_list, start_ts_utc, end_ts_utc, output_dir, lat_min, lon_min, lat_max, lon_max):
