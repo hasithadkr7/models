@@ -11,7 +11,7 @@ from curwrf.wrf import utils
 from curwrf.wrf.execution import executor
 from curwrf.wrf.execution.executor import WrfConfig
 from curwrf.wrf.extraction import wt_extractor, utils as ext_utils
-from mpl_toolkits.basemap import Basemap
+from mpl_toolkits.basemap import Basemap, cm
 
 import matplotlib
 
@@ -282,11 +282,17 @@ class RainfallExtraction(WrfTask):
         # cell size is calc based on the mean between the lat and lon points
         cz = np.round(np.mean(np.append(lons[1:len(lons)] - lons[0: len(lons) - 1], lats[1:len(lats)]
                                         - lats[0: len(lats) - 1])), 3)
-        clevs = 10 * np.array([0.1, 0.5, 1, 2, 3, 5, 10, 15, 20, 25, 30])
-        clevs_cum = 10 * np.array([0.1, 0.5, 1, 2, 3, 5, 10, 15, 20, 25, 30, 50, 75, 100])
-        norm = colors.BoundaryNorm(boundaries=clevs, ncolors=256)
-        norm_cum = colors.BoundaryNorm(boundaries=clevs_cum, ncolors=256)
-        cmap = plt.get_cmap('jet')
+        # clevs = 10 * np.array([0.1, 0.5, 1, 2, 3, 5, 10, 15, 20, 25, 30])
+        # clevs_cum = 10 * np.array([0.1, 0.5, 1, 2, 3, 5, 10, 15, 20, 25, 30, 50, 75, 100])
+        # norm = colors.BoundaryNorm(boundaries=clevs, ncolors=256)
+        # norm_cum = colors.BoundaryNorm(boundaries=clevs_cum, ncolors=256)
+        # cmap = plt.get_cmap('jet')
+
+        clevs = [0, 1, 2.5, 5, 7.5, 10, 15, 20, 30, 40, 50, 70, 100, 150, 200, 250, 300, 400, 500, 600, 750]
+        clevs_cum = clevs
+        norm = None
+        norm_cum = None
+        cmap = cm.s3pcpn
 
         basemap = Basemap(projection='merc', llcrnrlon=lon_min, llcrnrlat=lat_min, urcrnrlon=lon_max,
                           urcrnrlat=lat_max, resolution='h')
@@ -315,6 +321,7 @@ class RainfallExtraction(WrfTask):
                 t = 'Daily rf from %s LK to %s LK' % (
                     (lk_ts - dt.timedelta(hours=24)).strftime('%Y-%m-%d_%H:%M:%S'), lk_ts.strftime('%Y-%m-%d_%H:%M:%S'))
                 d = int(i / 24) - 1
+                logging.info('Creating images for D%d' % d)
                 cum_file = os.path.join(temp_dir, 'wrf_cum_%dd' % d)
                 ext_utils.create_asc_file(np.flip(variables['PRECIP'][i], 0), lats, lons, cum_file + '.asc',
                                           cell_size=cz)
@@ -324,18 +331,23 @@ class RainfallExtraction(WrfTask):
 
                 gif_file = os.path.join(temp_dir, 'wrf_inst_%dd' % d)
                 images = [os.path.join(temp_dir, 'wrf_inst_' + i.strftime('%Y-%m-%d_%H:%M:%S') + '.png') for i in
-                          np.arange(ts - dt.timedelta(hours=23), ts, dt.timedelta(hours=1)).astype(dt.datetime)]
+                          np.arange(ts - dt.timedelta(hours=23), ts + dt.timedelta(hours=1),
+                                    dt.timedelta(hours=1)).astype(dt.datetime)]
                 ext_utils.create_gif(images, gif_file + '.gif')
 
         # move all the data in the tmp dir to the nfs
+        logging.info('Copying pngs to ' + d03_dir)
         utils.move_files_with_prefix(temp_dir, '*.png', d03_dir)
+        logging.info('Copying ascs to ' + d03_dir)
         utils.move_files_with_prefix(temp_dir, '*.asc', d03_dir)
+        logging.info('Copying gifs to ' + d03_dir)
         utils.copy_files_with_prefix(temp_dir, '*.gif', d03_dir)
 
         d03_latest_dir = os.path.join(config.get('nfs_dir'), 'latest', os.path.basename(config.get('wrf_home')))
         # <nfs>/latest/wrf0 .. 3
         utils.create_dir_if_not_exists(d03_latest_dir)
         # todo: this needs to be adjusted to handle the multiple runs
+        logging.info('Copying gifs to ' + d03_latest_dir)
         utils.copy_files_with_prefix(temp_dir, '*.gif', d03_latest_dir)
         shutil.rmtree(temp_dir)
 
@@ -366,11 +378,16 @@ class RainfallExtractionD01(WrfTask):
         # cell size is calc based on the mean between the lat and lon points
         cz = np.round(np.mean(np.append(lons[1:len(lons)] - lons[0: len(lons) - 1], lats[1:len(lats)]
                                         - lats[0: len(lats) - 1])), 3)
-        clevs = 10 * np.array([0.1, 0.5, 1, 2, 3, 5, 10, 15, 20, 25, 30])
-        clevs_cum = 10 * np.array([0.1, 0.5, 1, 2, 3, 5, 10, 15, 20, 25, 30, 50, 75, 100])
-        norm = colors.BoundaryNorm(boundaries=clevs, ncolors=256)
-        norm_cum = colors.BoundaryNorm(boundaries=clevs_cum, ncolors=256)
-        cmap = plt.get_cmap('jet')
+        # clevs = 10 * np.array([0.1, 0.5, 1, 2, 3, 5, 10, 15, 20, 25, 30])
+        # clevs_cum = 10 * np.array([0.1, 0.5, 1, 2, 3, 5, 10, 15, 20, 25, 30, 50, 75, 100])
+        # norm = colors.BoundaryNorm(boundaries=clevs, ncolors=256)
+        # norm_cum = colors.BoundaryNorm(boundaries=clevs_cum, ncolors=256)
+        # cmap = plt.get_cmap('jet')
+
+        clevs = [0, 1, 2.5, 5, 7.5, 10, 15, 20, 30, 40, 50, 70, 100, 150, 200, 250, 300, 400, 500, 600, 750]
+        clevs_cum = clevs
+        norm = None
+        cmap = cm.s3pcpn
 
         basemap = Basemap(projection='merc', llcrnrlon=lon_min, llcrnrlat=lat_min, urcrnrlon=lon_max,
                           urcrnrlat=lat_max, resolution='h')
@@ -399,7 +416,8 @@ class RainfallExtractionD01(WrfTask):
                 logging.info('Creating gif for D%d' % d)
                 gif_file = os.path.join(temp_dir, 'wrf_inst_D01_%dd' % d)
                 images = [os.path.join(temp_dir, 'wrf_inst_' + i.strftime('%Y-%m-%d_%H:%M:%S') + '.png') for i in
-                          np.arange(ts - dt.timedelta(hours=24 - 3), ts, dt.timedelta(hours=3)).astype(dt.datetime)]
+                          np.arange(ts - dt.timedelta(hours=24 - 3), ts + dt.timedelta(hours=3),
+                                    dt.timedelta(hours=3)).astype(dt.datetime)]
                 ext_utils.create_gif(images, gif_file + '.gif')
 
         # move all the data in the tmp dir to the nfs

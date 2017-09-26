@@ -10,6 +10,7 @@ import zipfile
 import matplotlib
 import numpy as np
 from joblib import Parallel, delayed
+from mpl_toolkits.basemap import cm
 
 from curwrf.wrf import utils
 from curwrf.wrf.extraction import utils as ext_utils
@@ -88,7 +89,7 @@ def extract_jaxa_satellite_data(start_ts_utc, end_ts_utc, output_dir, cleanup=Tr
     create_daily_gif(start, output_dir, 'jaxa_sat_today.gif')
 
     prev_day_gif = os.path.join(output_dir, 'jaxa_sat_yesterday.gif')
-    if not utils.file_exists_nonempty(prev_day_gif) or start.strptime('%H:%M') == '00:00':
+    if not utils.file_exists_nonempty(prev_day_gif) or start.strftime('%H:%M') == '00:00':
         logging.info('Creating sat rf gif for yesterday')
         create_daily_gif(utils.datetime_floor(start, 3600 * 24) - dt.timedelta(days=1), output_dir,
                          'jaxa_sat_yesterday.gif')
@@ -108,7 +109,7 @@ def extract_jaxa_satellite_data(start_ts_utc, end_ts_utc, output_dir, cleanup=Tr
 def test_extract_jaxa_satellite_data():
     logging.basicConfig(level=logging.INFO, format='%(asctime)s %(threadName)s %(module)s %(levelname)s %(message)s')
     end = dt.datetime.utcnow() - dt.timedelta(hours=6)
-    start = end - dt.timedelta(days=1)
+    start = end - dt.timedelta(hours=1)
 
     extract_jaxa_satellite_data(start, end, '/home/curw/temp/jaxa', cleanup=False, tmp_dir='/home/curw/temp/jaxa/data')
 
@@ -149,9 +150,12 @@ def process_jaxa_zip_file(zip_file_path, out_file_path, lat_min, lon_min, lat_ma
     ext_utils.create_asc_file(np.flip(data, 0), lats, lons, out_file_path)
 
     # clevs = np.concatenate(([-1, 0], np.array([pow(2, i) for i in range(0, 9)])))
-    clevs = 10 * np.array([0.1, 0.5, 1, 2, 3, 5, 10, 15, 20, 25, 30])
-    norm = colors.BoundaryNorm(boundaries=clevs, ncolors=256)
-    cmap = plt.get_cmap('jet')
+    # clevs = 10 * np.array([0.1, 0.5, 1, 2, 3, 5, 10, 15, 20, 25, 30])
+    # norm = colors.BoundaryNorm(boundaries=clevs, ncolors=256)
+    # cmap = plt.get_cmap('jet')
+    clevs = [0, 1, 2.5, 5, 7.5, 10, 15, 20, 30, 40, 50, 70, 100, 150, 200, 250, 300, 400, 500, 600, 750]
+    norm = None
+    cmap = cm.s3pcpn
 
     title_opts = {
         'label': 'Sat rf ' + os.path.basename(out_file_path).replace('jaxa_sat_rf_', '').replace('.asc', '') + ' UTC',
