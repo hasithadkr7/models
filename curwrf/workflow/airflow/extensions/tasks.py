@@ -242,7 +242,7 @@ class Wrf(WrfTask):
         ext_utils.ncks_extract_variables(d03_file, ['RAINC', 'RAINNC', 'XLAT', 'XLONG', 'Times'], d03_file + '_SL')
 
         d01_file = os.path.join(em_real_dir, 'wrfout_d01_' + start_date + ':00')
-        ext_utils.ncks_extract_variables(d03_file, ['RAINC', 'RAINNC', 'XLAT', 'XLONG', 'Times'], d01_file + '_SL')
+        ext_utils.ncks_extract_variables(d01_file, ['RAINC', 'RAINNC', 'XLAT', 'XLONG', 'Times'], d01_file + '_SL')
 
         # move the wrfout_SL and the namelist files to the nfs
         utils.create_dir_if_not_exists(d03_dir)
