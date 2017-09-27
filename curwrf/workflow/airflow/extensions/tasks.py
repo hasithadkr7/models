@@ -1,4 +1,3 @@
-import datetime as dt
 import json
 import logging
 import os
@@ -7,6 +6,7 @@ import zipfile
 from zipfile import ZipFile
 
 import numpy as np
+import datetime as dt
 from airflow.models import Variable
 from mpl_toolkits.basemap import Basemap, cm
 
@@ -324,6 +324,9 @@ class RainfallExtraction(WrfTask):
 
         variables['PRECIP'] = variables['RAINC'] + variables['RAINNC']
 
+        pngs = []
+        ascs = []
+
         for i in range(1, len(variables['Times'])):
             time = variables['Times'][i]
             ts = dt.datetime.strptime(time, '%Y-%m-%d_%H:%M:%S')
@@ -338,9 +341,13 @@ class RainfallExtraction(WrfTask):
                 'label': 'Hourly rf for %s LK\n%s UTC' % (lk_ts.strftime('%Y-%m-%d_%H:%M:%S'), time),
                 'fontsize': 30
             }
+
             ext_utils.create_asc_file(np.flip(inst_precip, 0), lats, lons, inst_file + '.asc', cell_size=cz)
+            ascs.append(inst_file + '.asc')
+
             ext_utils.create_contour_plot(inst_precip, inst_file + '.png', lat_min, lon_min, lat_max, lon_max,
                                           title, clevs=clevs, cmap=cmap, basemap=basemap, norm=norm)
+            pngs.append(inst_file + '.png')
 
             if i % 24 == 0:
                 t = 'Daily rf from %s LK to %s LK' % (
@@ -348,11 +355,15 @@ class RainfallExtraction(WrfTask):
                 d = int(i / 24) - 1
                 logging.info('Creating images for D%d' % d)
                 cum_file = os.path.join(temp_dir, 'wrf_cum_%dd' % d)
+
                 ext_utils.create_asc_file(np.flip(variables['PRECIP'][i], 0), lats, lons, cum_file + '.asc',
                                           cell_size=cz)
+                ascs.append(cum_file + '.asc')
+
                 ext_utils.create_contour_plot(variables['PRECIP'][i] - variables['PRECIP'][i - 24], cum_file + '.png',
                                               lat_min, lon_min, lat_max, lon_max, t, clevs=clevs, cmap=cmap,
                                               basemap=basemap, norm=norm_cum)
+                pngs.append(inst_file + '.png')
 
                 gif_file = os.path.join(temp_dir, 'wrf_inst_%dd' % d)
                 images = [os.path.join(temp_dir, 'wrf_inst_' + i.strftime('%Y-%m-%d_%H:%M:%S') + '.png') for i in
@@ -360,13 +371,21 @@ class RainfallExtraction(WrfTask):
                                     dt.timedelta(hours=1)).astype(dt.datetime)]
                 ext_utils.create_gif(images, gif_file + '.gif')
 
-        # move all the data in the tmp dir to the nfs
+        logging.info('Creating the zips')
+        utils.create_zipfile(pngs, os.path.join(temp_dir, 'pngs.zip'))
+        utils.create_zipfile(ascs, os.path.join(temp_dir, 'ascs.zip'))
+
+        logging.info('Cleaning up instantaneous pngs and ascs - wrf_inst_*')
+        utils.delete_files_with_prefix(temp_dir, 'wrf_inst_*')
+
         logging.info('Copying pngs to ' + d03_dir)
         utils.move_files_with_prefix(temp_dir, '*.png', d03_dir)
         logging.info('Copying ascs to ' + d03_dir)
         utils.move_files_with_prefix(temp_dir, '*.asc', d03_dir)
         logging.info('Copying gifs to ' + d03_dir)
         utils.copy_files_with_prefix(temp_dir, '*.gif', d03_dir)
+        logging.info('Copying zips to ' + d03_dir)
+        utils.copy_files_with_prefix(temp_dir, '*.zip', d03_dir)
 
         d03_latest_dir = os.path.join(config.get('nfs_dir'), 'latest', os.path.basename(config.get('wrf_home')))
         # <nfs>/latest/wrf0 .. 3
