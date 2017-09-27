@@ -322,7 +322,11 @@ class RainfallExtraction(WrfTask):
         basemap = Basemap(projection='merc', llcrnrlon=lon_min, llcrnrlat=lat_min, urcrnrlon=lon_max,
                           urcrnrlat=lat_max, resolution='h')
 
-        variables['PRECIP'] = variables['RAINC'] + variables['RAINNC']
+        filter_threshold = 0.05
+        data = variables['RAINC'] + variables['RAINNC']
+        logging.info('Filtering with the threshold %f' % filter_threshold)
+        data[data < filter_threshold] = 0.0
+        variables['PRECIP'] = data
 
         pngs = []
         ascs = []
@@ -438,7 +442,11 @@ class RainfallExtractionD01(WrfTask):
         basemap = Basemap(projection='merc', llcrnrlon=lon_min, llcrnrlat=lat_min, urcrnrlon=lon_max,
                           urcrnrlat=lat_max, resolution='h')
 
-        variables['PRECIP'] = variables['RAINC'] + variables['RAINNC']
+        filter_threshold = 0.05
+        data = variables['RAINC'] + variables['RAINNC']
+        logging.info('Filtering with the threshold %f' % filter_threshold)
+        data[data < filter_threshold] = 0.0
+        variables['PRECIP'] = data
 
         for i in range(1, len(variables['Times'])):
             time = variables['Times'][i]
