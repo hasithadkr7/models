@@ -126,7 +126,9 @@ class FindWeatherType(WrfTask):
 
         wt_var = Variable.get(self.wt_namelists, deserialize_json=True)
 
-        logging.info('Changing the wrf_configs according to the weather type')
+        logging.info('Deprecated: Changing the wrf_configs according to the weather type')
+        logging.info('Using default weather types')
+        wt = 'default'
         wt_namelists = wt_var[wt]
         for i in range(len(self.wrf_config_keys)):
             var = Variable.get(self.wrf_config_keys[i], deserialize_json=True)
