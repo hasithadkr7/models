@@ -45,8 +45,8 @@ lon_max = 90.3315
 cmd_str_d01 = 'python3 %s/curwrf/wrf/extraction/sat_extractor.py ' \
               '-end {{ macros.datetime.strftime(execution_date + macros.timedelta(hours=1), \'%%Y-%%m-%%d_%%H:%%M\') }} ' \
               '-start {{ execution_date.strftime(\'%%Y-%%m-%%d_%%H:%%M\') }} ' \
-              '-output %s -lat_min %f -lon_min %f -lat_max %f -lon_max %f' % (
-              curw_py_dir, output_dir, lat_min, lon_min, lat_max, lon_max)
+              '-output %s -prefix %s -lat_min %f -lon_min %f -lat_max %f -lon_max %f' % (
+              curw_py_dir, output_dir, 'jaxa_sat_D01', lat_min, lon_min, lat_max, lon_max)
 
 BashOperator(
     task_id='sat_rf_extraction_D03',

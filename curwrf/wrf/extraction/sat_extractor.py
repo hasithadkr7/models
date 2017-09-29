@@ -25,10 +25,10 @@ def extract_jaxa_satellite_hourly_data(ts, output_dir):
     extract_jaxa_satellite_data(ts - dt.timedelta(hours=1), ts, output_dir)
 
 
-def create_daily_gif(start, output_dir, output_filename):
+def create_daily_gif(start, output_dir, output_filename, output_prefix):
     tmp_dir = tempfile.mkdtemp(prefix='tmp_jaxa_daily')
 
-    utils.copy_files_with_prefix(output_dir, 'jaxa_sat_rf_' + start.strftime('%Y-%m-%d') + '*.png', tmp_dir)
+    utils.copy_files_with_prefix(output_dir, output_prefix + '_' + start.strftime('%Y-%m-%d') + '*.png', tmp_dir)
     logging.info('Writing gif ' + output_filename)
     gif_list = [os.path.join(tmp_dir, i) for i in sorted(os.listdir(tmp_dir))]
     if len(gif_list) > 0:
@@ -41,7 +41,8 @@ def create_daily_gif(start, output_dir, output_filename):
 
 
 def extract_jaxa_satellite_data(start_ts_utc, end_ts_utc, output_dir, cleanup=True, cum=False, tmp_dir=None,
-                                lat_min=5.722969, lon_min=79.52146, lat_max=10.06425, lon_max=82.18992):
+                                lat_min=5.722969, lon_min=79.52146, lat_max=10.06425, lon_max=82.18992,
+                                output_prefix='jaxa_sat'):
     start = utils.datetime_floor(start_ts_utc, 3600)
     end = utils.datetime_floor(end_ts_utc, 3600)
 
@@ -71,7 +72,8 @@ def extract_jaxa_satellite_data(start_ts_utc, end_ts_utc, output_dir, cleanup=Tr
     for timestamp in np.arange(start, end, dt.timedelta(hours=1)).astype(dt.datetime):
         url = get_jaxa_url(timestamp)
         url_dest_list.append((url, os.path.join(tmp_dir, os.path.basename(url)),
-                              os.path.join(output_dir, 'jaxa_sat_rf_' + timestamp.strftime('%Y-%m-%d_%H:%M') + '.asc')))
+                              os.path.join(output_dir,
+                                           output_prefix + '_' + timestamp.strftime('%Y-%m-%d_%H:%M') + '.asc')))
 
     procs = multiprocessing.cpu_count()
 
@@ -85,13 +87,13 @@ def extract_jaxa_satellite_data(start_ts_utc, end_ts_utc, output_dir, cleanup=Tr
     logging.info('Processing files complete')
 
     logging.info('Creating sat rf gif for today')
-    create_daily_gif(start, output_dir, 'jaxa_sat_today.gif')
+    create_daily_gif(start, output_dir, output_prefix + '_today.gif', output_prefix)
 
-    prev_day_gif = os.path.join(output_dir, 'jaxa_sat_yesterday.gif')
+    prev_day_gif = os.path.join(output_dir, output_prefix + '_yesterday.gif')
     if not utils.file_exists_nonempty(prev_day_gif) or start.strftime('%H:%M') == '00:00':
         logging.info('Creating sat rf gif for yesterday')
         create_daily_gif(utils.datetime_floor(start, 3600 * 24) - dt.timedelta(days=1), output_dir,
-                         'jaxa_sat_yesterday.gif')
+                         output_prefix + '_yesterday.gif', output_prefix)
 
     if cum:
         logging.info('Processing cumulative')
@@ -124,7 +126,7 @@ def test_extract_jaxa_satellite_data_d01():
     lon_max = 90.3315
 
     extract_jaxa_satellite_data(start, end, '/home/nira/tmp/jaxa', cleanup=False, tmp_dir='/home/nira/tmp/jaxa/data',
-                                lat_min=lat_min, lat_max=lat_max, lon_min=lon_min, lon_max=lon_max)
+                                lat_min=lat_min, lat_max=lat_max, lon_min=lon_min, lon_max=lon_max, output_prefix='abc')
 
 
 def process_cumulative_plot(url_dest_list, start_ts_utc, end_ts_utc, output_dir, lat_min, lon_min, lat_max, lon_max):
@@ -192,6 +194,7 @@ if __name__ == "__main__":
     parser.add_argument('-end', default=(dt.datetime.utcnow() - dt.timedelta(hours=1)).strftime('%Y-%m-%d_%H:%M'),
                         help='End timestamp UTC with format %%Y-%%m-%%d_%%H:%%M', dest='end_ts')
     parser.add_argument('-output', default=None, help='Output directory of the images', dest='output')
+    parser.add_argument('-prefix', default=None, help='Output prefix', dest='jaxa_sat')
     parser.add_argument('-clean', default=0, help='Cleanup temp directory', dest='clean', type=int)
     parser.add_argument('-cum', default=0, help='Process cumulative plot', dest='cum', type=int)
 
@@ -210,4 +213,5 @@ if __name__ == "__main__":
     extract_jaxa_satellite_data(dt.datetime.strptime(args.start_ts, '%Y-%m-%d_%H:%M'),
                                 dt.datetime.strptime(args.end_ts, '%Y-%m-%d_%H:%M'),
                                 output, cleanup=bool(args.clean), cum=bool(args.cum), lat_min=args.lat_min,
-                                lon_min=args.lon_min, lat_max=args.lat_max, lon_max=args.lon_max)
+                                lon_min=args.lon_min, lat_max=args.lat_max, lon_max=args.lon_max,
+                                output_prefix=args.prefix)
