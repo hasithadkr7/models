@@ -194,7 +194,7 @@ if __name__ == "__main__":
     parser.add_argument('-end', default=(dt.datetime.utcnow() - dt.timedelta(hours=1)).strftime('%Y-%m-%d_%H:%M'),
                         help='End timestamp UTC with format %%Y-%%m-%%d_%%H:%%M', dest='end_ts')
     parser.add_argument('-output', default=None, help='Output directory of the images', dest='output')
-    parser.add_argument('-prefix', default=None, help='Output prefix', dest='jaxa_sat')
+    parser.add_argument('-prefix', default='jaxa_sat', help='Output prefix')
     parser.add_argument('-clean', default=0, help='Cleanup temp directory', dest='clean', type=int)
     parser.add_argument('-cum', default=0, help='Process cumulative plot', dest='cum', type=int)
 
