@@ -31,20 +31,19 @@ def create_daily_gif(start, output_dir, output_filename):
     utils.copy_files_with_prefix(output_dir, 'jaxa_sat_rf_' + start.strftime('%Y-%m-%d') + '*.png', tmp_dir)
     logging.info('Writing gif ' + output_filename)
     gif_list = [os.path.join(tmp_dir, i) for i in sorted(os.listdir(tmp_dir))]
-    ext_utils.create_gif(gif_list, os.path.join(output_dir, output_filename))
+    if len(gif_list) > 0:
+        ext_utils.create_gif(gif_list, os.path.join(output_dir, output_filename))
+    else:
+        logging.info('No images found to create the gif')
 
     logging.info('Cleaning up ' + tmp_dir)
     shutil.rmtree(tmp_dir)
 
 
-def extract_jaxa_satellite_data(start_ts_utc, end_ts_utc, output_dir, cleanup=True, cum=False, tmp_dir=None):
+def extract_jaxa_satellite_data(start_ts_utc, end_ts_utc, output_dir, cleanup=True, cum=False, tmp_dir=None,
+                                lat_min=5.722969, lon_min=79.52146, lat_max=10.06425, lon_max=82.18992):
     start = utils.datetime_floor(start_ts_utc, 3600)
     end = utils.datetime_floor(end_ts_utc, 3600)
-
-    lat_min = 5.722969
-    lon_min = 79.52146
-    lat_max = 10.06425
-    lon_max = 82.18992
 
     login = 'rainmap:Niskur+1404'
 
@@ -114,6 +113,20 @@ def test_extract_jaxa_satellite_data():
     extract_jaxa_satellite_data(start, end, '/home/curw/temp/jaxa', cleanup=False, tmp_dir='/home/curw/temp/jaxa/data')
 
 
+def test_extract_jaxa_satellite_data_d01():
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s %(threadName)s %(module)s %(levelname)s %(message)s')
+    end = dt.datetime.utcnow() - dt.timedelta(hours=6)
+    start = end - dt.timedelta(hours=6)
+
+    lat_min = -3.06107
+    lon_min = 71.2166
+    lat_max = 18.1895
+    lon_max = 90.3315
+
+    extract_jaxa_satellite_data(start, end, '/home/nira/tmp/jaxa', cleanup=False, tmp_dir='/home/nira/tmp/jaxa/data',
+                                lat_min=lat_min, lat_max=lat_max, lon_min=lon_min, lon_max=lon_max)
+
+
 def process_cumulative_plot(url_dest_list, start_ts_utc, end_ts_utc, output_dir, lat_min, lon_min, lat_max, lon_max):
     from_to = '%s-%s' % (start_ts_utc.strftime('%Y-%m-%d_%H:%M'), end_ts_utc.strftime('%Y-%m-%d_%H:%M'))
     cum_filename = os.path.join(output_dir, 'jaxa_sat_cum_rf_' + from_to + '.png')
@@ -181,6 +194,12 @@ if __name__ == "__main__":
     parser.add_argument('-output', default=None, help='Output directory of the images', dest='output')
     parser.add_argument('-clean', default=0, help='Cleanup temp directory', dest='clean', type=int)
     parser.add_argument('-cum', default=0, help='Process cumulative plot', dest='cum', type=int)
+
+    parser.add_argument('-lat_min', default=5.722969, help='Lat min', type=float)
+    parser.add_argument('-lon_min', default=79.52146, help='lon min', type=float)
+    parser.add_argument('-lat_max', default=10.06425, help='Lat max', type=float)
+    parser.add_argument('-lon_max', default=82.18992, help='Lon max', type=float)
+
     args = parser.parse_args()
 
     if args.output is None:
@@ -190,4 +209,5 @@ if __name__ == "__main__":
 
     extract_jaxa_satellite_data(dt.datetime.strptime(args.start_ts, '%Y-%m-%d_%H:%M'),
                                 dt.datetime.strptime(args.end_ts, '%Y-%m-%d_%H:%M'),
-                                output, cleanup=bool(args.clean), cum=bool(args.cum))
+                                output, cleanup=bool(args.clean), cum=bool(args.cum), lat_min=args.lat_min,
+                                lon_min=args.lon_min, lat_max=args.lat_max, lon_max=args.lon_max)
