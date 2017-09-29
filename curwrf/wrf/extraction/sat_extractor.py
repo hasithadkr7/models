@@ -170,8 +170,8 @@ def process_jaxa_zip_file(zip_file_path, out_file_path, lat_min, lon_min, lat_ma
     # clevs = 10 * np.array([0.1, 0.5, 1, 2, 3, 5, 10, 15, 20, 25, 30])
     # norm = colors.BoundaryNorm(boundaries=clevs, ncolors=256)
     # cmap = plt.get_cmap('jet')
-    # clevs = [0, 1, 2.5, 5, 7.5, 10, 15, 20, 30, 40, 50, 70, 100, 150, 200, 250, 300, 400, 500, 600, 750]
-    clevs = [0.1, 0.5, 1, 2, 3, 5, 10, 15, 20, 25, 30, 50, 75, 100]
+    clevs = [0, 1, 2.5, 5, 7.5, 10, 15, 20, 30, 40, 50, 75, 100, 150, 200, 250, 300]
+    # clevs = [0.1, 0.5, 1, 2, 3, 5, 10, 15, 20, 25, 30, 50, 75, 100]
     norm = None
     cmap = cm.s3pcpn
 
