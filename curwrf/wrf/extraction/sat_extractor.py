@@ -83,7 +83,8 @@ def extract_jaxa_satellite_data(start_ts_utc, end_ts_utc, output_dir, cleanup=Tr
 
     logging.info('Processing files in parallel')
     Parallel(n_jobs=procs)(
-        delayed(process_jaxa_zip_file)(i[1], i[2], lat_min, lon_min, lat_max, lon_max, cum) for i in url_dest_list)
+        delayed(process_jaxa_zip_file)(i[1], i[2], lat_min, lon_min, lat_max, lon_max, cum, output_prefix) for i in
+        url_dest_list)
     logging.info('Processing files complete')
 
     logging.info('Creating sat rf gif for today')
@@ -151,7 +152,8 @@ def process_cumulative_plot(url_dest_list, start_ts_utc, end_ts_utc, output_dir,
         logging.info('%s already exits' % cum_filename)
 
 
-def process_jaxa_zip_file(zip_file_path, out_file_path, lat_min, lon_min, lat_max, lon_max, archive_data=False):
+def process_jaxa_zip_file(zip_file_path, out_file_path, lat_min, lon_min, lat_max, lon_max, archive_data=False,
+                          output_prefix='jaxa_sat'):
     sat_zip = zipfile.ZipFile(zip_file_path)
     sat = np.genfromtxt(sat_zip.open(os.path.basename(zip_file_path).replace('.zip', '')), delimiter=',', names=True)
     sat_filt = np.sort(
@@ -168,12 +170,17 @@ def process_jaxa_zip_file(zip_file_path, out_file_path, lat_min, lon_min, lat_ma
     # clevs = 10 * np.array([0.1, 0.5, 1, 2, 3, 5, 10, 15, 20, 25, 30])
     # norm = colors.BoundaryNorm(boundaries=clevs, ncolors=256)
     # cmap = plt.get_cmap('jet')
-    clevs = [0, 1, 2.5, 5, 7.5, 10, 15, 20, 30, 40, 50, 70, 100, 150, 200, 250, 300, 400, 500, 600, 750]
+    # clevs = [0, 1, 2.5, 5, 7.5, 10, 15, 20, 30, 40, 50, 70, 100, 150, 200, 250, 300, 400, 500, 600, 750]
+    clevs = [0.1, 0.5, 1, 2, 3, 5, 10, 15, 20, 25, 30, 50, 75, 100]
     norm = None
     cmap = cm.s3pcpn
 
+    ts = dt.datetime.strptime(os.path.basename(out_file_path).replace(output_prefix + '_', '').replace('.asc', ''),
+                              '%Y-%m-%d_%H:%M')
+    lk_ts = utils.datetime_utc_to_lk(ts)
     title_opts = {
-        'label': 'Sat rf ' + os.path.basename(out_file_path).replace('jaxa_sat_rf_', '').replace('.asc', '') + ' UTC',
+        'label': output_prefix + ' ' + lk_ts.strftime('%Y-%m-%d %H:%M') + ' LK\n' + ts.strftime(
+            '%Y-%m-%d %H:%M') + ' UTC',
         'fontsize': 30
     }
     ext_utils.create_contour_plot(data, out_file_path + '.png', lat_min, lon_min, lat_max, lon_max, title_opts,
