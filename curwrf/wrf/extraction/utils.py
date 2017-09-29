@@ -1,16 +1,14 @@
-import os
-import math
 import logging
+import math
+import os
+
 import imageio
+import matplotlib
 import numpy as np
-import datetime as dt
-from netCDF4._netCDF4 import Dataset
 from mpl_toolkits.basemap import Basemap
-from scipy import ndimage
+from netCDF4._netCDF4 import Dataset
 
 from curwrf.wrf import utils
-
-import matplotlib
 
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt

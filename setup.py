@@ -1,4 +1,4 @@
-from distutils.core import setup
+from setuptools import setup
 
 setup(
     name='curw',
@@ -11,5 +11,6 @@ setup(
     author='niranda perera',
     author_email='niranda.17@cse.mrt.ac.lk',
     description='',
-    requires=['airflow', 'pyyaml', 'shapely', 'joblib', 'netCDF4', 'matplotlib', 'imageio']
+    requires=['airflow', 'shapely', 'joblib', 'netCDF4', 'matplotlib', 'imageio'],
+    install_requires=['shapely', 'joblib', 'netCDF4', 'matplotlib', 'imageio', 'numpy', 'pandas']
 )
