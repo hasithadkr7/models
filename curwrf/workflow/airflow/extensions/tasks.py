@@ -116,11 +116,12 @@ class FindWeatherType(WrfTask):
 
     def process(self, *args, **kwargs):
         wrf_config0 = self.get_config()
-        start_date = dt.datetime.strptime(wrf_config0.get('start_date'), '%Y-%m-%d_%H:%M')
 
-        inv_24 = utils.get_gfs_data_url_dest_tuple(wrf_config0.get('gfs_url'), wrf_config0.get('gfs_inv'),
-                                                   start_date.strftime('%Y%m%d'), wrf_config0.get('gfs_cycle'), '024',
-                                                   wrf_config0.get('gfs_res'), wrf_config0.get('gfs_dir'))
+        gfs_date, gfs_cycle, start = utils.get_appropriate_gfs_inventory(wrf_config0)
+
+        inv_24 = utils.get_gfs_data_url_dest_tuple(wrf_config0.get('gfs_url'), wrf_config0.get('gfs_inv'), gfs_date,
+                                                   gfs_cycle, str(start + 24).zfill(3), wrf_config0.get('gfs_res'),
+                                                   wrf_config0.get('gfs_dir'))
         wt = wt_extractor.get_weather_type(inv_24[1])
         logging.info('Weather type in 24h %s' % wt)
 
