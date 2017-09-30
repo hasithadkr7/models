@@ -143,6 +143,7 @@ def set_initial_parameters_fs(wrf_home_key='wrf_home', wrf_start_date_key='wrf_s
         logging.info('wrf_start_date: %s' % start_date)
 
     if start_date is not None and (not wrf_config.is_set('start_date') or wrf_config.get('start_date') != start_date):
+        logging.info('Setting start date ' + start_date)
         wrf_config.set('start_date', start_date)
         # date_splits = re.split('[-_:]', start_date)
         Variable.set(wrf_config_key, wrf_config.to_json_string())
