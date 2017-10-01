@@ -1,23 +1,17 @@
+import datetime as dt
 import json
 import logging
 import os
 import shutil
 
 import numpy as np
-import datetime as dt
-
 from airflow.models import Variable
+from mpl_toolkits.basemap import Basemap, cm
+
 from curwrf.wrf import utils
 from curwrf.wrf.execution import executor
 from curwrf.wrf.execution.executor import WrfConfig
 from curwrf.wrf.extraction import wt_extractor, utils as ext_utils
-from mpl_toolkits.basemap import Basemap, cm
-
-import matplotlib
-
-matplotlib.use('Agg')
-import matplotlib.pyplot as plt
-from matplotlib import colors
 
 
 class CurwTask(object):
@@ -91,6 +85,8 @@ class Ungrib(WrfTask):
         logging.info('Running ungrib...')
 
         wrf_config = self.get_config(**kwargs)
+        logging.info('wrf conifg: ' + wrf_config.to_json_string())
+
         wps_dir = utils.get_wps_dir(wrf_config.get('wrf_home'))
 
         # Running link_grib.csh
@@ -116,6 +112,7 @@ class FindWeatherType(WrfTask):
 
     def process(self, *args, **kwargs):
         wrf_config0 = self.get_config()
+        logging.info('wrf conifg: ' + wrf_config0.to_json_string())
 
         gfs_date, gfs_cycle, start = utils.get_appropriate_gfs_inventory(wrf_config0)
 
@@ -148,6 +145,8 @@ class Metgrid(WrfTask):
     def process(self, *args, **kwargs):
         logging.info('Running metgrid...')
         wrf_config = self.get_config(**kwargs)
+        logging.info('wrf conifg: ' + wrf_config.to_json_string())
+
         wps_dir = utils.get_wps_dir(wrf_config.get('wrf_home'))
 
         utils.run_subprocess('./metgrid.exe', cwd=wps_dir)
@@ -198,9 +197,12 @@ class Real(WrfTask):
         utils.copy_files_with_prefix(nfs_metgrid_dir, 'met_em.d*', em_real_dir)
 
     def process(self, *args, **kwargs):
-        wrf_home = self.get_config(**kwargs).get('wrf_home')
+        wrf_config = self.get_config(**kwargs)
+        logging.info('wrf conifg: ' + wrf_config.to_json_string())
+
+        wrf_home = wrf_config.get('wrf_home')
         em_real_dir = utils.get_em_real_dir(wrf_home)
-        procs = self.get_config(**kwargs).get('procs')
+        procs = wrf_config.get('procs')
         utils.run_subprocess('mpirun -np %d ./real.exe' % procs, cwd=em_real_dir)
 
     def post_process(self, *args, **kwargs):
@@ -215,12 +217,15 @@ class Real(WrfTask):
 
 class Wrf(WrfTask):
     def process(self, *args, **kwargs):
-        wrf_home = self.get_config(**kwargs).get('wrf_home')
-        em_real_dir = utils.get_em_real_dir(wrf_home)
-        procs = self.get_config(**kwargs).get('procs')
+        wrf_config = self.get_config(**kwargs)
+        logging.info('wrf conifg: ' + wrf_config.to_json_string())
 
-        logging.info('Replacing namelist.input place-holders')
-        executor.replace_namelist_input(self.get_config(**kwargs))
+        wrf_home = wrf_config.get('wrf_home')
+        em_real_dir = utils.get_em_real_dir(wrf_home)
+        procs = wrf_config.get('procs')
+
+        # logging.info('Replacing namelist.input place-holders')
+        # executor.replace_namelist_input(wrf_config)
 
         utils.run_subprocess('mpirun -np %d ./wrf.exe' % procs, cwd=em_real_dir)
 
@@ -262,6 +267,8 @@ class Wrf(WrfTask):
 class RainfallExtraction(WrfTask):
     def process(self, *args, **kwargs):
         config = self.get_config(**kwargs)
+        logging.info('wrf conifg: ' + config.to_json_string())
+
         start_date = config.get('start_date')
         d03_dir = config.get('wrf_output_dir')
         d03_sl = os.path.join(d03_dir, 'wrfout_d03_' + start_date + ':00_SL')
@@ -358,6 +365,8 @@ class RainfallExtraction(WrfTask):
 class RainfallExtractionD01(WrfTask):
     def process(self, *args, **kwargs):
         config = self.get_config(**kwargs)
+        logging.info('wrf conifg: ' + config.to_json_string())
+
         start_date = config.get('start_date')
         d03_dir = config.get('wrf_output_dir')
         d03_sl = os.path.join(d03_dir, 'wrfout_d01_' + start_date + ':00_SL')
