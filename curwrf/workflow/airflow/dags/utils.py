@@ -147,6 +147,7 @@ def set_initial_parameters_fs(wrf_home_key='wrf_home', wrf_start_date_key='wrf_s
         wrf_config.set('start_date', start_date)
         # date_splits = re.split('[-_:]', start_date)
         Variable.set(wrf_config_key, wrf_config.to_json_string())
+        logging.info('New wrf conifg: ' + wrf_config.to_json_string())
 
     if not ignore_namelists:
         logging.info('Replacing namelist.wps place-holders')
