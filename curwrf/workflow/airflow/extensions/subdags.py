@@ -46,12 +46,12 @@ def get_gfs_download_subdag(parent_dag_name, child_dag_name, args, wrf_config_ke
         dag=dag_subdag,
     )
 
-    for i in range(int(start), int(start) + period * 24 + 1, step):
-        logging.info('Adding %dth inventory' % i)
+    for i in range(0, period * 24 + 1, step):
+        logging.info('Adding %dth inventory as %d' % (int(start) + i, i))
         t = PythonOperator(
             python_callable=download_inventory.download_i_th_inventory,
             task_id='%s-task-%s' % (child_dag_name, i),
-            op_args=[i, wrf_config.get('gfs_url'), wrf_config.get('gfs_inv'), gfs_date, gfs_cycle,
+            op_args=[int(start) + i, wrf_config.get('gfs_url'), wrf_config.get('gfs_inv'), gfs_date, gfs_cycle,
                      wrf_config.get('gfs_res'), gfs_dir, wrf_config.get('nfs_dir'), test_mode],
             # provide_context=True,
             default_args=args,
