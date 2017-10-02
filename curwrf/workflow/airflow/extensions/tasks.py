@@ -3,6 +3,7 @@ import json
 import logging
 import os
 import shutil
+import zipfile
 from zipfile import ZipFile
 
 import numpy as np
@@ -204,7 +205,8 @@ class Real(WrfTask):
         utils.copy_files_with_prefix(nfs_metgrid_dir, 'metgrid.zip', em_real_dir)
 
         logging.info('Unzipping met_em.d.zip')
-        ZipFile(os.path.join(em_real_dir, 'metgrid.zip'), 'r').extractall(path=em_real_dir)
+        ZipFile(os.path.join(em_real_dir, 'metgrid.zip'), 'r', compression=zipfile.ZIP_DEFLATED).extractall(
+            path=em_real_dir)
 
         logging.info('Cleaning up met_em.d.zip')
         os.remove(os.path.join(em_real_dir, 'metgrid.zip'))
