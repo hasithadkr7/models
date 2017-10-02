@@ -129,8 +129,10 @@ class FindWeatherType(WrfTask):
         wt = 'default'
         wt_namelists = wt_var[wt]
         for i in range(len(self.wrf_config_keys)):
+            logging.info('Setting %s' + self.wrf_config_keys[i])
             var = Variable.get(self.wrf_config_keys[i], deserialize_json=True)
             var['namelist_input'] = os.path.join(self.wt_namelists_path, wt_namelists[i])
+            logging.info('New %s: %s' % (self.wrf_config_keys[i], str(var)))
             Variable.set(self.wrf_config_keys[i], var, serialize_json=True)
 
 

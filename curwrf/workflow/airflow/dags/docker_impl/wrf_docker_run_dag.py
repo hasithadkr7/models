@@ -24,7 +24,6 @@ test_mode = False
 
 def get_docker_cmd(git, wrf_config, mode, nl_wps, nl_input):
     # python3 run_wrf.py -wrf_config="$CURW_wrf_config" -mode="$CURW_mode" -nl_wps="$CURW_nl_wps" -nl_input="$CURW_nl_input"
-
     return 'python3 %s/run_wrf.py -wrf_config=\"%s\" -mode=\"%s\" -nl_wps=\"%s\" -nl_input=\"%s\"' % (
         git, wrf_config, mode, nl_wps, nl_input)
 
@@ -62,3 +61,12 @@ wps = DockerOperator(
     command=get_docker_cmd(git_path, '{{ var.json.%s }}' % wrf_config_key, 'wps',
                            '{{ var.value.%s }}' % namelist_wps_key, '{{ var.value.%s }}' % namelist_input_key)
 )
+
+
+wrf = DockerOperator(
+    task_id='wps',
+    command=get_docker_cmd(git_path, '{{ var.json.%s }}' % wrf_config_key, 'wrf',
+                           '{{ var.value.%s }}' % namelist_wps_key, '{{ var.value.%s }}' % namelist_input_key)
+)
+
+wps >> wrf

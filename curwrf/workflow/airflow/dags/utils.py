@@ -98,7 +98,7 @@ from curwrf.wrf.execution import executor as wrf_exec
 #     return dag_subdag
 
 
-def set_initial_parameters_fs(wrf_home_key='wrf_home', wrf_start_date_key='wrf_start_date', wrf_config_key='wrf_config',
+def     set_initial_parameters_fs(wrf_home_key='wrf_home', wrf_start_date_key='wrf_start_date', wrf_config_key='wrf_config',
                               ignore_namelists=False, **kwargs):
     # set wrf_home --> wrf_home Var > WRF_HOME env var > wrf_home default
     try:
