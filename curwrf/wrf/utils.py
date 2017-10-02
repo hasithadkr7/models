@@ -15,9 +15,11 @@ import shutil
 import signal
 import subprocess
 import time
+import zipfile
 from functools import wraps
 from urllib.error import HTTPError, URLError
 from urllib.request import urlopen
+from zipfile import ZipFile
 
 import pkg_resources
 from joblib import Parallel, delayed
@@ -221,6 +223,13 @@ def move_files_with_prefix(src_dir, prefix, dest_dir):
 def create_symlink_with_prefix(src_dir, prefix, dest_dir):
     for filename in glob.glob(os.path.join(src_dir, prefix)):
         os.symlink(filename, os.path.join(dest_dir, ntpath.basename(filename)))
+
+
+def create_zip_with_prefix(src_dir, prefix, dest_zip, comp=zipfile.ZIP_DEFLATED):
+    with ZipFile(dest_zip, 'w', compression=comp) as zip_file:
+        for filename in glob.glob(os.path.join(src_dir, prefix)):
+            zip_file.write(filename)
+    return dest_zip
 
 
 def run_subprocess(cmd, cwd=None, print_stdout=False):

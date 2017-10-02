@@ -3,6 +3,7 @@ import json
 import logging
 import os
 import shutil
+from zipfile import ZipFile
 
 import numpy as np
 from airflow.models import Variable
@@ -129,7 +130,7 @@ class FindWeatherType(WrfTask):
         wt = 'default'
         wt_namelists = wt_var[wt]
         for i in range(len(self.wrf_config_keys)):
-            logging.info('Setting %s' + self.wrf_config_keys[i])
+            logging.info('Setting ' + self.wrf_config_keys[i])
             var = Variable.get(self.wrf_config_keys[i], deserialize_json=True)
             var['namelist_input'] = os.path.join(self.wt_namelists_path, wt_namelists[i])
             logging.info('New %s: %s' % (self.wrf_config_keys[i], str(var)))
@@ -163,8 +164,11 @@ class Metgrid(WrfTask):
         utils.create_dir_if_not_exists(nfs_metgrid_dir)
         # utils.delete_files_with_prefix(nfs_metgrid_dir, 'met_em.d*')
         # utils.create_symlink_with_prefix(wps_dir, 'met_em.d*', nfs_metgrid_dir)
+
+        utils.create_zip_with_prefix(wps_dir, 'met_em.d*', os.path.join(wps_dir, 'met_em.d.zip'))
+
         utils.delete_files_with_prefix(nfs_metgrid_dir, 'met_em.d*')
-        utils.move_files_with_prefix(wps_dir, 'met_em.d*', nfs_metgrid_dir)
+        utils.move_files_with_prefix(wps_dir, 'met_em.d.zip', nfs_metgrid_dir)
 
 
 class Geogrid(WrfTask):
@@ -195,8 +199,15 @@ class Real(WrfTask):
         utils.delete_files_with_prefix(em_real_dir, 'rsl*')
 
         # Linking met_em.*
-        logging.info('Creating met_em.d* symlinks')
-        utils.copy_files_with_prefix(nfs_metgrid_dir, 'met_em.d*', em_real_dir)
+        # logging.info('Creating met_em.d* symlinks')
+        logging.info('Copying met_em.d.zip file')
+        utils.copy_files_with_prefix(nfs_metgrid_dir, 'met_em.d.zip', em_real_dir)
+
+        logging.info('Unzipping met_em.d.zip')
+        ZipFile(os.path.join(em_real_dir, 'met_em.d.zip'), 'r').extractall(path=em_real_dir)
+
+        logging.info('Cleaning up met_em.d.zip')
+        os.remove(os.path.join(em_real_dir, 'met_em.d.zip'))
 
     def process(self, *args, **kwargs):
         wrf_config = self.get_config(**kwargs)
