@@ -59,14 +59,16 @@ initialize_params = PythonOperator(
 wps = DockerOperator(
     task_id='wps',
     command=get_docker_cmd(git_path, '{{ var.json.%s }}' % wrf_config_key, 'wps',
-                           '{{ var.value.%s }}' % namelist_wps_key, '{{ var.value.%s }}' % namelist_input_key)
+                           '{{ var.value.%s }}' % namelist_wps_key, '{{ var.value.%s }}' % namelist_input_key),
+    cpus=1
 )
 
 
 wrf = DockerOperator(
     task_id='wps',
     command=get_docker_cmd(git_path, '{{ var.json.%s }}' % wrf_config_key, 'wrf',
-                           '{{ var.value.%s }}' % namelist_wps_key, '{{ var.value.%s }}' % namelist_input_key)
+                           '{{ var.value.%s }}' % namelist_wps_key, '{{ var.value.%s }}' % namelist_input_key),
+    cpus=1,
 )
 
 wps >> wrf

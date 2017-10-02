@@ -165,10 +165,10 @@ class Metgrid(WrfTask):
         # utils.delete_files_with_prefix(nfs_metgrid_dir, 'met_em.d*')
         # utils.create_symlink_with_prefix(wps_dir, 'met_em.d*', nfs_metgrid_dir)
 
-        utils.create_zip_with_prefix(wps_dir, 'met_em.d*', os.path.join(wps_dir, 'met_em.d.zip'))
+        utils.create_zip_with_prefix(wps_dir, 'met_em.d*', os.path.join(wps_dir, 'metgrid.zip'))
 
         utils.delete_files_with_prefix(nfs_metgrid_dir, 'met_em.d*')
-        utils.move_files_with_prefix(wps_dir, 'met_em.d.zip', nfs_metgrid_dir)
+        utils.move_files_with_prefix(wps_dir, 'metgrid.zip', nfs_metgrid_dir)
 
 
 class Geogrid(WrfTask):
@@ -201,13 +201,13 @@ class Real(WrfTask):
         # Linking met_em.*
         # logging.info('Creating met_em.d* symlinks')
         logging.info('Copying met_em.d.zip file')
-        utils.copy_files_with_prefix(nfs_metgrid_dir, 'met_em.d.zip', em_real_dir)
+        utils.copy_files_with_prefix(nfs_metgrid_dir, 'metgrid.zip', em_real_dir)
 
         logging.info('Unzipping met_em.d.zip')
-        ZipFile(os.path.join(em_real_dir, 'met_em.d.zip'), 'r').extractall(path=em_real_dir)
+        ZipFile(os.path.join(em_real_dir, 'metgrid.zip'), 'r').extractall(path=em_real_dir)
 
         logging.info('Cleaning up met_em.d.zip')
-        os.remove(os.path.join(em_real_dir, 'met_em.d.zip'))
+        os.remove(os.path.join(em_real_dir, 'metgrid.zip'))
 
     def process(self, *args, **kwargs):
         wrf_config = self.get_config(**kwargs)
