@@ -1,11 +1,10 @@
 import datetime as dt
+
 import airflow
 from airflow import DAG
 from airflow.operators.docker_operator import DockerOperator
 from airflow.operators.python_operator import PythonOperator
-from airflow.operators.subdag_operator import SubDagOperator
-from curwrf.workflow.airflow.extensions import tasks, subdags
-from curwrf.workflow.airflow.extensions.operators import CurwPythonOperator
+
 from curwrf.workflow.airflow.dags import utils as dag_utils
 
 wrf_dag_name = 'docker_wrf_run'
@@ -17,15 +16,18 @@ wrf_start_date_key = 'wrf_start_date'
 queue = 'wrf_docker_queue'
 schedule_interval = '@once'
 
-git_path = '/opt/git/models'
+image = 'nirandaperera/curw-wrf-391'
+volumes = ['/mnt/disks/wrf-mod/temp1/output:/wrf/output', '/mnt/disks/wrf-mod/DATA/geog:/wrf/geog']
+
+# git_path = '/opt/git/models'
 
 test_mode = False
 
 
-def get_docker_cmd(git, wrf_config, mode, nl_wps, nl_input):
-    # python3 run_wrf.py -wrf_config="$CURW_wrf_config" -mode="$CURW_mode" -nl_wps="$CURW_nl_wps" -nl_input="$CURW_nl_input"
-    return 'python3 %s/run_wrf.py -wrf_config=\"%s\" -mode=\"%s\" -nl_wps=\"%s\" -nl_input=\"%s\"' % (
-        git, wrf_config, mode, nl_wps, nl_input)
+def get_docker_cmd(run_id, wrf_config, mode, nl_wps, nl_input):
+    cmd = '/wrf/run_wrf.sh -i\"%s\" -c=\"%s\" -m=\"%s\" -x=\"%s\" -y=\"%s\"' % (
+        run_id, wrf_config, mode, nl_wps, nl_input)
+    return cmd
 
 
 default_args = {
@@ -58,17 +60,26 @@ initialize_params = PythonOperator(
 
 wps = DockerOperator(
     task_id='wps',
-    command=get_docker_cmd(git_path, '{{ var.json.%s }}' % wrf_config_key, 'wps',
-                           '{{ var.value.%s }}' % namelist_wps_key, '{{ var.value.%s }}' % namelist_input_key),
-    cpus=1
+    image=image,
+    command=get_docker_cmd(
+        '{{ macros.datetime.strftime(execution_date + macros.timedelta(days=1), \'%%Y-%%m-%%d_%%H-%%M\') }}',
+        '{{ var.json.%s }}' % wrf_config_key, 'wps',
+        '{{ var.value.%s }}' % namelist_wps_key, '{{ var.value.%s }}' % namelist_input_key),
+    cpus=1,
+    volumes=volumes,
 )
-
 
 wrf = DockerOperator(
-    task_id='wps',
-    command=get_docker_cmd(git_path, '{{ var.json.%s }}' % wrf_config_key, 'wrf',
-                           '{{ var.value.%s }}' % namelist_wps_key, '{{ var.value.%s }}' % namelist_input_key),
-    cpus=1,
+    task_id='wrf',
+    image=image,
+    command=get_docker_cmd(
+        '{{ macros.datetime.strftime(execution_date + macros.timedelta(days=1), \'%%Y-%%m-%%d_%%H-%%M\') }}',
+        '{{ var.json.%s }}' % wrf_config_key, 'wps',
+        '{{ var.value.%s }}' % namelist_wps_key, '{{ var.value.%s }}' % namelist_input_key),
+    cpus=2,
+    volumes=volumes,
 )
 
+# docker run -e "CURW_mode=wps" -e CURW_nl_input -e CURW_nl_wps -e CURW_wrf_config
+# -v /mnt/disks/wrf-mod/temp1/output:/wrf/output -v /mnt/disks/wrf-mod/DATA/geog:/wrf/geog curw-wrf-391
 wps >> wrf
