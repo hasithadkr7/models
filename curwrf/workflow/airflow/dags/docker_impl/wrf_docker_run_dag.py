@@ -68,6 +68,7 @@ wps = DockerOperator(
         '{{ var.value.%s }}' % namelist_wps_key, '{{ var.value.%s }}' % namelist_input_key),
     cpus=1,
     volumes=volumes,
+    dag=dag
 )
 
 wrf = DockerOperator(
@@ -79,8 +80,9 @@ wrf = DockerOperator(
         '{{ var.value.%s }}' % namelist_wps_key, '{{ var.value.%s }}' % namelist_input_key),
     cpus=2,
     volumes=volumes,
+    dag=dag
 )
 
 # docker run -e "CURW_mode=wps" -e CURW_nl_input -e CURW_nl_wps -e CURW_wrf_config
 # -v /mnt/disks/wrf-mod/temp1/output:/wrf/output -v /mnt/disks/wrf-mod/DATA/geog:/wrf/geog curw-wrf-391
-wps >> wrf
+initialize_params >> wps >> wrf
