@@ -26,7 +26,7 @@ test_mode = False
 
 
 def get_docker_cmd(run_id, wrf_config, mode, nl_wps, nl_input):
-    cmd = '/wrf/run_wrf.sh -i\"%s\" -c=\"%s\" -m=\"%s\" -x=\"%s\" -y=\"%s\"' % (
+    cmd = '/wrf/run_wrf.sh -i \"%s\" -c \"%s\" -m \"%s\" -x \"%s\" -y \"%s\"' % (
         run_id, wrf_config, mode, nl_wps, nl_input)
     return cmd
 
