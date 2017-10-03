@@ -14,6 +14,7 @@ namelist_input_key = 'docker_namelist_input'
 wrf_home_key = 'docker_wrf_home'
 wrf_start_date_key = 'docker_wrf_start_date'
 # queue = 'wrf_docker_queue'
+queue = 'default'
 schedule_interval = '@once'
 
 image = 'nirandaperera/curw-wrf-391'
