@@ -376,8 +376,10 @@ class RainfallExtraction(WrfTask):
                 ext_utils.create_gif(images, gif_file + '.gif')
 
         logging.info('Creating the zips')
-        utils.create_zipfile(pngs, os.path.join(temp_dir, 'pngs.zip'))
-        utils.create_zipfile(ascs, os.path.join(temp_dir, 'ascs.zip'))
+        utils.create_zip_with_prefix(temp_dir, '*.png', os.path.join(temp_dir, 'pngs.zip'))
+        utils.create_zip_with_prefix(temp_dir, '*.asc', os.path.join(temp_dir, 'ascs.zip'))
+        # utils.create_zipfile(pngs, os.path.join(temp_dir, 'pngs.zip'))
+        # utils.create_zipfile(ascs, os.path.join(temp_dir, 'ascs.zip'))
 
         logging.info('Cleaning up instantaneous pngs and ascs - wrf_inst_*')
         utils.delete_files_with_prefix(temp_dir, 'wrf_inst_*')
@@ -397,6 +399,8 @@ class RainfallExtraction(WrfTask):
         # todo: this needs to be adjusted to handle the multiple runs
         logging.info('Copying gifs to ' + d03_latest_dir)
         utils.copy_files_with_prefix(temp_dir, '*.gif', d03_latest_dir)
+
+        logging.info('Cleaning up temp dir')
         shutil.rmtree(temp_dir)
 
 

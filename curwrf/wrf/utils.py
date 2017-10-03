@@ -224,13 +224,13 @@ def create_symlink_with_prefix(src_dir, prefix, dest_dir):
         os.symlink(filename, os.path.join(dest_dir, ntpath.basename(filename)))
 
 
-def create_zipfile(file_list, output, compression=ZIP_DEFLATED):
-    with ZipFile(output, 'w', compression=compression) as z:
-        for file in file_list:
-            z.write(file)
+# def create_zipfile(file_list, output, compression=ZIP_DEFLATED):
+#     with ZipFile(output, 'w', compression=compression) as z:
+#         for file in file_list:
+#             z.write(file)
 
 
-def create_zip_with_prefix(src_dir, prefix, dest_zip, comp=zipfile.ZIP_DEFLATED):
+def create_zip_with_prefix(src_dir, prefix, dest_zip, comp=ZIP_DEFLATED):
     with ZipFile(dest_zip, 'w', compression=comp) as zip_file:
         for filename in glob.glob(os.path.join(src_dir, prefix)):
             zip_file.write(filename, arcname=os.path.basename(filename))
