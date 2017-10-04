@@ -4,8 +4,8 @@ import json
 import logging
 import os
 import random
+import shutil
 import string
-import pprint
 
 from curwrf.wrf import utils
 from curwrf.wrf.execution import executor
@@ -47,6 +47,13 @@ def run_wps(wrf_config):
 
     logging.info('Running WPS...')
     executor.run_wps(wrf_config)
+
+    logging.info('Cleaning up wps dir...')
+    wps_dir = utils.get_wps_dir(wrf_config.get('wrf_home'))
+    shutil.rmtree(wrf_config.get('gfs_dir'))
+    utils.delete_files_with_prefix(wps_dir, 'FILE:*')
+    utils.delete_files_with_prefix(wps_dir, 'PFILE:*')
+    utils.delete_files_with_prefix(wps_dir, 'geo_em.*')
 
 
 def get_env_vars(prefix):

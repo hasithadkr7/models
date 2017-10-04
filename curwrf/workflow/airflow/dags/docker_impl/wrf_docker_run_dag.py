@@ -62,8 +62,8 @@ initialize_params = PythonOperator(
 wps = DockerOperator(
     task_id='wps',
     image=image,
-    command=get_docker_cmd('{{ var.json.%s.start_date }}' % wrf_config_key, '{{ var.json.%s }}' % wrf_config_key, 'wps',
-                           '{{ var.value.%s }}' % namelist_wps_key, '{{ var.value.%s }}' % namelist_input_key),
+    command=get_docker_cmd('{{ var.json.%s.start_date }}_wps' % wrf_config_key, '{{ var.json.%s }}' % wrf_config_key,
+                           'wps', '{{ var.value.%s }}' % namelist_wps_key, '{{ var.value.%s }}' % namelist_input_key),
     cpus=1,
     volumes=volumes,
     dag=dag
@@ -72,8 +72,8 @@ wps = DockerOperator(
 wrf = DockerOperator(
     task_id='wrf',
     image=image,
-    command=get_docker_cmd('{{ var.json.%s.start_date }}' % wrf_config_key, '{{ var.json.%s }}' % wrf_config_key, 'wrf',
-                           '{{ var.value.%s }}' % namelist_wps_key, '{{ var.value.%s }}' % namelist_input_key),
+    command=get_docker_cmd('{{ var.json.%s.start_date }}_wrf' % wrf_config_key, '{{ var.json.%s }}' % wrf_config_key,
+                           'wrf', '{{ var.value.%s }}' % namelist_wps_key, '{{ var.value.%s }}' % namelist_input_key),
     cpus=2,
     volumes=volumes,
     dag=dag

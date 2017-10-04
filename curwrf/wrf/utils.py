@@ -318,22 +318,38 @@ def datetime_utc_to_lk(timestamp_utc):
 
 
 def file_exists_nonempty(filename):
-    return os.path.exists(filename) and os.stat(filename).st_size != 0
+    return os.path.exists(filename) and os.path.isfile(filename) and os.stat(filename).st_size != 0
 
 
-def download_file(url, dest, retries=0, delay=60, overwrite=False):
+def download_file(url, dest, retries=0, delay=60, overwrite=False, secondary_dest_dir=None):
     try_count = 1
     last_e = None
+
+    def _download_file(_url, _dest):
+        _f = urlopen(_url)
+        with open(_dest, "wb") as _local_file:
+            _local_file.write(_f.read())
+
     while try_count <= retries + 1:
         try:
             logging.info("Downloading %s to %s" % (url, dest))
-            if not overwrite and file_exists_nonempty(dest):
-                logging.info('File already exists. Skipping download!')
+            if secondary_dest_dir is not None:
+                if not overwrite and file_exists_nonempty(dest):
+                    logging.info('File already exists. Skipping download!')
+                else:
+                    _download_file(url, dest)
+                return
             else:
-                f = urlopen(url)
-                with open(dest, "wb") as local_file:
-                    local_file.write(f.read())
-            return
+                secondary_file = os.path.join(secondary_dest_dir, os.path.basename(dest))
+                if file_exists_nonempty(secondary_file):
+                    logging.info("File available in secondary dir. Copying to the destination dir from secondary dir")
+                    shutil.copyfile(secondary_file, dest)
+                else:
+                    logging.info("File not available in secondary dir. Downloading...")
+                    _download_file(url, dest)
+                    logging.info("Copying to the secondary dir")
+                    shutil.copyfile(dest, secondary_file)
+                return
 
         except (HTTPError, URLError) as e:
             logging.error(
@@ -344,8 +360,10 @@ def download_file(url, dest, retries=0, delay=60, overwrite=False):
     raise last_e
 
 
-def download_parallel(url_dest_list, procs=multiprocessing.cpu_count(), retries=0, delay=60, overwrite=False):
-    Parallel(n_jobs=procs)(delayed(download_file)(i[0], i[1], retries, delay, overwrite) for i in url_dest_list)
+def download_parallel(url_dest_list, procs=multiprocessing.cpu_count(), retries=0, delay=60, overwrite=False,
+                      secondary_dest_dir=None):
+    Parallel(n_jobs=procs)(
+        delayed(download_file)(i[0], i[1], retries, delay, overwrite, secondary_dest_dir) for i in url_dest_list)
 
 
 def get_appropriate_gfs_inventory(wrf_config):
@@ -392,6 +410,7 @@ def backup_dir(path):
             return bck_dir
 
     return None
+
 
 # def namedtuple_with_defaults(typename, field_names, default_values=()):
 #     T = namedtuple(typename, field_names)
