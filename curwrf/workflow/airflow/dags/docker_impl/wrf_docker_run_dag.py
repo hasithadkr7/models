@@ -1,7 +1,6 @@
 import datetime as dt
 
 import airflow
-import logging
 from airflow import DAG
 from airflow.operators.docker_operator import DockerOperator
 from airflow.operators.python_operator import PythonOperator
@@ -29,7 +28,6 @@ test_mode = False
 def get_docker_cmd(run_id, wrf_config, mode, nl_wps, nl_input):
     cmd = '/wrf/run_wrf.sh -i \"%s\" -c \"%s\" -m \"%s\" -x \"%s\" -y \"%s\"' % (
         run_id, wrf_config, mode, nl_wps, nl_input)
-    logging.info('Docker cmd: ' + cmd)
     return cmd
 
 
@@ -64,10 +62,8 @@ initialize_params = PythonOperator(
 wps = DockerOperator(
     task_id='wps',
     image=image,
-    command=get_docker_cmd(
-        '{{ macros.datetime.strftime(execution_date + macros.timedelta(days=1), \'%%Y-%%m-%%d_%%H-%%M\') }}',
-        '{{ var.json.%s }}' % wrf_config_key, 'wps',
-        '{{ var.value.%s }}' % namelist_wps_key, '{{ var.value.%s }}' % namelist_input_key),
+    command=get_docker_cmd('{{ var.json.%s.start_date }}' % wrf_config_key, '{{ var.json.%s }}' % wrf_config_key, 'wps',
+                           '{{ var.value.%s }}' % namelist_wps_key, '{{ var.value.%s }}' % namelist_input_key),
     cpus=1,
     volumes=volumes,
     dag=dag
@@ -76,15 +72,11 @@ wps = DockerOperator(
 wrf = DockerOperator(
     task_id='wrf',
     image=image,
-    command=get_docker_cmd(
-        '{{ macros.datetime.strftime(execution_date + macros.timedelta(days=1), \'%%Y-%%m-%%d_%%H-%%M\') }}',
-        '{{ var.json.%s }}' % wrf_config_key, 'wps',
-        '{{ var.value.%s }}' % namelist_wps_key, '{{ var.value.%s }}' % namelist_input_key),
+    command=get_docker_cmd('{{ var.json.%s.start_date }}' % wrf_config_key, '{{ var.json.%s }}' % wrf_config_key, 'wrf',
+                           '{{ var.value.%s }}' % namelist_wps_key, '{{ var.value.%s }}' % namelist_input_key),
     cpus=2,
     volumes=volumes,
     dag=dag
 )
 
-# docker run -e "CURW_mode=wps" -e CURW_nl_input -e CURW_nl_wps -e CURW_wrf_config
-# -v /mnt/disks/wrf-mod/temp1/output:/wrf/output -v /mnt/disks/wrf-mod/DATA/geog:/wrf/geog curw-wrf-391
 initialize_params >> wps >> wrf
