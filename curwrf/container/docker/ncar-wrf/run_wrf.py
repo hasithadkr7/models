@@ -1,4 +1,5 @@
 import argparse
+import ast
 import json
 import logging
 import os
@@ -77,7 +78,11 @@ if __name__ == "__main__":
     mode = args['mode'].strip().lower()  # env_vars.pop('mode').strip().lower()
     nl_wps = args['nl_wps']  # env_vars.pop('nl_wps', None)
     nl_input = args['nl_input']  # env_vars.pop('nl_input', None)
-    wrf_config_dict = json.loads(args['wrf_config'].replace("'", "\""))  # env_vars.pop('wrf_config', '{}')
+
+    # wrf_config_s = args['wrf_config'].replace("'", "\"")
+    # logging.info('Wrf config str: ' + wrf_config_s)
+    # wrf_config_dict = json.loads(wrf_config_s)
+    wrf_config_dict = ast.literal_eval(args['wrf_config'])
 
     config = executor.get_wrf_config(**wrf_config_dict)
     config.set('run_id', run_id)
