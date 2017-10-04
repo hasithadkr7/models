@@ -77,7 +77,7 @@ if __name__ == "__main__":
     mode = args['mode'].strip().lower()  # env_vars.pop('mode').strip().lower()
     nl_wps = args['nl_wps']  # env_vars.pop('nl_wps', None)
     nl_input = args['nl_input']  # env_vars.pop('nl_input', None)
-    wrf_config_dict = json.loads(args['wrf_config'])  # env_vars.pop('wrf_config', '{}')
+    wrf_config_dict = json.loads(args['wrf_config'].replace("'", "\""))  # env_vars.pop('wrf_config', '{}')
 
     config = executor.get_wrf_config(**wrf_config_dict)
     config.set('run_id', run_id)

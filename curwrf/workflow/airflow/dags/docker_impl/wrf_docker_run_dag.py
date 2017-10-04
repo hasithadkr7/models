@@ -1,6 +1,7 @@
 import datetime as dt
 
 import airflow
+import logging
 from airflow import DAG
 from airflow.operators.docker_operator import DockerOperator
 from airflow.operators.python_operator import PythonOperator
@@ -28,6 +29,7 @@ test_mode = False
 def get_docker_cmd(run_id, wrf_config, mode, nl_wps, nl_input):
     cmd = '/wrf/run_wrf.sh -i \"%s\" -c \"%s\" -m \"%s\" -x \"%s\" -y \"%s\"' % (
         run_id, wrf_config, mode, nl_wps, nl_input)
+    logging.info('Docker cmd: ' + cmd)
     return cmd
 
 
