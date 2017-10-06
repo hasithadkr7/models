@@ -4,7 +4,7 @@ import datetime as dt
 from airflow import DAG
 from airflow.operators.bash_operator import BashOperator
 
-sat_dag_name = 'sat_rf_extraction_v3'
+sat_dag_name = 'sat_rf_extraction_v4'
 # queue = 'wrf_fs_impl_queue'
 schedule_interval = '30 * * * *'
 curw_py_dir = '/opt/git/models'
@@ -31,7 +31,7 @@ dag = DAG(
     description='Extracting JAXA satellite rainfall data hourly',
     schedule_interval=schedule_interval)
 
-cmd_str_d03 = 'python3 %s/curwrf/wrf/extraction/sat_extractor.py ' \
+cmd_str_d03 = 'python3 %s/curw/rainfall/wrf/extraction/sat_extractor.py ' \
               '-end {{ macros.datetime.strftime(execution_date + macros.timedelta(hours=1), \'%%Y-%%m-%%d_%%H:%%M\') }} ' \
               '-start {{ execution_date.strftime(\'%%Y-%%m-%%d_%%H:%%M\') }} ' \
               '-output %s' % (curw_py_dir, output_dir)
@@ -42,7 +42,7 @@ lon_min = 71.2166
 lat_max = 18.1895
 lon_max = 90.3315
 
-cmd_str_d01 = 'python3 %s/curwrf/wrf/extraction/sat_extractor.py ' \
+cmd_str_d01 = 'python3 %s/curw/rainfall/wrf/extraction/sat_extractor.py ' \
               '-end {{ macros.datetime.strftime(execution_date + macros.timedelta(hours=1), \'%%Y-%%m-%%d_%%H:%%M\') }} ' \
               '-start {{ execution_date.strftime(\'%%Y-%%m-%%d_%%H:%%M\') }} ' \
               '-output %s -prefix %s -lat_min %f -lon_min %f -lat_max %f -lon_max %f' % (
