@@ -332,7 +332,7 @@ def download_file(url, dest, retries=0, delay=60, overwrite=False, secondary_des
     while try_count <= retries + 1:
         try:
             logging.info("Downloading %s to %s" % (url, dest))
-            if secondary_dest_dir is not None:
+            if secondary_dest_dir is None:
                 if not overwrite and file_exists_nonempty(dest):
                     logging.info('File already exists. Skipping download!')
                 else:
