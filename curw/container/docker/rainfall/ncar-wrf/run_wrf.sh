@@ -20,5 +20,4 @@ options="$ID $CONFIG $MODE $WPS $INPUT"
 
 #echo "Options: $options"
 
-python3.6 /wrf/curwsl/curwrf/container/docker/ncar-wrf/run_wrf.py -run_id="$ID" -wrf_config="$CONFIG" -mode="$MODE" -nl_wps="$WPS" -nl_input="$INPUT"
-#python3 run_wrf.py -run_id="$ID" -wrf_config="$CONFIG" -mode="$MODE" -nl_wps="$WPS" -nl_input="$INPUT"
+python3.6 /wrf/curwsl/curw/container/docker/rainfall/ncar-wrf/run_wrf.py -run_id="$ID" -wrf_config="$CONFIG" -mode="$MODE" -nl_wps="$WPS" -nl_input="$INPUT"

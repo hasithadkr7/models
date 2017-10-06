@@ -4,6 +4,9 @@ MAINTAINER niranda perera <niranda.17@cse.mrt.ac.lk>
 # This Dockerfile compiles WRF from source during "docker build" step
 ENV WRF_VERSION 3.9.1.1
 ENV WPS_VERSION 3.9.1
+
+ENV CURW_VERSION="v2.0.0-snapshot"
+
 #RUN curl -SL https://ral.ucar.edu/sites/default/files/public/projects/ncar-docker-wrf/ucar-bsd-3-clause-license.pdf > /UCAR-BSD-3-Clause-License.pdf
 #
 RUN yum -y update
@@ -96,14 +99,14 @@ RUN cd /wrf
 RUN mkdir gfs output geog
 
 #RUN git clone https://github.com/nirandaperera/models.git && cd models && git checkout airflow-integ
-RUN git clone -b airflow-integ https://github.com/nirandaperera/models.git curwsl
+RUN git clone -b $CURW_VERSION https://github.com/nirandaperera/models.git curwsl
 RUN pip3.6 install -e curwsl/
 
 COPY run_wrf.sh /wrf
 RUN chmod +x /wrf/run_wrf.sh
 
 # update the git repo everytime a container is initialized
-CMD ["/wrf/run_wrf.sh", "$CURW_"]
+CMD ["/wrf/run_wrf.sh"]
 
 VOLUME /wrf
 
