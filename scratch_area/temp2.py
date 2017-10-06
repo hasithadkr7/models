@@ -1,9 +1,9 @@
-from curwrf.wrf.extraction import utils
-from curwrf.wrf import utils as wrfutils
-from mpl_toolkits.basemap import cm, Basemap
 import matplotlib.pyplot as plt
-from matplotlib import colors
 import numpy as np
+from curw.rainfall.wrf.extraction import utils
+from matplotlib import colors
+from mpl_toolkits.basemap import Basemap
+from curw.rainfall.wrf import utils as wrfutils
 
 nc = '/home/nira/Desktop/wrfout_d03_2017-09-05_06:00:00'
 

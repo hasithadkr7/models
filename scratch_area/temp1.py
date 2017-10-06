@@ -1,8 +1,7 @@
-from curwrf.wrf.extraction import utils
-from mpl_toolkits.basemap import cm, Basemap
+import curw.rainfall.wrf.extraction.utils as utils
 import matplotlib.pyplot as plt
 import numpy as np
-import curwrf.wrf.extraction.utils as utils
+from mpl_toolkits.basemap import Basemap
 
 lat_min = 5.722969
 lon_min = 79.52146

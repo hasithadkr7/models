@@ -1,11 +1,9 @@
-from setuptools import setup
+from setuptools import setup, find_packages
 
 setup(
     name='curw',
     version='1.0.0',
-    packages=['curwrf', 'curwrf.wrf', 'curwrf.wrf.execution', 'curwrf.wrf.resources', 'curwrf.wrf.extraction',
-              'curwrf.realtime', 'curwrf.workflow', 'curwrf.workflow.airflow', 'curwrf.workflow.airflow.dags',
-              'curwrf.workflow.airflow.extensions', 'curwrf.wrf.execution.tasks'],
+    packages=find_packages(exclude=['tmp', 'scratch_area']),
     url='',
     license='Apache 2.0',
     author='niranda perera',
