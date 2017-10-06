@@ -7,7 +7,7 @@ from airflow.operators.python_operator import PythonOperator
 from airflow.utils.trigger_rule import TriggerRule
 from curw.rainfall.wrf.execution.executor import WrfConfig
 from curw.rainfall.wrf.execution.tasks import download_inventory
-from curw.workflow.airflow.extensions.operators import CurwPythonOperator
+from curw.workflow.airflow.extensions.operators.curw_python_operator import CurwPythonOperator
 from curw.workflow.airflow.extensions.sensors import CurwWrfFileLockSensor
 from curw.workflow.airflow.extensions import tasks
 from curw.workflow.airflow.dags import utils as dag_utils
