@@ -8,7 +8,7 @@ from docker import APIClient as Client, tls
 import ast
 
 
-class DockerOperator(BaseOperator):
+class CurwDockerOperator(BaseOperator):
     """
     Execute a command inside a docker container.
 
@@ -94,7 +94,7 @@ class DockerOperator(BaseOperator):
             *args,
             **kwargs):
 
-        super(DockerOperator, self).__init__(*args, **kwargs)
+        super(CurwDockerOperator, self).__init__(*args, **kwargs)
         self.api_version = api_version
         self.command = command
         self.cpus = cpus

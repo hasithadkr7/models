@@ -2,11 +2,12 @@ import datetime as dt
 
 import airflow
 from airflow import DAG
-from airflow.operators.docker_operator import DockerOperator
 from airflow.operators.python_operator import PythonOperator
-from curw.workflow.airflow.dags import utils as dag_utils
 
-wrf_dag_name = 'docker_wrf_run'
+from curw.workflow.airflow.dags import utils as dag_utils
+from curw.workflow.airflow.extensions.operators.curw_docker_operator import CurwDockerOperator
+
+wrf_dag_name = 'docker_wrf_run_v2'
 wrf_config_key = 'docker_wrf_config'
 namelist_wps_key = 'docker_namelist_wps'
 namelist_input_key = 'docker_namelist_input'
@@ -58,23 +59,25 @@ initialize_params = PythonOperator(
     dag=dag,
 )
 
-wps = DockerOperator(
+wps = CurwDockerOperator(
     task_id='wps',
     image=image,
     command=get_docker_cmd('{{ var.json.%s.start_date }}_wps' % wrf_config_key, '{{ var.json.%s }}' % wrf_config_key,
                            'wps', '{{ var.value.%s }}' % namelist_wps_key, '{{ var.value.%s }}' % namelist_input_key),
     cpus=1,
     volumes=volumes,
+    auto_remove=True,
     dag=dag
 )
 
-wrf = DockerOperator(
+wrf = CurwDockerOperator(
     task_id='wrf',
     image=image,
     command=get_docker_cmd('{{ var.json.%s.start_date }}_wrf' % wrf_config_key, '{{ var.json.%s }}' % wrf_config_key,
                            'wrf', '{{ var.value.%s }}' % namelist_wps_key, '{{ var.value.%s }}' % namelist_input_key),
     cpus=2,
     volumes=volumes,
+    auto_remove=True,
     dag=dag
 )
 

@@ -15,7 +15,7 @@ parallel_runs = 5
 wt_namelists = 'wt_namelists'
 wt_namelists_path = '/mnt/disks/wrf-mod/namelist/'
 queue = 'wrf_fs_impl_queue'
-schedule_interval = '@daily'
+schedule_interval = '0 18 * * *'
 
 test_mode = False
 
