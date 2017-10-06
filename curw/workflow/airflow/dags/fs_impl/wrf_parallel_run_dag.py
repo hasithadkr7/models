@@ -5,7 +5,7 @@ from airflow import DAG
 from airflow.operators.subdag_operator import SubDagOperator
 from curw.workflow.airflow.extensions import subdags
 from curw.workflow.airflow.extensions import tasks
-from curw.workflow.airflow.extensions.operators import CurwPythonOperator
+from curw.workflow.airflow.extensions.operators.curw_python_operator import CurwPythonOperator
 
 wrf_dag_name = 'wrf_parallel_run_v4'
 wrf_config_key_prefix = 'wrf_config'
