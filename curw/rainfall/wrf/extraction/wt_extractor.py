@@ -76,7 +76,7 @@ def get_weather_type(inventory, wgrib_path='/opt/lib/wgrib2', write_to_file=None
         FT = 'S'
     if F == 1 and 202.5 < D < 247.5:
         FT = 'SW'
-    if F == 1 and D < -67.5 or D > 247.5:
+    if F == 1 and (D < -67.5 or D > 247.5):
         FT = 'W'
     if F == 0 and A > 0:
         FT = 'A'
