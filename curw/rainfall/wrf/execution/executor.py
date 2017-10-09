@@ -124,6 +124,10 @@ def run_wps(wrf_config):
     wps_dir = utils.get_wps_dir(wrf_home)
     output_dir = utils.create_dir_if_not_exists(
         os.path.join(wrf_config.get('nfs_dir'), 'results', wrf_config.get('run_id')))
+
+    logging.info('Backup the output dir')
+    utils.backup_dir(output_dir)
+
     logs_dir = utils.create_dir_if_not_exists(os.path.join(output_dir, 'logs'))
 
     logging.info('Cleaning up files')
@@ -233,6 +237,10 @@ def run_em_real(wrf_config):
     procs = wrf_config.get('procs')
     run_id = wrf_config.get('run_id')
     output_dir = utils.create_dir_if_not_exists(os.path.join(wrf_config.get('nfs_dir'), 'results', run_id))
+
+    logging.info('Backup the output dir')
+    utils.backup_dir(output_dir)
+
     logs_dir = utils.create_dir_if_not_exists(os.path.join(output_dir, 'logs'))
 
     logging.info('Copying metgrid.zip')

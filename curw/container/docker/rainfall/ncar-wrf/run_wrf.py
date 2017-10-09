@@ -120,9 +120,6 @@ if __name__ == "__main__":
 
     logging.info('WRF config: %s' % config.to_json_string())
 
-    logging.info('Backup the output dir')
-    utils.backup_dir(os.path.join(config.get('nfs_dir'), 'results', run_id))
-
     if mode == 'wps':
         logging.info('Running WPS')
         write_wps()
