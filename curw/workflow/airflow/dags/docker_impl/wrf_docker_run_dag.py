@@ -17,6 +17,8 @@ wrf_start_date_key = 'docker_wrf_start_date'
 queue = 'default'
 schedule_interval = '@once'
 
+run_id = '{{ var.json.%s.start_date }}_test' % wrf_config_key
+
 image = 'nirandaperera/curw-wrf-391'
 volumes = ['/mnt/disks/wrf-mod/temp1/output:/wrf/output', '/mnt/disks/wrf-mod/DATA/geog:/wrf/geog']
 
@@ -62,8 +64,8 @@ initialize_params = PythonOperator(
 wps = CurwDockerOperator(
     task_id='wps',
     image=image,
-    command=get_docker_cmd('{{ var.json.%s.start_date }}_wps' % wrf_config_key, '{{ var.json.%s }}' % wrf_config_key,
-                           'wps', '{{ var.value.%s }}' % namelist_wps_key, '{{ var.value.%s }}' % namelist_input_key),
+    command=get_docker_cmd(run_id, '{{ var.json.%s }}' % wrf_config_key, 'wps', '{{ var.value.%s }}' % namelist_wps_key,
+                           '{{ var.value.%s }}' % namelist_input_key),
     cpus=1,
     volumes=volumes,
     auto_remove=True,
@@ -73,8 +75,8 @@ wps = CurwDockerOperator(
 wrf = CurwDockerOperator(
     task_id='wrf',
     image=image,
-    command=get_docker_cmd('{{ var.json.%s.start_date }}_wrf' % wrf_config_key, '{{ var.json.%s }}' % wrf_config_key,
-                           'wrf', '{{ var.value.%s }}' % namelist_wps_key, '{{ var.value.%s }}' % namelist_input_key),
+    command=get_docker_cmd(run_id, '{{ var.json.%s }}' % wrf_config_key, 'wrf', '{{ var.value.%s }}' % namelist_wps_key,
+                           '{{ var.value.%s }}' % namelist_input_key),
     cpus=2,
     volumes=volumes,
     auto_remove=True,

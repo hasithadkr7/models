@@ -123,7 +123,7 @@ def run_wps(wrf_config):
     wrf_home = wrf_config.get('wrf_home')
     wps_dir = utils.get_wps_dir(wrf_home)
     output_dir = utils.create_dir_if_not_exists(
-        os.path.join(wrf_config.get('nfs_dir'), 'results', wrf_config.get('run_id')))
+        os.path.join(wrf_config.get('nfs_dir'), 'results', wrf_config.get('run_id'), 'wps'))
 
     logging.info('Backup the output dir')
     utils.backup_dir(output_dir)
@@ -236,7 +236,7 @@ def run_em_real(wrf_config):
     em_real_dir = utils.get_em_real_dir(wrf_home)
     procs = wrf_config.get('procs')
     run_id = wrf_config.get('run_id')
-    output_dir = utils.create_dir_if_not_exists(os.path.join(wrf_config.get('nfs_dir'), 'results', run_id))
+    output_dir = utils.create_dir_if_not_exists(os.path.join(wrf_config.get('nfs_dir'), 'results', run_id, 'wrf'))
 
     logging.info('Backup the output dir')
     utils.backup_dir(output_dir)
