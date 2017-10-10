@@ -1,5 +1,6 @@
 import csv
 import datetime as dt  # Python standard library datetime  module
+import glob
 import logging
 import os
 import zipfile
@@ -143,8 +144,8 @@ def extract_kelani_basin_rainfall(nc_f, date, kelani_basin_file, wrf_output, bas
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
-    prev_day_1_file = wrf_output + '/wrfout_d03_' + (date - dt.timedelta(days=1)).strftime('%Y-%m-%d') + '_00:00:00'
-    prev_day_2_file = wrf_output + '/wrfout_d03_' + (date - dt.timedelta(days=2)).strftime('%Y-%m-%d') + '_00:00:00'
+    prev_day_1_file = glob.glob(wrf_output + '/wrfout_d03_' + (date - dt.timedelta(days=1)).strftime('%Y-%m-%d') + '_*')[0]
+    prev_day_2_file = glob.glob(wrf_output + '/wrfout_d03_' + (date - dt.timedelta(days=2)).strftime('%Y-%m-%d') + '_*')[0]
 
     diff1, _, _, times1 = extract_area_rf_series(prev_day_1_file, kel_lat_min, kel_lat_max, kel_lon_min, kel_lon_max)
     diff2, _, _, times2 = extract_area_rf_series(prev_day_2_file, kel_lat_min, kel_lat_max, kel_lon_min, kel_lon_max)
@@ -454,7 +455,7 @@ def extract_all(wrf_home, start_date, end_date):
     for date in dates:
         wrf_output = utils.get_output_dir(wrf_home)
 
-        nc_f = wrf_output + '/wrfout_d03_' + date.strftime('%Y-%m-%d') + '_00:00:00'
+        nc_f = glob.glob(wrf_output + '/wrfout_d03_' + date.strftime('%Y-%m-%d') + '_*')[0]
         if not os.path.exists(nc_f):
             raise IOError('File %s not found' % nc_f)
 

@@ -72,7 +72,7 @@ def download_gfs_data(date, wrf_conf):
     inventories = utils.get_gfs_inventory_url_dest_list(date, wrf_conf.get('period'), wrf_conf.get('gfs_url'),
                                                         wrf_conf.get('gfs_inv'), wrf_conf.get('gfs_step'),
                                                         wrf_conf.get('gfs_cycle'), wrf_conf.get('gfs_res'),
-                                                        wrf_conf.get('gfs_dir'))
+                                                        wrf_conf.get('gfs_dir'), wrf_conf.get('gfs_start_inv'))
     gfs_threads = wrf_conf.get('gfs_threads')
     logging.info(
         'Following data will be downloaded in %d parallel threads\n%s' % (gfs_threads, '\n'.join(
@@ -104,7 +104,8 @@ def check_gfs_data_availability(date, wrf_config):
     logging.info('Checking gfs data availability...')
     inventories = utils.get_gfs_inventory_dest_list(date, wrf_config.get('period'), wrf_config.get('gfs_inv'),
                                                     wrf_config.get('gfs_step'), wrf_config.get('gfs_cycle'),
-                                                    wrf_config.get('gfs_res'), wrf_config.get('gfs_dir'))
+                                                    wrf_config.get('gfs_res'), wrf_config.get('gfs_dir'),
+                                                    wrf_config.get('gfs_start_inv'))
     missing_inv = []
     for inv in inventories:
         if not os.path.exists(inv):
@@ -300,6 +301,7 @@ def get_wrf_config(wrf_home, config_file=None, **kwargs):
                 'gfs_dir': utils.get_gfs_dir(wrf_home),
                 'gfs_clean': True,
                 'gfs_cycle': constants.DEFAULT_CYCLE,
+                'gfs_start_inv': constants.DEFAULT_START_INV,
                 'gfs_delay': constants.DEFAULT_DELAY_S,
                 'gfs_inv': constants.DEFAULT_GFS_DATA_INV,
                 'gfs_res': constants.DEFAULT_RES,

@@ -126,16 +126,16 @@ def get_gfs_data_dest(inv, date_str, cycle, fcst_id, res, gfs_dir):
     return dest
 
 
-def get_gfs_inventory_url_dest_list(date, period, url, inv, step, cycle, res, gfs_dir):
+def get_gfs_inventory_url_dest_list(date, period, url, inv, step, cycle, res, gfs_dir, start=0):
     date_str = date.strftime('%Y%m%d')
     return [get_gfs_data_url_dest_tuple(url, inv, date_str, cycle, str(i).zfill(3), res, gfs_dir) for i in
-            range(0, period * 24 + 1, step)]
+            range(start, start + period * 24 + 1, step)]
 
 
-def get_gfs_inventory_dest_list(date, period, inv, step, cycle, res, gfs_dir):
+def get_gfs_inventory_dest_list(date, period, inv, step, cycle, res, gfs_dir, start=0):
     date_str = date.strftime('%Y%m%d')
     return [get_gfs_data_dest(inv, date_str, cycle, str(i).zfill(3), res, gfs_dir) for i in
-            range(0, period * 24 + 1, step)]
+            range(start, start + period * 24 + 1, step)]
 
 
 def replace_file_with_values(source, destination, val_dict):
@@ -344,27 +344,34 @@ def get_appropriate_gfs_inventory(wrf_config):
 def main():
     wrf_home = "/tmp"
     set_logging_config(wrf_home)
-    print get_gfs_dir(wrf_home)
-    print get_output_dir(wrf_home)
-    print get_scripts_run_dir(wrf_home)
-    print get_logs_dir(wrf_home)
-    print get_gfs_data_url_dest_tuple(constants.DEFAULT_GFS_DATA_URL, constants.DEFAULT_GFS_DATA_INV,
-                                      get_gfs_dir(wrf_home), '20170501', constants.DEFAULT_CYCLE, '001',
-                                      constants.DEFAULT_RES)
-    print get_gfs_inventory_url_dest_list(constants.DEFAULT_GFS_DATA_URL, constants.DEFAULT_GFS_DATA_INV,
-                                          dt.datetime.strptime('2017-05-01', '%Y-%m-%d'),
-                                          constants.DEFAULT_PERIOD,
-                                          constants.DEFAULT_STEP,
-                                          constants.DEFAULT_CYCLE,
-                                          constants.DEFAULT_RES,
-                                          get_gfs_dir(wrf_home))
+    print
+    get_gfs_dir(wrf_home)
+    print
+    get_output_dir(wrf_home)
+    print
+    get_scripts_run_dir(wrf_home)
+    print
+    get_logs_dir(wrf_home)
+    print
+    get_gfs_data_url_dest_tuple(constants.DEFAULT_GFS_DATA_URL, constants.DEFAULT_GFS_DATA_INV,
+                                get_gfs_dir(wrf_home), '20170501', constants.DEFAULT_CYCLE, '001',
+                                constants.DEFAULT_RES)
+    print
+    get_gfs_inventory_url_dest_list(constants.DEFAULT_GFS_DATA_URL, constants.DEFAULT_GFS_DATA_INV,
+                                    dt.datetime.strptime('2017-05-01', '%Y-%m-%d'),
+                                    constants.DEFAULT_PERIOD,
+                                    constants.DEFAULT_STEP,
+                                    constants.DEFAULT_CYCLE,
+                                    constants.DEFAULT_RES,
+                                    get_gfs_dir(wrf_home))
     d = {
         'YYYY1': '2016',
         'MM1': '05',
         'DD1': '01'
     }
 
-    print replace_file_with_values('resources/namelist.input', wrf_home + '/namelist.wps', d)
+    print
+    replace_file_with_values('resources/namelist.input', wrf_home + '/namelist.wps', d)
 
 
 if __name__ == "__main__":
