@@ -381,7 +381,8 @@ class RainfallExtraction(WrfTask):
         # utils.create_zipfile(ascs, os.path.join(temp_dir, 'ascs.zip'))
 
         logging.info('Cleaning up instantaneous pngs and ascs - wrf_inst_*')
-        utils.delete_files_with_prefix(temp_dir, 'wrf_inst_*')
+        utils.delete_files_with_prefix(temp_dir, 'wrf_inst_*.png')
+        utils.delete_files_with_prefix(temp_dir, 'wrf_inst_*.asc')
 
         logging.info('Copying pngs to ' + d03_dir)
         utils.move_files_with_prefix(temp_dir, '*.png', d03_dir)
