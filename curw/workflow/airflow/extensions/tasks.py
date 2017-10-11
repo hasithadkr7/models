@@ -16,8 +16,8 @@ from curw.rainfall.wrf.extraction import wt_extractor, utils as ext_utils
 
 
 class CurwTask(object):
-    def __init__(self):
-        self.config = WrfConfig()
+    def __init__(self, config=WrfConfig()):
+        self.config = config
 
     def pre_process(self, *args, **kwargs):
         pass
@@ -38,9 +38,9 @@ class CurwTask(object):
 
 
 class WrfTask(CurwTask):
-    def __init__(self, wrf_config_key='wrf_config'):
+    def __init__(self, wrf_config_key='wrf_config', **kwargs):
         self.wrf_config_key = wrf_config_key
-        super(WrfTask, self).__init__()
+        super(WrfTask, self).__init__(**kwargs)
 
     def set_config(self, **kwargs):
         wrf_config_json = None
