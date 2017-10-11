@@ -18,7 +18,10 @@ from curw.rainfall.wrf import utils
 def extract_time_data(nc_f):
     nc_fid = Dataset(nc_f, 'r')
     times_len = len(nc_fid.dimensions['Time'])
-    times = [''.join(x) for x in nc_fid.variables['Times'][0:times_len]]
+    try:
+        times = [''.join(x) for x in nc_fid.variables['Times'][0:times_len]]
+    except TypeError:
+        times = np.array([''.join([y.decode() for y in x]) for x in nc_fid.variables['Times'][:]])
     nc_fid.close()
     return times_len, times
 
@@ -39,66 +42,69 @@ def extract_metro_colombo(nc_f, date, wrf_output):
     lons = nc_fid.variables['XLONG'][0, 0, lon_min:lon_max + 1]
 
     prcp = nc_fid.variables['RAINC'][:, lat_min:lat_max + 1, lon_min:lon_max + 1] + \
-           nc_fid.variables['RAINNC'][:, lat_min:lat_max + 1, lon_min:lon_max + 1] + \
-           nc_fid.variables['SNOWNC'][:, lat_min:lat_max + 1, lon_min:lon_max + 1] + \
-           nc_fid.variables['GRAUPELNC'][:, lat_min:lat_max + 1, lon_min:lon_max + 1]
+           nc_fid.variables['RAINNC'][:, lat_min:lat_max + 1, lon_min:lon_max + 1]
 
-    diff = prcp[1:73, :, :] - prcp[0:72, :, :]
+    diff = prcp[1:times_len, :, :] - prcp[0:times_len - 1, :, :]
 
     width = len(lons)
     height = len(lats)
 
-    output_dir = wrf_output + '/colombo/created-' + date.strftime('%Y-%m-%d')
+    output_dir = os.path.join(wrf_output, 'met_col', date.strftime('%Y-%m-%d'))
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
-    alpha_file_path = wrf_output + '/colombo/alphas.txt'
-    basin_rf = np.sum(diff[5:29, :, :]) / float(width * height)
+    alpha_file_path = os.path.join(wrf_output, 'met_col', 'alphas.txt')
+    basin_rf = np.sum(diff[0:24, :, :]) / float(width * height)
     with open(alpha_file_path, 'a') as alpha_file:
-        alpha_file.write('%s %f\n' % (date.strftime('%Y-%m-%d'), basin_rf[0]))
+        alpha_file.write('%s %f\n' % (date.strftime('%Y-%m-%d'), basin_rf))
 
-    subsection_file_path = wrf_output + '/colombo/sub-means-' + date.strftime('%Y-%m-%d') + '.txt'
-    subsection_file = open(subsection_file_path, 'w')
+    subsection_file_path = os.path.join(output_dir, 'sub_means_' + date.strftime('%Y-%m-%d') + '.txt')
+    with open(subsection_file_path, 'w') as subsection_file:
+        for tm in range(0, len(times) - 1):
+            output_file_path = output_dir + '/rf_' + times[tm] + '.asc'
+            with open(output_file_path, 'w') as output_file:
+                output_file.write('NCOLS %d\n' % width)
+                output_file.write('NROWS %d\n' % height)
+                output_file.write('XLLCORNER %f\n' % lons[0])
+                output_file.write('YLLCORNER %f\n' % lats[0])
+                output_file.write('CELLSIZE %f\n' % cell_size)
+                output_file.write('NODATA_VALUE %d\n' % no_data_val)
 
-    for tm in range(0, len(times) - 1):
-        output_file_path = output_dir + '/rain-' + times[tm] + '.txt'
-        output_file = open(output_file_path, 'w')
+                for y in range(0, height):
+                    for x in range(0, width):
+                        output_file.write('%f ' % diff[tm, y, x])
+                    output_file.write('\n')
 
-        output_file.write('NCOLS %d\n' % width)
-        output_file.write('NROWS %d\n' % height)
-        output_file.write('XLLCORNER %f\n' % lons[0])
-        output_file.write('YLLCORNER %f\n' % lats[0])
-        output_file.write('CELLSIZE %f\n' % cell_size)
-        output_file.write('NODATA_VALUE %d\n' % no_data_val)
+            # writing subsection file
+            sub_divs = [0, 4, 7]
+            subsection_file.write(times[tm])
+            for j in range(len(sub_divs) - 1):
+                for i in range(len(sub_divs) - 1):
+                    subsection_file.write(
+                        ' %f' % np.mean(diff[tm, sub_divs[j]:sub_divs[j + 1], sub_divs[i]: sub_divs[i + 1]]))
+            subsection_file.write('\n')
 
-        for y in range(0, height):
-            for x in range(0, width):
-                output_file.write('%f ' % diff[tm, y, x])
-            output_file.write('\n')
-
-        output_file.close()
-
-        # writing subsection file
-        sub_divs = [0, 4, 7]
-        subsection_file.write(times[tm])
-        for j in range(len(sub_divs) - 1):
-            for i in range(len(sub_divs) - 1):
-                subsection_file.write(
-                    ' %f' % np.mean(diff[tm, sub_divs[j]:sub_divs[j + 1], sub_divs[i]: sub_divs[i + 1]]))
-        subsection_file.write('\n')
-
-    subsection_file.close()
+    logging.info('Creating zip of the rf_*.asc')
+    utils.create_zip_with_prefix(output_dir, 'rf_*.asc', os.path.join(output_dir, 'ascs.zip'), clean_up=True)
 
     nc_fid.close()
-    return basin_rf[0]
+    return basin_rf
 
 
-def extract_weather_stations(nc_f, date, times, weather_stations, wrf_output):
+def test_extract_metro_colombo():
+    extract_metro_colombo('/home/curw/temp/temp/wrfout_d03_2017-09-05_06:00:00',
+                          dt.datetime.strptime('2017-09-05', '%Y-%m-%d'),
+                          '/home/curw/temp/')
+
+
+def extract_weather_stations(nc_f, date, wrf_output,
+                             weather_stations=res_mgr.get_resource_path('extraction/local/kelani_basin_stations.txt')):
     nc_fid = Dataset(nc_f, 'r')
+    times_len, times = extract_time_data(nc_f)
 
-    with open(weather_stations, 'rb') as csvfile:
+    with open(weather_stations, 'r') as csvfile:
         stations = csv.reader(csvfile, delimiter=' ')
-        stations_dir = wrf_output + '/RF'
+        stations_dir = os.path.join(wrf_output, 'stations_rf')
         if not os.path.exists(stations_dir):
             os.makedirs(stations_dir)
         for row in stations:
@@ -107,20 +113,21 @@ def extract_weather_stations(nc_f, date, times, weather_stations, wrf_output):
             lat = row[2]
 
             station_prcp = nc_fid.variables['RAINC'][:, lat, lon] + \
-                           nc_fid.variables['RAINNC'][:, lat, lon] + \
-                           nc_fid.variables['SNOWNC'][:, lat, lon] + \
-                           nc_fid.variables['GRAUPELNC'][:, lat, lon]
+                           nc_fid.variables['RAINNC'][:, lat, lon]
 
             station_diff = station_prcp[1:len(times)] - station_prcp[0:len(times) - 1]
 
-            station_file_path = stations_dir + '/' + row[0] + '-' + date.strftime('%Y-%m-%d') + '.txt'
-            station_file = open(station_file_path, 'w')
-
-            for t in range(0, len(times) - 1):
-                station_file.write('%s %f\n' % (times[t], station_diff[t]))
-            station_file.close()
-
+            station_file_path = os.path.join(stations_dir, row[0] + '_' + date.strftime('%Y-%m-%d') + '.txt')
+            with open(station_file_path, 'w') as station_file:
+                for t in range(0, len(times) - 1):
+                    station_file.write('%s %f\n' % (times[t], station_diff[t]))
     nc_fid.close()
+
+
+def test_extract_weather_stations():
+    extract_weather_stations('/home/curw/temp/temp/wrfout_d03_2017-09-05_06:00:00',
+                             dt.datetime.strptime('2017-09-05', '%Y-%m-%d'),
+                             '/home/curw/temp/')
 
 
 def extract_kelani_basin_rainfall(nc_f, date, kelani_basin_file, wrf_output, basin_rf=1.0):
@@ -540,7 +547,7 @@ def extract_all(wrf_home, start_date, end_date):
         logging.info('Basin rainfall' + str(basin_rf))
 
         logging.info('Extract weather station rainfall')
-        extract_weather_stations(nc_f, date, times, weather_st_file, wrf_output)
+        extract_weather_stations(nc_f, date, wrf_output, weather_st_file)
 
         logging.info('Extract Kelani Basin rainfall')
         extract_kelani_basin_rainfall(nc_f, date, kelani_basin_file, wrf_output, basin_rf)

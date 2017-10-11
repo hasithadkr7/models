@@ -229,10 +229,12 @@ def create_symlink_with_prefix(src_dir, prefix, dest_dir):
 #             z.write(file)
 
 
-def create_zip_with_prefix(src_dir, prefix, dest_zip, comp=ZIP_DEFLATED):
+def create_zip_with_prefix(src_dir, regex, dest_zip, comp=ZIP_DEFLATED, clean_up=False):
     with ZipFile(dest_zip, 'w', compression=comp) as zip_file:
-        for filename in glob.glob(os.path.join(src_dir, prefix)):
+        for filename in glob.glob(os.path.join(src_dir, regex)):
             zip_file.write(filename, arcname=os.path.basename(filename))
+            if clean_up:
+                os.remove(filename)
     return dest_zip
 
 

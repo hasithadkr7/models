@@ -1,31 +1,12 @@
-import argparse
 import ast
 import json
 import logging
 import os
-import random
 import shutil
-import string
 
-from curw.rainfall.wrf.execution import executor
+from curw.container.docker.rainfall import utils as docker_rf_utils
 from curw.rainfall.wrf import utils
-
-
-def parse_args():
-    parser = argparse.ArgumentParser()
-    env_vars = get_env_vars('CURW_')
-
-    parser.add_argument('-run_id', default=env_vars['run_id'] if 'run_id' in env_vars else id_generator())
-    parser.add_argument('-mode', default=env_vars['mode'] if 'mode' in env_vars else 'wps')
-    parser.add_argument('-nl_wps', default=env_vars['nl_wps'] if 'nl_wps' in env_vars else None)
-    parser.add_argument('-nl_input', default=env_vars['nl_input'] if 'nl_input' in env_vars else None)
-    parser.add_argument('-wrf_config', default=env_vars['wrf_config'] if 'wrf_config' in env_vars else '{}')
-
-    return parser.parse_args()
-
-
-def id_generator(size=8, chars=string.ascii_uppercase + string.digits):
-    return ''.join(random.choice(chars) for _ in range(size))
+from curw.rainfall.wrf.execution import executor
 
 
 def run_wrf(wrf_config):
@@ -56,26 +37,9 @@ def run_wps(wrf_config):
     utils.delete_files_with_prefix(wps_dir, 'geo_em.*')
 
 
-def get_env_vars(prefix):
-    return {k.replace(prefix, ''): v for (k, v) in os.environ.items() if prefix in k}
-
-
-def get_var(var, env_vars, args, default=None):
-    val = env_vars.pop(var, None)
-    if val is None:
-        return args.pop(var, default)
-    return val
-
-
-class CurwDockerException(Exception):
-    def __init__(self, msg):
-        self.msg = msg
-        Exception.__init__(self, msg)
-
-
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format='%(asctime)s %(threadName)s %(module)s %(levelname)s %(message)s')
-    args = vars(parse_args())
+    args = vars(docker_rf_utils.parse_args())
 
     logging.info('Running arguments:\n%s' % json.dumps(args, sort_keys=True, indent=0))
 
@@ -86,15 +50,13 @@ if __name__ == "__main__":
     nl_wps = args['nl_wps']  # env_vars.pop('nl_wps', None)
     nl_input = args['nl_input']  # env_vars.pop('nl_input', None)
 
-    # wrf_config_s = args['wrf_config'].replace("'", "\"")
-    # logging.info('Wrf config str: ' + wrf_config_s)
-    # wrf_config_dict = json.loads(wrf_config_s)
     wrf_config_dict = ast.literal_eval(args['wrf_config'])
 
     config = executor.get_wrf_config(**wrf_config_dict)
     config.set('run_id', run_id)
 
     wrf_home = config.get('wrf_home')
+
 
     def write_wps():
         if nl_wps is not None:
@@ -107,6 +69,7 @@ if __name__ == "__main__":
                 f.write('\n')
             config.set('namelist_wps', nl_wps_path)
 
+
     def write_input():
         if nl_input is not None:
             logging.info('Reading namelist input')
@@ -117,6 +80,7 @@ if __name__ == "__main__":
                 f.write(content)
                 f.write('\n')
             config.set('namelist_input', nl_input_path)
+
 
     logging.info('WRF config: %s' % config.to_json_string())
 
@@ -137,6 +101,4 @@ if __name__ == "__main__":
     elif mode == "test":
         logging.info("Running on test mode: Nothing to do!")
     else:
-        raise CurwDockerException('Unknown mode ' + mode)
-
-
+        raise docker_rf_utils.CurwDockerRainfallException('Unknown mode ' + mode)
