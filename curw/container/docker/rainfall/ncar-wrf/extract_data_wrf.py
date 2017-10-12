@@ -1,49 +1,34 @@
+import argparse
 import ast
+import datetime as dt
 import glob
 import json
 import logging
 import os
-import shutil
-import datetime as dt
 
 from curw.container.docker.rainfall import utils as docker_rf_utils
 from curw.rainfall.wrf import utils
 from curw.rainfall.wrf.execution import executor
 from curw.rainfall.wrf.extraction import extractor
+from curw.rainfall.wrf.extraction import utils as ext_utils
 from curw.rainfall.wrf.resources import manager as res_mgr
 
 
-def run_wrf(wrf_config):
-    logging.info('Running WRF')
+def parse_args():
+    parser = argparse.ArgumentParser()
+    env_vars = docker_rf_utils.get_env_vars('CURW_')
 
-    logging.info('Replacing the namelist input file')
-    executor.replace_namelist_input(wrf_config)
+    parser.add_argument('-run_id',
+                        default=env_vars['run_id'] if 'run_id' in env_vars else docker_rf_utils.id_generator())
+    parser.add_argument('-db_config', default=env_vars['db_config'] if 'db_config' in env_vars else None)
+    parser.add_argument('-wrf_config', default=env_vars['wrf_config'] if 'wrf_config' in env_vars else '{}')
 
-    logging.info('Running WRF...')
-    executor.run_em_real(wrf_config)
-
-
-def run_wps(wrf_config):
-    logging.info('Downloading GFS data')
-    executor.download_gfs_data(wrf_config)
-
-    logging.info('Replacing the namelist wps file')
-    executor.replace_namelist_wps(wrf_config)
-
-    logging.info('Running WPS...')
-    executor.run_wps(wrf_config)
-
-    logging.info('Cleaning up wps dir...')
-    wps_dir = utils.get_wps_dir(wrf_config.get('wrf_home'))
-    shutil.rmtree(wrf_config.get('gfs_dir'))
-    utils.delete_files_with_prefix(wps_dir, 'FILE:*')
-    utils.delete_files_with_prefix(wps_dir, 'PFILE:*')
-    utils.delete_files_with_prefix(wps_dir, 'geo_em.*')
+    return parser.parse_args()
 
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format='%(asctime)s %(threadName)s %(module)s %(levelname)s %(message)s')
-    args = vars(docker_rf_utils.parse_args())
+    args = vars(parse_args())
 
     logging.info('Running arguments:\n%s' % json.dumps(args, sort_keys=True, indent=0))
 
@@ -58,10 +43,8 @@ if __name__ == "__main__":
     wrf_home = config.get('wrf_home')
     wrf_output_dir = utils.create_dir_if_not_exists(os.path.join(config.get('nfs_dir'), 'results', run_id, 'wrf'))
 
-    weather_st_file = res_mgr.get_resource_path('extraction/local/kelani_basin_stations.txt')
-    kelani_basin_file = res_mgr.get_resource_path('extraction/local/kelani_basin_points_250m.txt')
-    kelani_basin_shp_file = res_mgr.get_resource_path('extraction/shp/kelani-upper-basin.shp')
-    jaxa_weather_st_file = res_mgr.get_resource_path('extraction/local/jaxa_weather_stations.txt')
+    db_config_dict = ast.literal_eval(args['db_config'])
+    db_adapter = ext_utils.get_curw_adapter(mysql_config=db_config_dict)
 
     nc_f = glob.glob(os.path.join(wrf_output_dir, '/wrfout_d03_*'))[0]
     date = dt.datetime.strptime(config.get('start_date'), '%Y-%m-%d_%H:%M')
@@ -70,8 +53,15 @@ if __name__ == "__main__":
     logging.info('Extracting data from ' + nc_f)
 
     logging.info('Extract rainfall data for the metro colombo area')
-    basin_rf = extractor.extract_metro_colombo(nc_f, date, output_dir)
+    basin_rf = extractor.extract_metro_colombo(nc_f, date, output_dir, curw_db_adapter=db_adapter)
     logging.info('Basin rainfall' + str(basin_rf))
 
     logging.info('Extract weather station rainfall')
-    extractor.extract_weather_stations(nc_f, date, times, weather_st_file, wrf_output)
+    extractor.extract_weather_stations(nc_f, date, output_dir, curw_db_adapter=db_adapter)
+
+    logging.info('Extract Kelani upper Basin mean rainfall')
+    extractor.extract_kelani_upper_basin_mean_rainfall(nc_f, date, output_dir, curw_db_adapter=db_adapter)
+
+    logging.info('Extract Kelani Basin rainfall')
+    extractor.extract_kelani_basin_rainfall(nc_f, date, output_dir, avg_basin_rf=basin_rf)
+

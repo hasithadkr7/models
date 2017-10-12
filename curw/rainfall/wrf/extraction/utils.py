@@ -1,11 +1,15 @@
+import json
 import logging
 import math
 import os
-
 import imageio
 import matplotlib
 import numpy as np
+
+from curwmysqladapter import mysqladapter
 from curw.rainfall.wrf import utils
+from curw.rainfall.wrf.resources import manager as res_mgr
+
 from mpl_toolkits.basemap import Basemap
 from netCDF4._netCDF4 import Dataset
 
@@ -226,6 +230,48 @@ def create_gif(filenames, output, duration=0.5):
     for filename in filenames:
         images.append(imageio.imread(filename))
     imageio.mimsave(output, images, duration=duration)
+
+
+def get_mean_cell_size(lats, lons):
+    return np.round(np.mean(np.append(lons[1:len(lons)] - lons[0: len(lons) - 1], lats[1:len(lats)]
+                                      - lats[0: len(lats) - 1])), 3)
+
+
+def get_curw_adapter(mysql_config=None, mysql_config_path=None):
+    if mysql_config_path is None:
+        mysql_config_path = res_mgr.get_resource_path('config/mysql_config.json')
+
+    with open(mysql_config_path) as data_file:
+        config = json.load(data_file)
+
+    if mysql_config is not None and isinstance(mysql_config, dict):
+        config.update(mysql_config)
+
+    return mysqladapter(**config)
+
+
+def push_rainfall_to_db(adapter, timeseries_dict, types=None, timesteps=24, upsert=False):
+    if types is None:
+        types = ['Forecast-0-d', 'Forecast-1-d-after', 'Forecast-2-d-after']
+
+    for station, timeseries in timeseries_dict.items():
+        for i in range(int(len(timeseries) / timesteps)):
+            meta_data = {
+                'station': station,
+                'variable': 'Precipitation',
+                'unit': 'mm',
+                'type': types[i],
+                'source': 'WRF',
+                'name': 'Cloud-1',
+            }
+
+            event_id = adapter.getEventId(meta_data)
+            if event_id is None:
+                event_id = adapter.createEventId(meta_data)
+                print('HASH SHA256 created: ', event_id)
+
+            row_count = adapter.insertTimeseries(event_id, timeseries[i * timesteps:(i + 1) * timesteps], upsert=upsert)
+            print('%s rows inserted.\n' % row_count)
 
 
 # def draw_center_of_mass(data, com_dot='ro'):

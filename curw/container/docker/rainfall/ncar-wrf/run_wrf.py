@@ -1,3 +1,4 @@
+import argparse
 import ast
 import json
 import logging
@@ -7,6 +8,20 @@ import shutil
 from curw.container.docker.rainfall import utils as docker_rf_utils
 from curw.rainfall.wrf import utils
 from curw.rainfall.wrf.execution import executor
+
+
+def parse_args():
+    parser = argparse.ArgumentParser()
+    env_vars = docker_rf_utils.get_env_vars('CURW_')
+
+    parser.add_argument('-run_id',
+                        default=env_vars['run_id'] if 'run_id' in env_vars else docker_rf_utils.id_generator())
+    parser.add_argument('-mode', default=env_vars['mode'] if 'mode' in env_vars else 'wps')
+    parser.add_argument('-nl_wps', default=env_vars['nl_wps'] if 'nl_wps' in env_vars else None)
+    parser.add_argument('-nl_input', default=env_vars['nl_input'] if 'nl_input' in env_vars else None)
+    parser.add_argument('-wrf_config', default=env_vars['wrf_config'] if 'wrf_config' in env_vars else '{}')
+
+    return parser.parse_args()
 
 
 def run_wrf(wrf_config):
@@ -39,7 +54,7 @@ def run_wps(wrf_config):
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format='%(asctime)s %(threadName)s %(module)s %(levelname)s %(message)s')
-    args = vars(docker_rf_utils.parse_args())
+    args = vars(parse_args())
 
     logging.info('Running arguments:\n%s' % json.dumps(args, sort_keys=True, indent=0))
 
