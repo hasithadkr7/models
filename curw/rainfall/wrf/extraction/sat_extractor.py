@@ -117,15 +117,15 @@ def test_extract_jaxa_satellite_data():
 
 def test_extract_jaxa_satellite_data_d01():
     logging.basicConfig(level=logging.INFO, format='%(asctime)s %(threadName)s %(module)s %(levelname)s %(message)s')
-    end = dt.datetime.utcnow() - dt.timedelta(hours=6)
-    start = end - dt.timedelta(hours=6)
+    end = dt.datetime.utcnow() - dt.timedelta(hours=1)
+    start = end - dt.timedelta(hours=1)
 
     lat_min = -3.06107
     lon_min = 71.2166
     lat_max = 18.1895
     lon_max = 90.3315
 
-    extract_jaxa_satellite_data(start, end, '/home/nira/tmp/jaxa', cleanup=False, tmp_dir='/home/nira/tmp/jaxa/data',
+    extract_jaxa_satellite_data(start, end, '/tmp/jaxa', cleanup=False, tmp_dir='/tmp/jaxa/data',
                                 lat_min=lat_min, lat_max=lat_max, lon_min=lon_min, lon_max=lon_max, output_prefix='abc')
 
 
@@ -182,8 +182,8 @@ def process_jaxa_zip_file(zip_file_path, out_file_path, lat_min, lon_min, lat_ma
             '%Y-%m-%d %H:%M') + ' UTC',
         'fontsize': 30
     }
-    ext_utils.create_contour_plot(data, out_file_path + '.png', lat_min, lon_min, lat_max, lon_max, title_opts,
-                                  clevs=clevs, cmap=cmap, norm=norm)
+    ext_utils.create_contour_plot(data, out_file_path + '.png', np.min(lats), np.min(lons), np.max(lats), np.max(lons),
+                                  title_opts, clevs=clevs, cmap=cmap, norm=norm)
 
     if archive_data and not utils.file_exists_nonempty(out_file_path + '.archive'):
         np.savetxt(out_file_path + '.archive', data, fmt='%g')
