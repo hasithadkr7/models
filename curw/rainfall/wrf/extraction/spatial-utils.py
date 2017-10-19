@@ -1,148 +1,158 @@
-import os, osgeo, math, numpy as np
-from osgeo import gdal, ogr, osr
-from scipy.spatial import Delaunay
+import os
+import tempfile
+import unittest
 
-input_shp_full = '/home/curw/gis/KUB-stations/kub-stations.shp'  # point shp
-fieldUID = 'station'  # field in point shp with pt IDs
-out_dir = '/home/curw/gis/temp/'  # output directory to hold buffered points and Voronoi polygons
-proj = 4326  # http://spatialreference.org/ref/epsg/wgs-84/
+import numpy as np
+import geopandas as gpd
 
-#################
-### INPUT DATA ###
-#################
+from scipy.spatial import Voronoi
+from shapely.geometry import Polygon
 
-# read in shp file
-print("- reading", input_shp_full)
-drv = ogr.GetDriverByName('ESRI Shapefile')
-ptShp = drv.Open(input_shp_full)
-ptLayer = ptShp.GetLayer(0)
-ptSRS = ptLayer.GetSpatialRef()
-x_min, x_max, y_min, y_max = ptLayer.GetExtent()
-
-# collect point coordinates and ID
-ptList = []
-ptDict = {}
-for pt in ptLayer:
-    ID_index = pt.GetFieldIndex(fieldUID)
-    ptID = pt.GetField(ID_index)
-    ptGeom = pt.GetGeometryRef()
-    ptX = float(str(ptGeom).split(' ')[1].strip('('))
-    ptY = float(str(ptGeom).split(' ')[2].strip(')'))
-    ptDict[ptID] = [ptX, ptY]  # a bit redundant to have dict and list, but list is used for Delaunay input
-    ptList.append([ptX, ptY])
-
-print("\t>> read", len(ptList), "points")
-numPtList = np.array(ptList)  # set-up for input to Delaunay
-
-# #########################
-# ### RADIAL BUFFER PTS ###
-# ########################
-#
-# # declare buffering distance in units appropriate for spatial reference system
-# # here, we're in WGS84 so we'll buffer by 1/100th of a degree
-# bufferDistance = 0.01  # degrees
-# print("- buffering", input_shp_full, "at", bufferDistance, "deg")
-#
-# # set-up output buffered point shp
-# drv = ogr.GetDriverByName('Esri Shapefile')
-# buffShp = out_dir + input_shp_full.split('/')[-1].replace('.shp', '_buffer.shp')
-# if os.path.exists(buffShp): os.remove(buffShp)
-# ds = drv.CreateDataSource(buffShp)
-# layer = ds.CreateLayer('', None, ogr.wkbPolygon)
-# layer.CreateField(ogr.FieldDefn('Id', ogr.OFTInteger))
-# defn = layer.GetLayerDefn()
-#
-# # run through points and buffer each by established distance
-# ptCounter = 0
-# for each in ptDict:
-#     ptLon = ptDict[each][0]
-#     ptLat = ptDict[each][1]
-#     # print "buffering point at lat-lon",ptLat,"-",ptLon
-#     pt_wkt = "POINT (" + str(ptLon) + ' ' + str(ptLat) + ')'
-#     pt = ogr.CreateGeometryFromWkt(pt_wkt)
-#
-#     geom = pt.Buffer(bufferDistance)
-#     feat = ogr.Feature(defn)
-#     feat.SetField('Id', each)
-#     feat.SetGeometry(geom)
-#     layer.CreateFeature(feat)
-#     feat = geom = None
-#     ptCounter += 1
-#
-# print("\t>> buffered", ptCounter, 'points in')
-# layer = ds = None
-
-########################
-### VORONOI POLYGONS ##
-########################
-
-# References
-# http://en.wikipedia.org/wiki/Circumscribed_circle#Circumscribed_circles_of_triangles
-# https://stackoverflow.com/questions/12374781/how-to-find-all-neighbors-of-a-given-point-in-a-delaunay-triangulation-using-sci
-# https://stackoverflow.com/questions/10650645/python-calculate-voronoi-tesselation-from-scipys-delaunay-triangulation-in-3d
-
-# read in points to Delaunay function
-print("- converting points in", input_shp_full, "to Voronoi polygons")
-tri = Delaunay(numPtList)
-
-# returns point locations of each triangle vertex
-# tri.vertices: each row represents one simplex (triangle) in the triangulation,
-# with values referencing indices of the input point list
-p = tri.points[tri.vertices]
-
-# find facets containing each input point
-print('\tfinding Delaunay triangle facets')
-triDict = {}
-i = 0
-while i > exported '+str(ptCounter)+' Voronoi vertices'
-nodeLayer = outNodeShp = None
+from curw.rainfall.wrf.resources import manager as res_mgr
 
 
-# build polygons with vertices at identified nodes
-# assign input shp pt IDs to polygons
+def _voronoi_finite_polygons_2d(vor, radius=None):
+    """
+    Reconstruct infinite voronoi regions in a 2D diagram to finite
+    regions.
 
-# https://stackoverflow.com/questions/1709283/how-can-i-sort-a-coordinate-list-for-a-rectangle-counterclockwise
-# https://gamedev.stackexchange.com/questions/13229/sorting-array-of-points-in-clockwise-order
-# https://en.wikipedia.org/wiki/Graham_scan
-def sortCCW(node):
-    return math.atan2(node[1] - meanLat, node[0] - meanLon)
+    Parameters
+    ----------
+    vor : Voronoi
+        Input diagram
+    radius : float, optional
+        Distance to 'points at infinity'.
+
+    Returns
+    -------
+    regions : list of tuples
+        Indices of vertices in each revised Voronoi regions.
+    vertices : list of tuples
+        Coordinates for revised Voronoi vertices. Same as coordinates
+        of input vertices, with 'points at infinity' appended to the
+        end.
+        
+    from: https://stackoverflow.com/questions/20515554/colorize-voronoi-diagram
+
+    """
+
+    if vor.points.shape[1] != 2:
+        raise ValueError("Requires 2D input")
+
+    new_regions = []
+    new_vertices = vor.vertices.tolist()
+
+    center = vor.points.mean(axis=0)
+    if radius is None:
+        radius = vor.points.ptp().max()
+
+    # Construct a map containing all ridges for a given point
+    all_ridges = {}
+    for (p1, p2), (v1, v2) in zip(vor.ridge_points, vor.ridge_vertices):
+        all_ridges.setdefault(p1, []).append((p2, v1, v2))
+        all_ridges.setdefault(p2, []).append((p1, v1, v2))
+
+    # Reconstruct infinite regions
+    for p1, region in enumerate(vor.point_region):
+        vertices = vor.regions[region]
+
+        if all(v >= 0 for v in vertices):
+            # finite region
+            new_regions.append(vertices)
+            continue
+
+        # reconstruct a non-finite region
+        ridges = all_ridges[p1]
+        new_region = [v for v in vertices if v >= 0]
+
+        for p2, v1, v2 in ridges:
+            if v2 < 0:
+                v1, v2 = v2, v1
+            if v1 >= 0:
+                # finite ridge: already in the region
+                continue
+
+            # Compute the missing endpoint of an infinite ridge
+
+            t = vor.points[p2] - vor.points[p1]  # tangent
+            t /= np.linalg.norm(t)
+            n = np.array([-t[1], t[0]])  # normal
+
+            midpoint = vor.points[[p1, p2]].mean(axis=0)
+            direction = np.sign(np.dot(midpoint - center, n)) * n
+            far_point = vor.vertices[v2] + direction * radius
+
+            new_region.append(len(new_vertices))
+            new_vertices.append(far_point.tolist())
+
+        # sort region counterclockwise
+        vs = np.asarray([new_vertices[v] for v in new_region])
+        c = vs.mean(axis=0)
+        angles = np.arctan2(vs[:, 1] - c[1], vs[:, 0] - c[0])
+        new_region = np.array(new_region)[np.argsort(angles)]
+
+        # finish
+        new_regions.append(new_region.tolist())
+
+    return new_regions, np.asarray(new_vertices)
 
 
-# set-up output polygon shp
-vorShp = out_dir + input_shp_full.split('/')[-1].replace('.shp', '_voronoi.shp')
-print("- creating output polygon shp", vorShp.split('/')[-1])
-if os.path.exists(vorShp): os.remove(vorShp)
-drv = ogr.GetDriverByName('ESRI Shapefile')
-outShp = drv.CreateDataSource(vorShp)
-layer = outShp.CreateLayer('', None, ogr.wkbPolygon)
-layer.CreateField(ogr.FieldDefn('Id', ogr.OFTInteger))
-layerDefn = layer.GetLayerDefn()
+def get_voronoi_polygons(points_dict, shape_file, shape_attribute, output_shape_file=None):
+    """
+    :param points_dict: dict of points {'id' --> [lon, lat]} 
+    :param shape_file: shape file path of the area 
+    :param shape_attribute: attribute list of the interested region [key, value] 
+    :param output_shape_file: if not none, a shape file will be created with the output 
+    :return: 
+    geo_dataframe with voronoi polygons with columns ['id', 'lon', 'lat','area', 'geometry'] with last row being the area of the 
+    shape file 
+    """
+    shape_df = gpd.GeoDataFrame.from_file(shape_file)
+    shape_polygon_idx = shape_df.index[shape_df[shape_attribute[0]] == shape_attribute[1]][0]
+    shape_polygon = shape_df['geometry'][shape_polygon_idx]
 
-# find nodes surrounding polygon centroid
-# sort nodes in counterclockwise order
-# create polygon perimeter through nodes
-print("- building Voronoi polygons around point...")
-for pt in vorIdDict:
-    print("\t", pt)
-    meanLon = sum(node[0] for node in vorIdDict[pt]) / len(vorIdDict[pt])
-    meanLat = sum(node[1] for node in vorIdDict[pt]) / len(vorIdDict[pt])
-    hullList = vorIdDict[pt].tolist()
-    hullList.sort(key=sortCCW)
+    ids = list(points_dict.keys())
+    points = list(points_dict.values())
 
-    poly = ogr.Geometry(ogr.wkbPolygon)
-    ring = ogr.Geometry(ogr.wkbLinearRing)
-    i = 0
-    for node in hullList:
-        if i == 0:
-            loopLon = node[0]  # grab first node to close ring
-            loopLat = node[1]
-        ring.AddPoint(node[0], node[1])
-        i += 1
-    ring.AddPoint(loopLon, loopLat)
-    poly.AddGeometry(ring)
-    feat = ogr.Feature(layerDefn)
-    feat.SetField('Id', pt)
-    feat.SetGeometry(poly)
-    layer.CreateFeature(feat)
-    feat = poly = ring = None
-layer = outShp = None
+    vor = Voronoi(points)
+    regions, vertices = _voronoi_finite_polygons_2d(vor)
+
+    data = []
+    for i, region in enumerate(regions):
+        polygon = Polygon([tuple(x) for x in vertices[region]])
+        if polygon.intersects(shape_polygon):
+            intersection = polygon.intersection(shape_polygon)
+            data.append({'id': ids[i], 'lon': vor.points[i][0], 'lat': vor.points[i][1], 'area': intersection.area,
+                         'geometry': intersection
+                         })
+    data.append({'id': '__total_area__', 'lon': shape_polygon.centroid.x, 'lat': shape_polygon.centroid.y,
+                 'area': shape_polygon.area, 'geometry': shape_polygon})
+
+    df = gpd.GeoDataFrame(data, columns=['id', 'lon', 'lat', 'area', 'geometry'])
+
+    if output_shape_file is not None:
+        df.to_file(output_shape_file)
+
+    return df
+
+
+class TestSpatialUtils(unittest.TestCase):
+    def test_get_voronoi_polygons(self):
+        points = {
+            'Colombo': [79.8653, 6.898158],
+            'IBATTARA3': [79.86, 6.89],
+            'Isurupaya': [79.92, 6.89],
+            'Borella': [79.86, 6.93, ],
+            'Kompannaveediya': [79.85, 6.92],
+        }
+
+        shp = res_mgr.get_resource_path('extraction/shp/klb-wgs84/klb-wgs84.shp')
+        out = tempfile.mkdtemp(prefix='voronoi_')
+        result = get_voronoi_polygons(points, shp, ['OBJECTID', 1], output_shape_file=os.path.join(out, 'out.shp'))
+        print(result)
+
+
+def suite():
+    s = unittest.TestSuite()
+    s.addTest(TestSpatialUtils)
+    return s
