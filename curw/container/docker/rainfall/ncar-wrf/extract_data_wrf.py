@@ -52,9 +52,9 @@ if __name__ == "__main__":
     logging.info('Extracting data from ' + nc_f)
 
     logging.info('Exctract WRF data points in the SW quadrant')
-    lon_min, lat_min, lon_max, lat_max = constants.SRI_LANKA_EXTENT
+    lon_min, lat_min, lon_max, lat_max = constants.KELANI_KALU_BASIN_EXTENT
     extractor.push_wrf_rainfall_to_db(nc_f, curw_db_adapter=db_adapter, lat_min=lat_min, lon_min=lon_min,
-                                      lat_max=(lat_min + lat_max) / 2, lon_max=(lon_min + lon_max) / 2)
+                                      lat_max=lat_max, lon_max=lon_max)
 
     logging.info('Extract rainfall data for the metro colombo area')
     basin_rf = extractor.extract_metro_colombo(nc_f, date, output_dir, curw_db_adapter=db_adapter)

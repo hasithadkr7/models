@@ -250,7 +250,8 @@ def get_curw_adapter(mysql_config=None, mysql_config_path=None):
     return mysqladapter(**config)
 
 
-def push_rainfall_to_db(adapter, timeseries_dict, types=None, timesteps=24, upsert=False, source='WRF', name='Cloud-1'):
+def push_rainfall_to_db(curw_db_adapter, timeseries_dict, types=None, timesteps=24, upsert=False, source='WRF',
+                        name='Cloud-1'):
     if types is None:
         types = ['Forecast-0-d', 'Forecast-1-d-after', 'Forecast-2-d-after']
 
@@ -265,13 +266,29 @@ def push_rainfall_to_db(adapter, timeseries_dict, types=None, timesteps=24, upse
                 'name': name,
             }
 
-            event_id = adapter.getEventId(meta_data)
+            event_id = curw_db_adapter.getEventId(meta_data)
             if event_id is None:
-                event_id = adapter.createEventId(meta_data)
+                event_id = curw_db_adapter.createEventId(meta_data)
                 logging.debug('HASH SHA256 created: ' + event_id)
 
-            row_count = adapter.insertTimeseries(event_id, timeseries[i * timesteps:(i + 1) * timesteps], upsert=upsert)
+            row_count = curw_db_adapter.insertTimeseries(event_id, timeseries[i * timesteps:(i + 1) * timesteps],
+                                                         upsert=upsert)
             logging.debug('%d rows inserted' % row_count)
+
+
+def create_station_if_not_exists(curw_db_adapter, station):
+    """
+    
+    :param curw_db_adapter: 
+    :param station: 
+    :return: true if station was created else false
+    """
+    # todo: check this!
+    q = {'name': station[1]}
+    if curw_db_adapter.getStation(q) is None:
+        curw_db_adapter.createStation(station)
+        return True
+    return False
 
 
 # def draw_center_of_mass(data, com_dot='ro'):

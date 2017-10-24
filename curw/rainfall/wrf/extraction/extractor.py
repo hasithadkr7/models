@@ -4,6 +4,7 @@ import logging
 import multiprocessing
 import os
 import shutil
+import unittest
 import zipfile
 from random import random
 
@@ -32,13 +33,14 @@ def extract_time_data(nc_f):
 
 def extract_metro_colombo(nc_f, date, wrf_output, curw_db_adapter=None, curw_db_upsert=False):
     """
-    
+    extract Metro-Colombo rf and divide area into to 4 quadrants 
     :param nc_f: 
     :param date: 
     :param wrf_output: 
     :param curw_db_adapter: If not none, data will be pushed to the db 
     :return: 
     """
+    met_col_division_prefix = 'met_col'
     lon_min, lat_min, lon_max, lat_max = constants.COLOMBO_EXTENT
 
     nc_vars = ext_utils.extract_variables(nc_f, ['RAINC', 'RAINNC'], lat_min, lat_max, lon_min, lon_max)
@@ -52,10 +54,11 @@ def extract_metro_colombo(nc_f, date, wrf_output, curw_db_adapter=None, curw_db_
     width = len(lons)
     height = len(lats)
 
-    output_dir = utils.create_dir_if_not_exists(os.path.join(wrf_output, 'met_col', date.strftime('%Y-%m-%d')))
+    output_dir = utils.create_dir_if_not_exists(
+        os.path.join(wrf_output, met_col_division_prefix, date.strftime('%Y-%m-%d')))
 
     basin_rf = np.sum(diff[0:len(times) - 1, :, :]) / float(width * height)
-    alpha_file_path = os.path.join(wrf_output, 'met_col', 'alphas.txt')
+    alpha_file_path = os.path.join(wrf_output, met_col_division_prefix, 'alphas.txt')
     with open(alpha_file_path, 'a') as alpha_file:
         alpha_file.write('%s %f\n' % (date.strftime('%Y-%m-%d'), basin_rf))
 
@@ -65,7 +68,7 @@ def extract_metro_colombo(nc_f, date, wrf_output, curw_db_adapter=None, curw_db_
     divs = (2, 2)
     div_rf = {}
     for i in range(divs[0] * divs[1]):
-        div_rf['met_col_div%d' % i] = []
+        div_rf[met_col_division_prefix + str(i)] = []
 
     subsection_file_path = os.path.join(output_dir, 'sub_means_' + date.strftime('%Y-%m-%d') + '.txt')
     with open(subsection_file_path, 'w') as subsection_file:
@@ -89,18 +92,28 @@ def extract_metro_colombo(nc_f, date, wrf_output, curw_db_adapter=None, curw_db_
             y_idx = [round(i * height / divs[1]) for i in range(0, divs[1] + 1)]
 
             subsection_file.write(times[tm])
+            subsection_xy = []
             for j in range(len(y_idx) - 1):
                 for i in range(len(x_idx) - 1):
                     quad = j * divs[1] + i
                     sub_sec_mean = np.mean(diff[tm, y_idx[j]:y_idx[j + 1], x_idx[i]: x_idx[i + 1]])
+                    subsection_xy.append([(x_idx[i] + x_idx[i + 1]) / 2, (y_idx[j] + y_idx[j + 1]) / 2])
                     subsection_file.write(' %f' % sub_sec_mean)
-                    div_rf['met_col_div%d' % quad].append([times[tm].replace('_', ' '), sub_sec_mean])
+                    div_rf[met_col_division_prefix + str(quad)].append([times[tm].replace('_', ' '), sub_sec_mean])
 
             subsection_file.write('\n')
     utils.create_zip_with_prefix(output_dir, 'rf_*.asc', os.path.join(output_dir, 'ascs.zip'), clean_up=True)
 
     # writing to the database
     if curw_db_adapter is not None:
+        offset = 1110000
+        for i in range(divs[0] * divs[1]):
+            name = met_col_division_prefix + str(i)
+            station = [str(offset + i), name, name, str(subsection_xy[i][0]), str(subsection_xy[i][1]), str(0),
+                       "met col quadrant %d" % i]
+            if ext_utils.create_station_if_not_exists(curw_db_adapter, station):
+                logging.info('%s station created' % name)
+
         logging.info('Pushing data to the db...')
         ext_utils.push_rainfall_to_db(curw_db_adapter, div_rf, upsert=curw_db_upsert)
 
@@ -131,8 +144,7 @@ def extract_weather_stations(nc_f, date, wrf_output, weather_stations=None, curw
             lon = row[1]
             lat = row[2]
 
-            station_prcp = nc_fid.variables['RAINC'][:, lat, lon] + \
-                           nc_fid.variables['RAINNC'][:, lat, lon]
+            station_prcp = nc_fid.variables['RAINC'][:, lat, lon] + nc_fid.variables['RAINNC'][:, lat, lon]
 
             station_diff = station_prcp[1:len(times)] - station_prcp[0:len(times) - 1]
 
@@ -626,16 +638,16 @@ def push_wrf_rainfall_to_db(nc_f, curw_db_adapter=None, lon_min=None, lat_min=No
     """
 
     :param nc_f:
-    :param date:
     :param curw_db_adapter: If not none, data will be pushed to the db
     :param station_prefix:
     :param lon_min:
     :param lat_min:
     :param lon_max:
     :param lat_max:
+    :param upsert: 
     :return:
     """
-    if all([lon_min, lat_min, lon_max, lat_max]):
+    if not all([lon_min, lat_min, lon_max, lat_max]):
         lon_min, lat_min, lon_max, lat_max = constants.SRI_LANKA_EXTENT
 
     nc_vars = ext_utils.extract_variables(nc_f, ['RAINC', 'RAINNC'], lat_min, lat_max, lon_min, lon_max)
@@ -689,18 +701,25 @@ def push_wrf_rainfall_to_db(nc_f, curw_db_adapter=None, lon_min=None, lat_min=No
     ext_utils.push_rainfall_to_db(curw_db_adapter, rf_ts, upsert=upsert)
 
 
-def test_push_wrf_rainfall_to_db():
-    logging.basicConfig(level=logging.DEBUG, format='%(asctime)s %(threadName)s %(module)s %(levelname)s %(message)s')
+def suite():
+    logging.basicConfig(level=logging.DEBUG,
+                        format='%(asctime)s %(threadName)s %(module)s %(levelname)s %(message)s')
+    s = unittest.TestSuite()
+    s.addTest(TestExtractor)
+    return s
 
-    config = {
-        "host": "localhost",
-        "user": "test",
-        "password": "password",
-        "db": "testdb"
-    }
-    adapter = ext_utils.get_curw_adapter(mysql_config=config)
 
-    nc_f = res_mgr.get_resource_path('test/out.nc')
-    lon_min, lat_min, lon_max, lat_max = constants.SRI_LANKA_EXTENT
-    push_wrf_rainfall_to_db(nc_f, curw_db_adapter=adapter, lat_min=lat_min, lon_min=lon_min,
-                            lat_max=(lat_min + lat_max) / 2, lon_max=(lon_min + lon_max) / 2, upsert=True)
+class TestExtractor(unittest.TestCase):
+    def test_push_wrf_rainfall_to_db(self):
+        config = {
+            "host": "localhost",
+            "user": "test",
+            "password": "password",
+            "db": "testdb"
+        }
+        adapter = ext_utils.get_curw_adapter(mysql_config=config)
+
+        nc_f = res_mgr.get_resource_path('test/out.nc')
+        lon_min, lat_min, lon_max, lat_max = constants.KELANI_KALU_BASIN_EXTENT
+        push_wrf_rainfall_to_db(nc_f, curw_db_adapter=adapter, lat_min=lat_min, lon_min=lon_min,
+                                lat_max=lat_max, lon_max=lon_max, upsert=True)
