@@ -5,6 +5,8 @@ import multiprocessing
 import os
 import shutil
 import zipfile
+from random import random
+
 import numpy as np
 import pandas as pd
 import shapefile
@@ -52,7 +54,7 @@ def extract_metro_colombo(nc_f, date, wrf_output, curw_db_adapter=None, curw_db_
 
     output_dir = utils.create_dir_if_not_exists(os.path.join(wrf_output, 'met_col', date.strftime('%Y-%m-%d')))
 
-    basin_rf = np.sum(diff[0:24, :, :]) / float(width * height)
+    basin_rf = np.sum(diff[0:len(times) - 1, :, :]) / float(width * height)
     alpha_file_path = os.path.join(wrf_output, 'met_col', 'alphas.txt')
     with open(alpha_file_path, 'a') as alpha_file:
         alpha_file.write('%s %f\n' % (date.strftime('%Y-%m-%d'), basin_rf))
@@ -617,3 +619,88 @@ if __name__ == "__main__":
     p = args.period
 
     extract_all(wh, sd, ed)
+
+
+def push_wrf_rainfall_to_db(nc_f, curw_db_adapter=None, lon_min=None, lat_min=None, lon_max=None,
+                            lat_max=None, station_prefix='wrf', upsert=False):
+    """
+
+    :param nc_f:
+    :param date:
+    :param curw_db_adapter: If not none, data will be pushed to the db
+    :param station_prefix:
+    :param lon_min:
+    :param lat_min:
+    :param lon_max:
+    :param lat_max:
+    :return:
+    """
+    if all([lon_min, lat_min, lon_max, lat_max]):
+        lon_min, lat_min, lon_max, lat_max = constants.SRI_LANKA_EXTENT
+
+    nc_vars = ext_utils.extract_variables(nc_f, ['RAINC', 'RAINNC'], lat_min, lat_max, lon_min, lon_max)
+    lats = nc_vars['XLAT']
+    lons = nc_vars['XLONG']
+    prcp = nc_vars['RAINC'] + nc_vars['RAINNC']
+    times = nc_vars['Times']
+
+    diff = prcp[1:len(times), :, :] - prcp[0:len(times) - 1, :, :]
+
+    width = len(lons)
+    height = len(lats)
+
+    offset = 1100000
+    rf_ts = {}
+
+    def random_check_stations_exist():
+        for _ in range(10):
+            _x = lons[int(random() * width)]
+            _y = lats[int(random() * height)]
+            _name = '%s_%.6f_%.6f' % (station_prefix, _x, _y)
+            _query = {'name': _name}
+            if curw_db_adapter.getStation(_query) is None:
+                logging.debug('Random stations check fail')
+                return False
+        logging.debug('Random stations check success')
+        return True
+
+    stations_exists = random_check_stations_exist()
+
+    for y in range(height):
+        for x in range(width):
+            lat = lats[y]
+            lon = lons[x]
+
+            s_id = offset + y * width + x
+            station_id = '%s_%.6f_%.6f' % (station_prefix, lon, lat)
+            name = station_id
+
+            if not stations_exists:
+                logging.info('Creating station %s ...' % name)
+                station = [str(s_id), station_id, name, str(lon), str(lat), str(0), "WRF point"]
+                curw_db_adapter.createStation(station)
+
+            # add rf series to the dict
+            ts = []
+            for i in range(len(diff)):
+                ts.append([times[i].replace('_', ' '), diff[i, y, x]])
+            rf_ts[name] = ts
+
+    ext_utils.push_rainfall_to_db(curw_db_adapter, rf_ts, upsert=upsert)
+
+
+def test_push_wrf_rainfall_to_db():
+    logging.basicConfig(level=logging.DEBUG, format='%(asctime)s %(threadName)s %(module)s %(levelname)s %(message)s')
+
+    config = {
+        "host": "localhost",
+        "user": "test",
+        "password": "password",
+        "db": "testdb"
+    }
+    adapter = ext_utils.get_curw_adapter(mysql_config=config)
+
+    nc_f = res_mgr.get_resource_path('test/out.nc')
+    lon_min, lat_min, lon_max, lat_max = constants.SRI_LANKA_EXTENT
+    push_wrf_rainfall_to_db(nc_f, curw_db_adapter=adapter, lat_min=lat_min, lon_min=lon_min,
+                            lat_max=(lat_min + lat_max) / 2, lon_max=(lat_min + lat_max) / 2, upsert=True)

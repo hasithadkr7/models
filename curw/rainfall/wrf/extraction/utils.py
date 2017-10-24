@@ -250,28 +250,28 @@ def get_curw_adapter(mysql_config=None, mysql_config_path=None):
     return mysqladapter(**config)
 
 
-def push_rainfall_to_db(adapter, timeseries_dict, types=None, timesteps=24, upsert=False):
+def push_rainfall_to_db(adapter, timeseries_dict, types=None, timesteps=24, upsert=False, source='WRF', name='Cloud-1'):
     if types is None:
         types = ['Forecast-0-d', 'Forecast-1-d-after', 'Forecast-2-d-after']
 
     for station, timeseries in timeseries_dict.items():
-        for i in range(int(len(timeseries) / timesteps)):
+        for i in range(int(np.ceil(len(timeseries) / timesteps))):
             meta_data = {
                 'station': station,
                 'variable': 'Precipitation',
                 'unit': 'mm',
                 'type': types[i],
-                'source': 'WRF',
-                'name': 'Cloud-1',
+                'source': source,
+                'name': name,
             }
 
             event_id = adapter.getEventId(meta_data)
             if event_id is None:
                 event_id = adapter.createEventId(meta_data)
-                print('HASH SHA256 created: ', event_id)
+                logging.debug('HASH SHA256 created: ' + event_id)
 
             row_count = adapter.insertTimeseries(event_id, timeseries[i * timesteps:(i + 1) * timesteps], upsert=upsert)
-            print('%s rows inserted.\n' % row_count)
+            logging.debug('%d rows inserted' % row_count)
 
 
 # def draw_center_of_mass(data, com_dot='ro'):

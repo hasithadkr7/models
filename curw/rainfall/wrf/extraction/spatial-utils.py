@@ -97,13 +97,14 @@ def _voronoi_finite_polygons_2d(vor, radius=None):
     return new_regions, np.asarray(new_vertices)
 
 
-def get_voronoi_polygons(points_dict, shape_file, shape_attribute, output_shape_file=None):
+def get_voronoi_polygons(points_dict, shape_file, shape_attribute, output_shape_file=None, add_total_area=True):
     """
-    :param points_dict: dict of points {'id' --> [lon, lat]} 
-    :param shape_file: shape file path of the area 
-    :param shape_attribute: attribute list of the interested region [key, value] 
-    :param output_shape_file: if not none, a shape file will be created with the output 
-    :return: 
+    :param points_dict: dict of points {'id' --> [lon, lat]}
+    :param shape_file: shape file path of the area
+    :param shape_attribute: attribute list of the interested region [key, value]
+    :param output_shape_file: if not none, a shape file will be created with the output
+    :param add_total_area: if true, total area shape will also be added to output
+    :return:
     geo_dataframe with voronoi polygons with columns ['id', 'lon', 'lat','area', 'geometry'] with last row being the area of the 
     shape file 
     """
@@ -125,8 +126,9 @@ def get_voronoi_polygons(points_dict, shape_file, shape_attribute, output_shape_
             data.append({'id': ids[i], 'lon': vor.points[i][0], 'lat': vor.points[i][1], 'area': intersection.area,
                          'geometry': intersection
                          })
-    data.append({'id': '__total_area__', 'lon': shape_polygon.centroid.x, 'lat': shape_polygon.centroid.y,
-                 'area': shape_polygon.area, 'geometry': shape_polygon})
+    if add_total_area:
+        data.append({'id': '__total_area__', 'lon': shape_polygon.centroid.x, 'lat': shape_polygon.centroid.y,
+                     'area': shape_polygon.area, 'geometry': shape_polygon})
 
     df = gpd.GeoDataFrame(data, columns=['id', 'lon', 'lat', 'area', 'geometry'])
 

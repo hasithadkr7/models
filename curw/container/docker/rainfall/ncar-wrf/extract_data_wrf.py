@@ -8,10 +8,9 @@ import os
 
 from curw.container.docker.rainfall import utils as docker_rf_utils
 from curw.rainfall.wrf import utils
-from curw.rainfall.wrf.execution import executor
-from curw.rainfall.wrf.extraction import extractor
+from curw.rainfall.wrf.execution.executor import get_wrf_config
+from curw.rainfall.wrf.extraction import extractor, constants
 from curw.rainfall.wrf.extraction import utils as ext_utils
-from curw.rainfall.wrf.resources import manager as res_mgr
 
 
 def parse_args():
@@ -37,7 +36,7 @@ if __name__ == "__main__":
 
     wrf_config_dict = ast.literal_eval(args['wrf_config'])
 
-    config = executor.get_wrf_config(**wrf_config_dict)
+    config = get_wrf_config(**wrf_config_dict)
     config.set('run_id', run_id)
 
     wrf_home = config.get('wrf_home')
@@ -52,6 +51,11 @@ if __name__ == "__main__":
 
     logging.info('Extracting data from ' + nc_f)
 
+    logging.info('Exctract WRF data points in the SW quadrant')
+    lon_min, lat_min, lon_max, lat_max = constants.SRI_LANKA_EXTENT
+    extractor.push_wrf_rainfall_to_db(nc_f, curw_db_adapter=db_adapter, lat_min=lat_min, lon_min=lon_min,
+                                      lat_max=(lat_min + lat_max) / 2, lon_max=(lat_min + lat_max) / 2)
+
     logging.info('Extract rainfall data for the metro colombo area')
     basin_rf = extractor.extract_metro_colombo(nc_f, date, output_dir, curw_db_adapter=db_adapter)
     logging.info('Basin rainfall' + str(basin_rf))
@@ -64,4 +68,3 @@ if __name__ == "__main__":
 
     logging.info('Extract Kelani Basin rainfall')
     extractor.extract_kelani_basin_rainfall(nc_f, date, output_dir, avg_basin_rf=basin_rf)
-
