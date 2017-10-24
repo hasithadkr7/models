@@ -703,4 +703,4 @@ def test_push_wrf_rainfall_to_db():
     nc_f = res_mgr.get_resource_path('test/out.nc')
     lon_min, lat_min, lon_max, lat_max = constants.SRI_LANKA_EXTENT
     push_wrf_rainfall_to_db(nc_f, curw_db_adapter=adapter, lat_min=lat_min, lon_min=lon_min,
-                            lat_max=(lat_min + lat_max) / 2, lon_max=(lat_min + lat_max) / 2, upsert=True)
+                            lat_max=(lat_min + lat_max) / 2, lon_max=(lon_min + lon_max) / 2, upsert=True)
