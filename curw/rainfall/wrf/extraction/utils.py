@@ -2,16 +2,16 @@ import json
 import logging
 import math
 import os
+
 import imageio
 import matplotlib
 import numpy as np
-
-from curwmysqladapter import mysqladapter
-from curw.rainfall.wrf import utils
-from curw.rainfall.wrf.resources import manager as res_mgr
-
+from curwmysqladapter import MySQLAdapter
 from mpl_toolkits.basemap import Basemap
 from netCDF4._netCDF4 import Dataset
+
+from curw.rainfall.wrf import utils
+from curw.rainfall.wrf.resources import manager as res_mgr
 
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
@@ -247,7 +247,7 @@ def get_curw_adapter(mysql_config=None, mysql_config_path=None):
     if mysql_config is not None and isinstance(mysql_config, dict):
         config.update(mysql_config)
 
-    return mysqladapter(**config)
+    return MySQLAdapter(**config)
 
 
 def push_rainfall_to_db(curw_db_adapter, timeseries_dict, types=None, timesteps=24, upsert=False, source='WRF',
@@ -271,8 +271,8 @@ def push_rainfall_to_db(curw_db_adapter, timeseries_dict, types=None, timesteps=
                 event_id = curw_db_adapter.createEventId(meta_data)
                 logging.debug('HASH SHA256 created: ' + event_id)
 
-            row_count = curw_db_adapter.insertTimeseries(event_id, timeseries[i * timesteps:(i + 1) * timesteps],
-                                                         upsert=upsert)
+            row_count = curw_db_adapter.insert_timeseries(event_id, timeseries[i * timesteps:(i + 1) * timesteps],
+                                                          upsert=True)
             logging.debug('%d rows inserted' % row_count)
 
 
@@ -283,10 +283,9 @@ def create_station_if_not_exists(curw_db_adapter, station):
     :param station: 
     :return: true if station was created else false
     """
-    # todo: check this!
     q = {'name': station[1]}
-    if curw_db_adapter.getStation(q) is None:
-        curw_db_adapter.createStation(station)
+    if curw_db_adapter.get_station(q) is None:
+        curw_db_adapter.create_station(station)
         return True
     return False
 

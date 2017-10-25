@@ -18,6 +18,7 @@ from curw.rainfall.wrf import utils
 from curw.rainfall.wrf.extraction import constants
 from curw.rainfall.wrf.resources import manager as res_mgr
 from curw.rainfall.wrf.extraction import utils as ext_utils
+from curwmysqladapter import Station
 
 
 def extract_time_data(nc_f):
@@ -31,13 +32,17 @@ def extract_time_data(nc_f):
     return times_len, times
 
 
-def extract_metro_colombo(nc_f, date, wrf_output, curw_db_adapter=None, curw_db_upsert=False):
+def extract_metro_colombo(nc_f, date, wrf_output, curw_db_adapter=None, curw_db_upsert=False, run_prefix='WRF',
+                          run_name='Cloud-1'):
     """
     extract Metro-Colombo rf and divide area into to 4 quadrants 
+    :param run_name: 
     :param nc_f: 
     :param date: 
     :param wrf_output: 
     :param curw_db_adapter: If not none, data will be pushed to the db 
+    :param run_prefix: 
+    :param curw_db_upsert: 
     :return: 
     """
     met_col_division_prefix = 'met_col'
@@ -57,9 +62,12 @@ def extract_metro_colombo(nc_f, date, wrf_output, curw_db_adapter=None, curw_db_
     output_dir = utils.create_dir_if_not_exists(
         os.path.join(wrf_output, met_col_division_prefix, date.strftime('%Y-%m-%d')))
 
-    basin_rf = np.sum(diff[0:len(times) - 1, :, :]) / float(width * height)
+    # basin_rf = np.sum(diff[0:len(times) - 1, :, :]) / float(width * height)
+    basin_rf = np.mean(diff[0:(len(times) - 1 if len(times) < 24 else 24), :, :])
+
     alpha_file_path = os.path.join(wrf_output, met_col_division_prefix, 'alphas.txt')
-    with open(alpha_file_path, 'a') as alpha_file:
+    utils.create_dir_if_not_exists(os.path.dirname(alpha_file_path))
+    with open(alpha_file_path, 'a+') as alpha_file:
         alpha_file.write('%s %f\n' % (date.strftime('%Y-%m-%d'), basin_rf))
 
     cell_size = ext_utils.get_mean_cell_size(lats, lons)
@@ -92,12 +100,10 @@ def extract_metro_colombo(nc_f, date, wrf_output, curw_db_adapter=None, curw_db_
             y_idx = [round(i * height / divs[1]) for i in range(0, divs[1] + 1)]
 
             subsection_file.write(times[tm])
-            subsection_xy = []
             for j in range(len(y_idx) - 1):
                 for i in range(len(x_idx) - 1):
                     quad = j * divs[1] + i
                     sub_sec_mean = np.mean(diff[tm, y_idx[j]:y_idx[j + 1], x_idx[i]: x_idx[i + 1]])
-                    subsection_xy.append([(x_idx[i] + x_idx[i + 1]) / 2, (y_idx[j] + y_idx[j + 1]) / 2])
                     subsection_file.write(' %f' % sub_sec_mean)
                     div_rf[met_col_division_prefix + str(quad)].append([times[tm].replace('_', ' '), sub_sec_mean])
 
@@ -106,16 +112,14 @@ def extract_metro_colombo(nc_f, date, wrf_output, curw_db_adapter=None, curw_db_
 
     # writing to the database
     if curw_db_adapter is not None:
-        offset = 1110000
         for i in range(divs[0] * divs[1]):
             name = met_col_division_prefix + str(i)
-            station = [str(offset + i), name, name, str(subsection_xy[i][0]), str(subsection_xy[i][1]), str(0),
-                       "met col quadrant %d" % i]
+            station = [Station.CUrW, name, name, -999, -999, 0, "met col quadrant %d" % i]
             if ext_utils.create_station_if_not_exists(curw_db_adapter, station):
                 logging.info('%s station created' % name)
 
         logging.info('Pushing data to the db...')
-        ext_utils.push_rainfall_to_db(curw_db_adapter, div_rf, upsert=curw_db_upsert)
+        ext_utils.push_rainfall_to_db(curw_db_adapter, div_rf, upsert=curw_db_upsert, source=run_prefix, name=run_name)
 
     return basin_rf
 
@@ -126,7 +130,9 @@ def test_extract_metro_colombo():
                           dt.datetime.strptime('2017-07-31', '%Y-%m-%d'), '/home/curw/temp/', curw_db_adapter=adapter)
 
 
-def extract_weather_stations(nc_f, date, wrf_output, weather_stations=None, curw_db_adapter=None, curw_db_upsert=False):
+def extract_weather_stations(nc_f, date, wrf_output, weather_stations=None, curw_db_adapter=None, curw_db_upsert=False,
+                             run_prefix='WRF', run_name='Cloud-1'):
+    # todo: change this to use lat lons!
     if weather_stations is None:
         weather_stations = res_mgr.get_resource_path('extraction/local/kelani_basin_stations.txt')
 
@@ -158,7 +164,8 @@ def extract_weather_stations(nc_f, date, wrf_output, weather_stations=None, curw
 
     if curw_db_adapter is not None:
         logging.info('Pushing data to the db...')
-        ext_utils.push_rainfall_to_db(curw_db_adapter, stations_rf, upsert=curw_db_upsert)
+        ext_utils.push_rainfall_to_db(curw_db_adapter, stations_rf, upsert=curw_db_upsert, name=run_name,
+                                      source=run_prefix)
 
     nc_fid.close()
 
@@ -232,7 +239,7 @@ def extract_kelani_basin_rainfall(nc_f, date, wrf_output, avg_basin_rf=1.0, kela
 
 
 def extract_kelani_upper_basin_mean_rainfall(nc_f, date, wrf_output, basin_shp_file=None, curw_db_adapter=None,
-                                             curw_db_upsert=False):
+                                             curw_db_upsert=False, run_prefix='WRF', run_name='Cloud-1'):
     if basin_shp_file is None:
         basin_shp_file = res_mgr.get_resource_path('extraction/shp/kelani-upper-basin.shp')
 
@@ -267,8 +274,14 @@ def extract_kelani_upper_basin_mean_rainfall(nc_f, date, wrf_output, basin_shp_f
             kub_rf['kub_mean'].append([times[t].replace('_', ' '), mean_rf])
 
     if curw_db_adapter is not None:
+        name = 'kub_mean'
+        station = [Station.CUrW, name, name, -999, -999, 0, 'Kelani upper basin mean rainfall']
+        if ext_utils.create_station_if_not_exists(curw_db_adapter, station):
+            logging.info('%s station created' % name)
+
         logging.info('Pushing data to the db...')
-        ext_utils.push_rainfall_to_db(curw_db_adapter, kub_rf, upsert=curw_db_upsert)
+        ext_utils.push_rainfall_to_db(curw_db_adapter, kub_rf, upsert=curw_db_upsert, name=run_name,
+                                      source=run_prefix)
 
 
 def test_extract_kelani_upper_basin_mean_rainfall():
@@ -279,138 +292,138 @@ def test_extract_kelani_upper_basin_mean_rainfall():
                                              '/home/curw/temp/', curw_db_adapter=adapter)
 
 
-def extract_kelani_upper_basin_mean_rainfall_sat(sat_dir, date, kelani_basin_shp_file, wrf_output):
-    kel_lon_min = 79.994117
-    kel_lat_min = 6.754167
-    kel_lon_max = 80.773182
-    kel_lat_max = 7.229167
-
-    y = date.strftime('%Y')
-    m = date.strftime('%m')
-    d = date.strftime('%d')
-
-    output_dir = wrf_output + '/kelani-upper-basin/sat'
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
-
-    output_file_path = output_dir + '/mean-rf-sat-' + date.strftime('%Y-%m-%d') + '.csv'
-    output_file = open(output_file_path, 'w')
-
-    polys = shapefile.Reader(kelani_basin_shp_file)
-
-    for h in range(0, 24):
-        cnt = 0
-        rf_sum = 0.0
-
-        sh = str(h).zfill(2)
-        sat_zip_file = '%s/%s/%s/%s/gsmap_nrt.%s%s%s.%s00.05_AsiaSS.csv.zip' % (sat_dir, y, m, d, y, m, d, sh)
-
-        sat_zip = zipfile.ZipFile(sat_zip_file)
-        sat = np.genfromtxt(sat_zip.open('gsmap_nrt.%s%s%s.%s00.05_AsiaSS.csv' % (y, m, d, sh)), delimiter=',',
-                            names=True)
-        sat_filt = sat[(sat['Lat'] <= kel_lat_max) & (sat['Lat'] >= kel_lat_min) & (sat['Lon'] <= kel_lon_max) & (
-            sat['Lon'] >= kel_lon_min)]
-
-        for p in sat_filt:
-            if utils.is_inside_polygon(polys, p[0], p[1]):
-                cnt = cnt + 1
-                rf_sum = rf_sum + p[2]
-
-        output_file.write('%s-%s-%s_%s:00:00 %f\n' % (y, m, d, sh, rf_sum / cnt))
-
-    output_file.close()
-
-
-def add_buffer_to_kelani_upper_basin_mean_rainfall(date, wrf_output):
-    cells = 9433
-
-    content = []
-    first_line = ''
-    for i in range(3, -1, -1):
-        file_name = wrf_output + '/kelani-basin/created-' + (date - dt.timedelta(days=i)).strftime(
-            '%Y-%m-%d') + '/RAINCELL.DAT'
-
-        if os.path.exists(file_name):
-            with open(file_name) as myfile:
-                first_line = next(myfile)
-                if i != 0:
-                    head = [next(myfile) for x in range(cells * 24)]
-                else:
-                    head = [line for line in myfile]
-            content.extend(head)
-        else:
-            head = ['%d 0.0\n' % (x % cells + 1) for x in range(cells * 24 + 1)]
-            content.extend(head)
-
-    out_dir = wrf_output + '/kelani-basin/new-created-' + date.strftime('%Y-%m-%d')
-    out_name = out_dir + '/RAINCELL.DAT'
-
-    first_line = first_line.split()
-    first_line[1] = str(int(first_line[1]) + 24 * 3)
-    first_line[2] = (date - dt.timedelta(days=3)).strftime('%Y-%m-%d')
-
-    if not os.path.exists(out_dir):
-        os.makedirs(out_dir)
-    out_file = open(out_name, 'w')
-    out_file.write(' '.join(first_line) + '\n')
-    for line in content:
-        out_file.write(line)
-    out_file.close()
-
-
-def concat_rainfall_files(date, wrf_output, weather_stations):
-    with open(weather_stations, 'rb') as stations_file:
-        rf_dir = wrf_output + '/RF'
-        for station_name in stations_file:
-            station_name = station_name.split()[0]
-            if not os.path.exists(rf_dir):
-                os.makedirs(rf_dir)
-
-            out_file_path = rf_dir + '/' + station_name + '.csv'
-            if not os.path.exists(out_file_path):
-                with open(out_file_path, 'w') as out_file:
-                    out_file.write("Timestamp, Value, Time, ValID\n")
-
-            with open(out_file_path, 'a') as out_file:
-                rf_file = rf_dir + '/' + station_name + '-' + date.strftime('%Y-%m-%d') + '.txt'
-                with open(rf_file) as rf_file:
-                    # next(rf_file)
-                    i = 0
-                    for line in rf_file:
-                        ts = line.split()[0]
-                        val = line.split()[1]
-                        ref = int(dt.datetime.strptime('2017-04-01', '%Y-%m-%d').strftime('%s')) / 3600
-                        epoch = int(dt.datetime.strptime(ts, '%Y-%m-%d_%H:%M:%S').strftime('%s')) / 3600 - ref
-                        # epoch = dt.datetime.strptime(ts, '%Y-%m-%d_%H:%M:%S').strftime('%s')
-                        val_id = station_name[0:5] + date.strftime('%y%m%d-') + str(i / 24)
-                        out_file.write('%s, %s, %s, %s\n' % (ts, val, epoch, val_id))
-                        i += 1
-
-
-def concat_rainfall_files_1(date, wrf_output, weather_stations):
-    with open(weather_stations, 'rb') as stations_file:
-        rf_dir = wrf_output + '/RF'
-        for station_name in stations_file:
-            station_name = station_name.split()[0]
-            if not os.path.exists(rf_dir):
-                os.makedirs(rf_dir)
-
-            df = None
-            out_file_path = rf_dir + '/' + station_name + '-merged.csv'
-            if os.path.exists(out_file_path):
-                df = pd.read_csv(out_file_path)
-
-            rf_file = rf_dir + '/' + station_name + '-' + date.strftime('%Y-%m-%d') + '.txt'
-            rf_df = pd.read_csv(rf_file, header=None, delim_whitespace=True)
-            rf_df.columns = ['time', 'f' + date.strftime('%y%m%d')]
-            rf_df['time'] = rf_df['time'].apply(
-                lambda x: int(dt.datetime.strptime(x, '%Y-%m-%d_%H:%M:%S').strftime('%s')))
-
-            if df is not None:
-                df_out = pd.merge(df, rf_df, on='time', how='outer')
-                df_out.to_csv(out_file_path, index=False)
-            else:
-                rf_df.to_csv(out_file_path, index=False)
+# def extract_kelani_upper_basin_mean_rainfall_sat(sat_dir, date, kelani_basin_shp_file, wrf_output):
+#     kel_lon_min = 79.994117
+#     kel_lat_min = 6.754167
+#     kel_lon_max = 80.773182
+#     kel_lat_max = 7.229167
+#
+#     y = date.strftime('%Y')
+#     m = date.strftime('%m')
+#     d = date.strftime('%d')
+#
+#     output_dir = wrf_output + '/kelani-upper-basin/sat'
+#     if not os.path.exists(output_dir):
+#         os.makedirs(output_dir)
+#
+#     output_file_path = output_dir + '/mean-rf-sat-' + date.strftime('%Y-%m-%d') + '.csv'
+#     output_file = open(output_file_path, 'w')
+#
+#     polys = shapefile.Reader(kelani_basin_shp_file)
+#
+#     for h in range(0, 24):
+#         cnt = 0
+#         rf_sum = 0.0
+#
+#         sh = str(h).zfill(2)
+#         sat_zip_file = '%s/%s/%s/%s/gsmap_nrt.%s%s%s.%s00.05_AsiaSS.csv.zip' % (sat_dir, y, m, d, y, m, d, sh)
+#
+#         sat_zip = zipfile.ZipFile(sat_zip_file)
+#         sat = np.genfromtxt(sat_zip.open('gsmap_nrt.%s%s%s.%s00.05_AsiaSS.csv' % (y, m, d, sh)), delimiter=',',
+#                             names=True)
+#         sat_filt = sat[(sat['Lat'] <= kel_lat_max) & (sat['Lat'] >= kel_lat_min) & (sat['Lon'] <= kel_lon_max) & (
+#             sat['Lon'] >= kel_lon_min)]
+#
+#         for p in sat_filt:
+#             if utils.is_inside_polygon(polys, p[0], p[1]):
+#                 cnt = cnt + 1
+#                 rf_sum = rf_sum + p[2]
+#
+#         output_file.write('%s-%s-%s_%s:00:00 %f\n' % (y, m, d, sh, rf_sum / cnt))
+#
+#     output_file.close()
+#
+#
+# def add_buffer_to_kelani_upper_basin_mean_rainfall(date, wrf_output):
+#     cells = 9433
+#
+#     content = []
+#     first_line = ''
+#     for i in range(3, -1, -1):
+#         file_name = wrf_output + '/kelani-basin/created-' + (date - dt.timedelta(days=i)).strftime(
+#             '%Y-%m-%d') + '/RAINCELL.DAT'
+#
+#         if os.path.exists(file_name):
+#             with open(file_name) as myfile:
+#                 first_line = next(myfile)
+#                 if i != 0:
+#                     head = [next(myfile) for x in range(cells * 24)]
+#                 else:
+#                     head = [line for line in myfile]
+#             content.extend(head)
+#         else:
+#             head = ['%d 0.0\n' % (x % cells + 1) for x in range(cells * 24 + 1)]
+#             content.extend(head)
+#
+#     out_dir = wrf_output + '/kelani-basin/new-created-' + date.strftime('%Y-%m-%d')
+#     out_name = out_dir + '/RAINCELL.DAT'
+#
+#     first_line = first_line.split()
+#     first_line[1] = str(int(first_line[1]) + 24 * 3)
+#     first_line[2] = (date - dt.timedelta(days=3)).strftime('%Y-%m-%d')
+#
+#     if not os.path.exists(out_dir):
+#         os.makedirs(out_dir)
+#     out_file = open(out_name, 'w')
+#     out_file.write(' '.join(first_line) + '\n')
+#     for line in content:
+#         out_file.write(line)
+#     out_file.close()
+#
+#
+# def concat_rainfall_files(date, wrf_output, weather_stations):
+#     with open(weather_stations, 'rb') as stations_file:
+#         rf_dir = wrf_output + '/RF'
+#         for station_name in stations_file:
+#             station_name = station_name.split()[0]
+#             if not os.path.exists(rf_dir):
+#                 os.makedirs(rf_dir)
+#
+#             out_file_path = rf_dir + '/' + station_name + '.csv'
+#             if not os.path.exists(out_file_path):
+#                 with open(out_file_path, 'w') as out_file:
+#                     out_file.write("Timestamp, Value, Time, ValID\n")
+#
+#             with open(out_file_path, 'a') as out_file:
+#                 rf_file = rf_dir + '/' + station_name + '-' + date.strftime('%Y-%m-%d') + '.txt'
+#                 with open(rf_file) as rf_file:
+#                     # next(rf_file)
+#                     i = 0
+#                     for line in rf_file:
+#                         ts = line.split()[0]
+#                         val = line.split()[1]
+#                         ref = int(dt.datetime.strptime('2017-04-01', '%Y-%m-%d').strftime('%s')) / 3600
+#                         epoch = int(dt.datetime.strptime(ts, '%Y-%m-%d_%H:%M:%S').strftime('%s')) / 3600 - ref
+#                         # epoch = dt.datetime.strptime(ts, '%Y-%m-%d_%H:%M:%S').strftime('%s')
+#                         val_id = station_name[0:5] + date.strftime('%y%m%d-') + str(i / 24)
+#                         out_file.write('%s, %s, %s, %s\n' % (ts, val, epoch, val_id))
+#                         i += 1
+#
+#
+# def concat_rainfall_files_1(date, wrf_output, weather_stations):
+#     with open(weather_stations, 'rb') as stations_file:
+#         rf_dir = wrf_output + '/RF'
+#         for station_name in stations_file:
+#             station_name = station_name.split()[0]
+#             if not os.path.exists(rf_dir):
+#                 os.makedirs(rf_dir)
+#
+#             df = None
+#             out_file_path = rf_dir + '/' + station_name + '-merged.csv'
+#             if os.path.exists(out_file_path):
+#                 df = pd.read_csv(out_file_path)
+#
+#             rf_file = rf_dir + '/' + station_name + '-' + date.strftime('%Y-%m-%d') + '.txt'
+#             rf_df = pd.read_csv(rf_file, header=None, delim_whitespace=True)
+#             rf_df.columns = ['time', 'f' + date.strftime('%y%m%d')]
+#             rf_df['time'] = rf_df['time'].apply(
+#                 lambda x: int(dt.datetime.strptime(x, '%Y-%m-%d_%H:%M:%S').strftime('%s')))
+#
+#             if df is not None:
+#                 df_out = pd.merge(df, rf_df, on='time', how='outer')
+#                 df_out.to_csv(out_file_path, index=False)
+#             else:
+#                 rf_df.to_csv(out_file_path, index=False)
 
 
 def extract_point_rf_series(nc_f, lat, lon):
@@ -634,12 +647,13 @@ if __name__ == "__main__":
 
 
 def push_wrf_rainfall_to_db(nc_f, curw_db_adapter=None, lon_min=None, lat_min=None, lon_max=None,
-                            lat_max=None, station_prefix='wrf', upsert=False):
+                            lat_max=None, run_prefix='WRF', upsert=False, run_name='Cloud-1'):
     """
 
+    :param run_name: 
     :param nc_f:
     :param curw_db_adapter: If not none, data will be pushed to the db
-    :param station_prefix:
+    :param run_prefix:
     :param lon_min:
     :param lat_min:
     :param lon_max:
@@ -661,14 +675,11 @@ def push_wrf_rainfall_to_db(nc_f, curw_db_adapter=None, lon_min=None, lat_min=No
     width = len(lons)
     height = len(lats)
 
-    offset = 1100000
-    rf_ts = {}
-
     def random_check_stations_exist():
         for _ in range(10):
             _x = lons[int(random() * width)]
             _y = lats[int(random() * height)]
-            _name = '%s_%.6f_%.6f' % (station_prefix, _x, _y)
+            _name = '%s_%.6f_%.6f' % (run_prefix, _x, _y)
             _query = {'name': _name}
             if curw_db_adapter.getStation(_query) is None:
                 logging.debug('Random stations check fail')
@@ -678,18 +689,18 @@ def push_wrf_rainfall_to_db(nc_f, curw_db_adapter=None, lon_min=None, lat_min=No
 
     stations_exists = random_check_stations_exist()
 
+    rf_ts = {}
     for y in range(height):
         for x in range(width):
             lat = lats[y]
             lon = lons[x]
 
-            s_id = offset + y * width + x
-            station_id = '%s_%.6f_%.6f' % (station_prefix, lon, lat)
+            station_id = '%s_%.6f_%.6f' % (run_prefix, lon, lat)
             name = station_id
 
             if not stations_exists:
                 logging.info('Creating station %s ...' % name)
-                station = [str(s_id), station_id, name, str(lon), str(lat), str(0), "WRF point"]
+                station = [Station.CUrW, station_id, name, str(lon), str(lat), str(0), "WRF point"]
                 curw_db_adapter.createStation(station)
 
             # add rf series to the dict
@@ -698,7 +709,134 @@ def push_wrf_rainfall_to_db(nc_f, curw_db_adapter=None, lon_min=None, lat_min=No
                 ts.append([times[i].replace('_', ' '), diff[i, y, x]])
             rf_ts[name] = ts
 
-    ext_utils.push_rainfall_to_db(curw_db_adapter, rf_ts, upsert=upsert)
+    ext_utils.push_rainfall_to_db(curw_db_adapter, rf_ts, source=run_prefix, upsert=upsert, name=run_name)
+
+
+# todo: fix this!!!
+def create_rf_plots_wrf(nc_f, date, wrf_output, curw_db_adapter=None, lon_min=None, lat_min=None, lon_max=None,
+                          lat_max=None):
+
+    if not all([lon_min, lat_min, lon_max, lat_max]):
+        lon_min, lat_min, lon_max, lat_max = constants.SRI_LANKA_EXTENT
+
+    config = self.get_config(**kwargs)
+    logging.info('wrf conifg: ' + config.to_json_string())
+
+    start_date = config.get('start_date')
+    d03_dir = config.get('wrf_output_dir')
+    d03_sl = os.path.join(d03_dir, 'wrfout_d03_' + start_date + ':00_SL')
+
+    # create a temp work dir & get a local copy of the d03.._SL
+    temp_dir = utils.create_dir_if_not_exists(os.path.join(config.get('wrf_home'), 'temp'))
+    shutil.copy2(d03_sl, temp_dir)
+
+    d03_sl = os.path.join(temp_dir, os.path.basename(d03_sl))
+
+    variables = ext_utils.extract_variables(d03_sl, 'RAINC, RAINNC', lat_min, lat_max, lon_min, lon_max)
+
+    lats = variables['XLAT']
+    lons = variables['XLONG']
+
+    # cell size is calc based on the mean between the lat and lon points
+    cz = np.round(np.mean(np.append(lons[1:len(lons)] - lons[0: len(lons) - 1], lats[1:len(lats)]
+                                    - lats[0: len(lats) - 1])), 3)
+    # clevs = 10 * np.array([0.1, 0.5, 1, 2, 3, 5, 10, 15, 20, 25, 30])
+    # clevs_cum = 10 * np.array([0.1, 0.5, 1, 2, 3, 5, 10, 15, 20, 25, 30, 50, 75, 100])
+    # norm = colors.BoundaryNorm(boundaries=clevs, ncolors=256)
+    # norm_cum = colors.BoundaryNorm(boundaries=clevs_cum, ncolors=256)
+    # cmap = plt.get_cmap('jet')
+
+    clevs = [0, 1, 2.5, 5, 7.5, 10, 15, 20, 30, 40, 50, 70, 100, 150, 200, 250, 300, 400, 500, 600, 750]
+    clevs_cum = clevs
+    norm = None
+    norm_cum = None
+    cmap = cm.s3pcpn
+
+    basemap = Basemap(projection='merc', llcrnrlon=lon_min, llcrnrlat=lat_min, urcrnrlon=lon_max,
+                      urcrnrlat=lat_max, resolution='h')
+
+    filter_threshold = 0.05
+    data = variables['RAINC'] + variables['RAINNC']
+    logging.info('Filtering with the threshold %f' % filter_threshold)
+    data[data < filter_threshold] = 0.0
+    variables['PRECIP'] = data
+
+    pngs = []
+    ascs = []
+
+    for i in range(1, len(variables['Times'])):
+        time = variables['Times'][i]
+        ts = dt.datetime.strptime(time, '%Y-%m-%d_%H:%M:%S')
+        lk_ts = utils.datetime_utc_to_lk(ts)
+        logging.info('processing %s', time)
+
+        # instantaneous precipitation (hourly)
+        inst_precip = variables['PRECIP'][i] - variables['PRECIP'][i - 1]
+
+        inst_file = os.path.join(temp_dir, 'wrf_inst_' + time)
+        title = {
+            'label': 'Hourly rf for %s LK\n%s UTC' % (lk_ts.strftime('%Y-%m-%d_%H:%M:%S'), time),
+            'fontsize': 30
+        }
+
+        ext_utils.create_asc_file(np.flip(inst_precip, 0), lats, lons, inst_file + '.asc', cell_size=cz)
+        ascs.append(inst_file + '.asc')
+
+        ext_utils.create_contour_plot(inst_precip, inst_file + '.png', lat_min, lon_min, lat_max, lon_max,
+                                      title, clevs=clevs, cmap=cmap, basemap=basemap, norm=norm)
+        pngs.append(inst_file + '.png')
+
+        if i % 24 == 0:
+            t = 'Daily rf from %s LK to %s LK' % (
+                (lk_ts - dt.timedelta(hours=24)).strftime('%Y-%m-%d_%H:%M:%S'), lk_ts.strftime('%Y-%m-%d_%H:%M:%S'))
+            d = int(i / 24) - 1
+            logging.info('Creating images for D%d' % d)
+            cum_file = os.path.join(temp_dir, 'wrf_cum_%dd' % d)
+
+            ext_utils.create_asc_file(np.flip(variables['PRECIP'][i], 0), lats, lons, cum_file + '.asc',
+                                      cell_size=cz)
+            ascs.append(cum_file + '.asc')
+
+            ext_utils.create_contour_plot(variables['PRECIP'][i] - variables['PRECIP'][i - 24], cum_file + '.png',
+                                          lat_min, lon_min, lat_max, lon_max, t, clevs=clevs, cmap=cmap,
+                                          basemap=basemap, norm=norm_cum)
+            pngs.append(inst_file + '.png')
+
+            gif_file = os.path.join(temp_dir, 'wrf_inst_%dd' % d)
+            images = [os.path.join(temp_dir, 'wrf_inst_' + i.strftime('%Y-%m-%d_%H:%M:%S') + '.png') for i in
+                      np.arange(ts - dt.timedelta(hours=23), ts + dt.timedelta(hours=1),
+                                dt.timedelta(hours=1)).astype(dt.datetime)]
+            ext_utils.create_gif(images, gif_file + '.gif')
+
+    logging.info('Creating the zips')
+    utils.create_zip_with_prefix(temp_dir, '*.png', os.path.join(temp_dir, 'pngs.zip'))
+    utils.create_zip_with_prefix(temp_dir, '*.asc', os.path.join(temp_dir, 'ascs.zip'))
+    # utils.create_zipfile(pngs, os.path.join(temp_dir, 'pngs.zip'))
+    # utils.create_zipfile(ascs, os.path.join(temp_dir, 'ascs.zip'))
+
+    logging.info('Cleaning up instantaneous pngs and ascs - wrf_inst_*')
+    utils.delete_files_with_prefix(temp_dir, 'wrf_inst_*.png')
+    utils.delete_files_with_prefix(temp_dir, 'wrf_inst_*.asc')
+
+    logging.info('Copying pngs to ' + d03_dir)
+    utils.move_files_with_prefix(temp_dir, '*.png', d03_dir)
+    logging.info('Copying ascs to ' + d03_dir)
+    utils.move_files_with_prefix(temp_dir, '*.asc', d03_dir)
+    logging.info('Copying gifs to ' + d03_dir)
+    utils.copy_files_with_prefix(temp_dir, '*.gif', d03_dir)
+    logging.info('Copying zips to ' + d03_dir)
+    utils.copy_files_with_prefix(temp_dir, '*.zip', d03_dir)
+
+    d03_latest_dir = os.path.join(config.get('nfs_dir'), 'latest', os.path.basename(config.get('wrf_home')))
+    # <nfs>/latest/wrf0 .. 3
+    utils.create_dir_if_not_exists(d03_latest_dir)
+    # todo: this needs to be adjusted to handle the multiple runs
+    logging.info('Copying gifs to ' + d03_latest_dir)
+    utils.copy_files_with_prefix(temp_dir, '*.gif', d03_latest_dir)
+
+    logging.info('Cleaning up temp dir')
+    shutil.rmtree(temp_dir)
+    pass
 
 
 def suite():
@@ -719,7 +857,7 @@ class TestExtractor(unittest.TestCase):
         }
         adapter = ext_utils.get_curw_adapter(mysql_config=config)
 
-        nc_f = res_mgr.get_resource_path('test/out.nc')
+        nc_f = res_mgr.get_resource_path('test/wrfout_d03_2017-10-02_12:00:00')
         lon_min, lat_min, lon_max, lat_max = constants.KELANI_KALU_BASIN_EXTENT
         push_wrf_rainfall_to_db(nc_f, curw_db_adapter=adapter, lat_min=lat_min, lon_min=lon_min,
                                 lat_max=lat_max, lon_max=lon_max, upsert=True)

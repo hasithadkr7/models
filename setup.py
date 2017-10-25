@@ -10,5 +10,5 @@ setup(
     author_email='niranda.17@cse.mrt.ac.lk',
     description='Models being developed at the Center for URban Water, Sri Lanka',
     requires=['airflow', 'shapely', 'joblib', 'netCDF4', 'matplotlib', 'imageio', 'scipy', 'geopandas'],
-    install_requires=['shapely', 'joblib', 'netCDF4', 'matplotlib', 'imageio', 'numpy', 'pandas', 'scipy']
+    # install_requires=['shapely', 'joblib', 'netCDF4', 'matplotlib', 'imageio', 'numpy', 'pandas', 'scipy']
 )
