@@ -1,13 +1,13 @@
 import argparse
 import ast
-import datetime as dt
 import glob
 import json
 import logging
 import os
+import shutil
+from tempfile import TemporaryDirectory
 
 from curw.container.docker.rainfall import utils as docker_rf_utils
-from curw.rainfall.wrf import utils
 from curw.rainfall.wrf.execution.executor import get_wrf_config
 from curw.rainfall.wrf.extraction import extractor, constants
 from curw.rainfall.wrf.extraction import utils as ext_utils
@@ -33,37 +33,47 @@ def run(run_id, wrf_config_dict, db_config_dict, upsert=False, run_name='Cloud-1
     config = get_wrf_config(**wrf_config_dict)
     config.set('run_id', run_id)
 
-    # wrf_home = config.get('wrf_home')
-    wrf_output_dir = os.path.join(config.get('nfs_dir'), 'results', run_id, 'wrf')
+    output_dir_base = os.path.join(config.get('nfs_dir'), 'results')
+    run_output_dir = os.path.join(output_dir_base, run_id)
+    wrf_output_dir = os.path.join(run_output_dir, 'wrf')
 
     db_adapter = ext_utils.get_curw_adapter(mysql_config=db_config_dict)
 
-    nc_f = glob.glob(os.path.join(wrf_output_dir, 'wrfout_d03_*'))[0]
-    date = dt.datetime.strptime(config.get('start_date'), '%Y-%m-%d_%H:%M')
-    output_dir = utils.create_dir_if_not_exists(os.path.join(config.get('nfs_dir'), 'results', run_id))
+    logging.info('Creating temp file space')
 
-    logging.info('Extracting data from ' + nc_f)
+    with TemporaryDirectory(prefix='wrfout_') as temp_dir:
+        logging.info('Copying wrfout_* to temp_dir ' + temp_dir)
+        nc_f = shutil.copy2(glob.glob(os.path.join(wrf_output_dir, 'wrfout_d03_*'))[0], temp_dir)
 
-    logging.info('Exctract WRF data points in the Kelani and Kalu basins')
-    lon_min, lat_min, lon_max, lat_max = constants.KELANI_KALU_BASIN_EXTENT
-    extractor.push_wrf_rainfall_to_db(nc_f, curw_db_adapter=db_adapter, lat_min=lat_min, lon_min=lon_min,
-                                      lat_max=lat_max, lon_max=lon_max, run_prefix=run_prefix, upsert=upsert)
+        logging.info('Extracting data from ' + nc_f)
 
-    logging.info('Extract rainfall data for the metro colombo area')
-    basin_rf = extractor.extract_metro_colombo(nc_f, date, output_dir, curw_db_adapter=db_adapter,
-                                               run_prefix=run_prefix, run_name=run_name, curw_db_upsert=upsert)
-    logging.info('Basin rainfall' + str(basin_rf))
+        logging.info('Extract WRF data points in the Kelani and Kalu basins')
+        lon_min, lat_min, lon_max, lat_max = constants.KELANI_KALU_BASIN_EXTENT
+        extractor.push_wrf_rainfall_to_db(nc_f, curw_db_adapter=db_adapter, lat_min=lat_min, lon_min=lon_min,
+                                          lat_max=lat_max, lon_max=lon_max, run_prefix=run_prefix, upsert=upsert)
 
-    logging.info('Extract weather station rainfall')
-    extractor.extract_weather_stations(nc_f, date, output_dir, curw_db_adapter=db_adapter, curw_db_upsert=upsert,
-                                       run_prefix=run_prefix, run_name=run_name)
+        logging.info('Extract rainfall data for the metro colombo area')
+        basin_rf = extractor.extract_metro_colombo(nc_f, run_output_dir, output_dir_base, curw_db_adapter=db_adapter,
+                                                   run_prefix=run_prefix, run_name=run_name,
+                                                   curw_db_upsert=upsert)
+        logging.info('Basin rainfall' + str(basin_rf))
 
-    logging.info('Extract Kelani upper Basin mean rainfall')
-    extractor.extract_kelani_upper_basin_mean_rainfall(nc_f, date, output_dir, curw_db_adapter=db_adapter,
-                                                       run_prefix=run_prefix, run_name=run_name, curw_db_upsert=upsert)
+        logging.info('Extract weather station rainfall')
+        extractor.extract_weather_stations(nc_f, run_output_dir, curw_db_adapter=db_adapter, curw_db_upsert=upsert,
+                                           run_prefix=run_prefix, run_name=run_name)
 
-    # logging.info('Extract Kelani Basin rainfall')
-    # extractor.extract_kelani_basin_rainfall(nc_f, date, output_dir, avg_basin_rf=basin_rf)
+        logging.info('Extract Kelani upper Basin mean rainfall')
+        extractor.extract_kelani_upper_basin_mean_rainfall(nc_f, run_output_dir, curw_db_adapter=db_adapter,
+                                                           run_prefix=run_prefix, run_name=run_name,
+                                                           curw_db_upsert=upsert)
+
+        # logging.info('Extract Kelani Basin rainfall')
+        # extractor.extract_kelani_basin_rainfall(nc_f, date, output_dir, avg_basin_rf=basin_rf)
+
+        logging.info('Create plots for D01')
+        lon_min, lat_min, lon_max, lat_max = constants.SRI_LANKA_EXTENT
+        extractor.create_rf_plots_wrf(nc_f, run_output_dir, output_dir_base, lat_min=lat_min, lon_min=lon_min,
+                                      lat_max=lat_max, lon_max=lon_max, run_prefix=run_prefix)
 
     logging.info('**** Extracting data from WRF **** Run ID: ' + run_id + ' COMPLETED!')
 

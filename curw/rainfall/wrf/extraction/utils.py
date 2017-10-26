@@ -266,9 +266,9 @@ def push_rainfall_to_db(curw_db_adapter, timeseries_dict, types=None, timesteps=
                 'name': name,
             }
 
-            event_id = curw_db_adapter.getEventId(meta_data)
+            event_id = curw_db_adapter.get_event_id(meta_data)
             if event_id is None:
-                event_id = curw_db_adapter.createEventId(meta_data)
+                event_id = curw_db_adapter.create_event_id(meta_data)
                 logging.debug('HASH SHA256 created: ' + event_id)
 
             row_count = curw_db_adapter.insert_timeseries(event_id, timeseries[i * timesteps:(i + 1) * timesteps],
