@@ -87,14 +87,13 @@ def extract_metro_colombo(nc_f, wrf_output, wrf_output_base, curw_db_adapter=Non
                 t_str = (utils.datetime_utc_to_lk(dt.datetime.strptime(times[tm], '%Y-%m-%d_%H:%M:%S'))).strftime(
                     '%Y-%m-%d %H:%M:%S')
 
-                output_file_path = os.path.join(temp_dir, 'rf_' + times[tm] + '.asc')
+                output_file_path = os.path.join(temp_dir, 'rf_' + t_str.replace(' ', '_') + '.asc')
                 ext_utils.create_asc_file(np.flip(diff[tm], 0), lats, lons, output_file_path, cell_size=cz,
                                           no_data_val=no_data)
 
                 # writing subsection file
                 x_idx = [round(i * width / divs[0]) for i in range(0, divs[0] + 1)]
                 y_idx = [round(i * height / divs[1]) for i in range(0, divs[1] + 1)]
-
 
                 subsection_file.write(t_str)
                 for j in range(len(y_idx) - 1):
