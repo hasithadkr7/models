@@ -31,6 +31,12 @@ RUN echo export LDFLAGS="-lm" >> /etc/bashrc \
 ENV LD_LIBRARY_PATH /usr/lib64/openmpi/lib
 ENV PATH  /usr/lib64/openmpi/bin:$PATH
 
+# install gcsfuse
+RUN echo $'[gcsfuse] \nname=gcsfuse (packages.cloud.google.com) \nbaseurl=https://packages.cloud.google.com/yum/repos/gcsfuse-el7-x86_64 \nenabled=1 \ngpgcheck=1 \nrepo_gpgcheck=1 \ngpgkey=https://packages.cloud.google.com/yum/doc/yum-key.gpg \n       https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg '\
+       > /etc/yum.repos.d/gcsfuse.repo
+RUN yum -y update
+RUN yum -y install gcsfuse
+
 # install python3.6
 RUN yum -y install https://centos7.iuscommunity.org/ius-release.rpm
 RUN yum -y install git python36u python36u-pip python36u-devel python36u-tkinter

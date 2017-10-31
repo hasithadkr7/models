@@ -94,6 +94,12 @@ RUN yum -y install https://centos7.iuscommunity.org/ius-release.rpm
 RUN yum -y install git python36u python36u-pip python36u-devel
 RUN pip3.6 install joblib shapely
 
+# install gcsfuse
+RUN echo $'[gcsfuse] \nname=gcsfuse (packages.cloud.google.com) \nbaseurl=https://packages.cloud.google.com/yum/repos/gcsfuse-el7-x86_64 \nenabled=1 \ngpgcheck=1 \nrepo_gpgcheck=1 \ngpgkey=https://packages.cloud.google.com/yum/doc/yum-key.gpg \n       https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg '\
+       > /etc/yum.repos.d/gcsfuse.repo
+RUN yum -y update
+RUN yum -y install gcsfuse
+
 # curwsl git repo
 RUN cd /wrf
 RUN mkdir gfs output geog
