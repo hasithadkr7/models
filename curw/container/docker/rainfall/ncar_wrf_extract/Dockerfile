@@ -34,7 +34,7 @@ ENV PATH  /usr/lib64/openmpi/bin:$PATH
 # install python3.6
 RUN yum -y install https://centos7.iuscommunity.org/ius-release.rpm
 RUN yum -y install git python36u python36u-pip python36u-devel python36u-tkinter
-RUN pip3.6 install joblib shapely netCDF4 matplotlib imageio scipy geopandas numpy pandas
+RUN pip3.6 install joblib shapely netCDF4 matplotlib imageio scipy geopandas numpy pandas pyshp
 
 # install basemap
 RUN curl -SL https://github.com/matplotlib/basemap/archive/v1.1.0.tar.gz | tar zxC /
