@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-while getopts ":i:c:m:x:y:" option
+while getopts ":i:c:d" option
 do
  case "${option}"
  in
