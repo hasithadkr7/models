@@ -1,12 +1,16 @@
 #!/usr/bin/env bash
 
-while getopts ":i:c:d" option
+while getopts ":i:c:d:v:" option
 do
  case "${option}"
  in
  i) ID=$OPTARG;;
  c) CONFIG=$OPTARG;;
  d) DB=$OPTARG;;
+ v) bucket=$(echo $OPTARG | cut -d':' -f1)
+    path=$(echo $OPTARG | cut -d':' -f2)
+    echo "mounting $bucket to $path"
+    gcsfuse ${bucket} ${path} ;;
  esac
 done
 
