@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 
-while getopts ":i:c:m:x:y:v:" option
+export GOOGLE_APPLICATION_CREDENTIALS=/wrf/gcs.json
+
+while getopts ":i:c:m:x:y:k:v:" option
 do
  case "${option}"
  in
@@ -9,6 +11,7 @@ do
  m) MODE=$OPTARG;;
  x) WPS=$OPTARG;;
  y) INPUT=$OPTARG;;
+ k) echo $OPTARG > /wrf/gcs.json;;
  v) bucket=$(echo $OPTARG | cut -d':' -f1)
     path=$(echo $OPTARG | cut -d':' -f2)
     echo "mounting $bucket to $path"
