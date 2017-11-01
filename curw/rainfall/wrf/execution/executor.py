@@ -257,14 +257,16 @@ def run_em_real(wrf_config):
         utils.run_subprocess('mpirun --allow-run-as-root -np %d ./real.exe' % procs, cwd=em_real_dir)
     finally:
         logging.info('Moving Real log files...')
-        utils.move_files_with_prefix(em_real_dir, 'rsl*', os.path.join(logs_dir, 'real'))
+        utils.create_zip_with_prefix(em_real_dir, 'rsl*', os.path.join(em_real_dir, 'real_rsl.zip'), clean_up=True)
+        utils.move_files_with_prefix(em_real_dir, 'real_rsl.zip', logs_dir)
 
     try:
         logging.info('Starting wrf.exe')
         utils.run_subprocess('mpirun --allow-run-as-root -np %d ./wrf.exe' % procs, cwd=em_real_dir)
     finally:
         logging.info('Moving WRF log files...')
-        utils.move_files_with_prefix(em_real_dir, 'rsl*', os.path.join(logs_dir, 'wrf'))
+        utils.create_zip_with_prefix(em_real_dir, 'rsl*', os.path.join(em_real_dir, 'wrf_rsl.zip'), clean_up=True)
+        utils.move_files_with_prefix(em_real_dir, 'wrf_rsl.zip', logs_dir)
 
     logging.info('WRF em_real: DONE! Moving data to the output dir')
 
