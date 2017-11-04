@@ -21,7 +21,7 @@ def parse_args():
                         default=env_vars['run_id'] if 'run_id' in env_vars else docker_rf_utils.id_generator())
     parser.add_argument('-db_config', default=env_vars['db_config'] if 'db_config' in env_vars else None)
     parser.add_argument('-wrf_config', default=env_vars['wrf_config'] if 'wrf_config' in env_vars else '{}')
-    parser.add_argument('-overwrite', default=env_vars['overwrite'] if 'overwrite' in env_vars else False)
+    parser.add_argument('-overwrite', default=env_vars['overwrite'] if 'overwrite' in env_vars else 'False')
 
     return parser.parse_args()
 
