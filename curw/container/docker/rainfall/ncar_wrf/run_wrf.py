@@ -14,12 +14,17 @@ def parse_args():
     parser = argparse.ArgumentParser()
     env_vars = docker_rf_utils.get_env_vars('CURW_')
 
-    parser.add_argument('-run_id',
-                        default=env_vars['run_id'] if 'run_id' in env_vars else docker_rf_utils.id_generator())
-    parser.add_argument('-mode', default=env_vars['mode'] if 'mode' in env_vars else 'wps')
-    parser.add_argument('-nl_wps', default=env_vars['nl_wps'] if 'nl_wps' in env_vars else None)
-    parser.add_argument('-nl_input', default=env_vars['nl_input'] if 'nl_input' in env_vars else None)
-    parser.add_argument('-wrf_config', default=env_vars['wrf_config'] if 'wrf_config' in env_vars else '{}')
+    def check_key(k, d_val):
+        if k in env_vars and not env_vars[k]:
+            return env_vars[k]
+        else:
+            return d_val
+
+    parser.add_argument('-run_id', default=check_key('run_id', docker_rf_utils.id_generator()))
+    parser.add_argument('-mode', default=check_key('mode', 'wps'))
+    parser.add_argument('-nl_wps', default=check_key('nl_wps', None))
+    parser.add_argument('-nl_input', default=check_key('nl_input', None))
+    parser.add_argument('-wrf_config', default=check_key('wrf_config', '{}'))
 
     return parser.parse_args()
 
