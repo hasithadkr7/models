@@ -17,11 +17,16 @@ def parse_args():
     parser = argparse.ArgumentParser()
     env_vars = docker_rf_utils.get_env_vars('CURW_')
 
-    parser.add_argument('-run_id',
-                        default=env_vars['run_id'] if 'run_id' in env_vars else docker_rf_utils.id_generator())
-    parser.add_argument('-db_config', default=env_vars['db_config'] if 'db_config' in env_vars else None)
-    parser.add_argument('-wrf_config', default=env_vars['wrf_config'] if 'wrf_config' in env_vars else '{}')
-    parser.add_argument('-overwrite', default=env_vars['overwrite'] if 'overwrite' in env_vars else 'False')
+    def check_key(k, d_val):
+        if k in env_vars and not env_vars[k]:
+            return env_vars[k]
+        else:
+            return d_val
+
+    parser.add_argument('-run_id', default=check_key('run_id', docker_rf_utils.id_generator()))
+    parser.add_argument('-db_config', default=check_key('db_config', None))
+    parser.add_argument('-wrf_config', default=check_key('wrf_config', '{}'))
+    parser.add_argument('-overwrite', default=check_key('overwrite', 'False'))
 
     return parser.parse_args()
 
