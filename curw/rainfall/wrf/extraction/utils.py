@@ -251,7 +251,7 @@ def get_curw_adapter(mysql_config=None, mysql_config_path=None):
 
 
 def push_rainfall_to_db(curw_db_adapter, timeseries_dict, types=None, timesteps=24, upsert=False, source='WRF',
-                        source_params='', name='Cloud-1'):
+                        source_params='{}', name='Cloud-1'):
     if types is None:
         types = ['Forecast-0-d', 'Forecast-1-d-after', 'Forecast-2-d-after']
 
