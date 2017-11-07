@@ -251,9 +251,12 @@ def get_curw_adapter(mysql_config=None, mysql_config_path=None):
 
 
 def push_rainfall_to_db(curw_db_adapter, timeseries_dict, types=None, timesteps=24, upsert=False, source='WRF',
-                        name='Cloud-1'):
+                        source_params='', name='Cloud-1'):
     if types is None:
         types = ['Forecast-0-d', 'Forecast-1-d-after', 'Forecast-2-d-after']
+
+    if curw_db_adapter.get_source(name=source) is None:
+        curw_db_adapter.create_source([source, source_params])
 
     for station, timeseries in timeseries_dict.items():
         for i in range(int(np.ceil(len(timeseries) / timesteps))):
@@ -272,7 +275,7 @@ def push_rainfall_to_db(curw_db_adapter, timeseries_dict, types=None, timesteps=
                 logging.debug('HASH SHA256 created: ' + event_id)
 
             row_count = curw_db_adapter.insert_timeseries(event_id, timeseries[i * timesteps:(i + 1) * timesteps],
-                                                          upsert=True)
+                                                          upsert=upsert)
             logging.debug('%d rows inserted' % row_count)
 
 
