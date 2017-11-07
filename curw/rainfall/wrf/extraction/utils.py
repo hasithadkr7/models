@@ -256,6 +256,7 @@ def push_rainfall_to_db(curw_db_adapter, timeseries_dict, types=None, timesteps=
         types = ['Forecast-0-d', 'Forecast-1-d-after', 'Forecast-2-d-after']
 
     if curw_db_adapter.get_source(name=source) is None:
+        logging.info('Source %s is not available' % source)
         curw_db_adapter.create_source([source, source_params])
 
     for station, timeseries in timeseries_dict.items():
