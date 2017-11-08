@@ -256,10 +256,11 @@ def push_rainfall_to_db(curw_db_adapter, timeseries_dict, types=None, timesteps=
         types = ['Forecast-0-d', 'Forecast-1-d-after', 'Forecast-2-d-after']
 
     if not curw_db_adapter.get_source(name=source):
-        logging.info('Source %s is not available' % source)
+        logging.info('Creating source ' + source)
         curw_db_adapter.create_source([source, source_params])
 
     for station, timeseries in timeseries_dict.items():
+        logging.info('Pushing data for station ' + station)
         for i in range(int(np.ceil(len(timeseries) / timesteps))):
             meta_data = {
                 'station': station,
@@ -277,7 +278,7 @@ def push_rainfall_to_db(curw_db_adapter, timeseries_dict, types=None, timesteps=
 
             row_count = curw_db_adapter.insert_timeseries(event_id, timeseries[i * timesteps:(i + 1) * timesteps],
                                                           upsert=upsert)
-            logging.debug('%d rows inserted' % row_count)
+            logging.info('%d rows inserted' % row_count)
 
 
 def create_station_if_not_exists(curw_db_adapter, station):
