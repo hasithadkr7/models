@@ -168,7 +168,7 @@ def get_gfs_data_dest(inv, date_str, cycle, fcst_id, res, gfs_dir):
 def get_gfs_inventory_url_dest_list(date, period, url, inv, step, cycle, res, gfs_dir, start=0):
     date_str = date.strftime('%Y%m%d') if type(date) is dt.datetime else date
     return [get_gfs_data_url_dest_tuple(url, inv, date_str, cycle, str(i).zfill(3), res, gfs_dir) for i in
-            range(start, int(period * 24) + 1, step)]
+            range(start, start + int(period * 24) + 1, step)]
 
 
 def get_gfs_inventory_dest_list(date, period, inv, step, cycle, res, gfs_dir):
