@@ -13,7 +13,7 @@ RUN yum -y update
 RUN yum -y install file gcc gcc-gfortran gcc-c++ glibc libgcc libpng-devel jasper jasper-devel hostname m4 make perl tar tcsh time wget which zlib zlib-devel openssh-clients openssh-server net-tools epel-release
 #
 # now get 3rd party EPEL builds of netcdf and openmpi dependencies
-RUN yum -y install netcdf-openmpi-devel.x86_64 netcdf-fortran-openmpi-devel.x86_64 netcdf-fortran-openmpi.x86_64 hdf5-openmpi.x86_64 openmpi.x86_64 openmpi-devel.x86_64
+RUN yum -y install netcdf-openmpi-devel.x86_64 netcdf-fortran-openmpi-devel.x86_64 netcdf-fortran-openmpi.x86_64 hdf5-openmpi.x86_64 openmpi.x86_64 openmpi-devel.x86_64 nco
 #
 WORKDIR /wrf
 #

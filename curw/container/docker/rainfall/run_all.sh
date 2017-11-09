@@ -12,7 +12,7 @@ done
 
 echo "start date: $start_date"
 
-export CURW_run_id=wrf0_"$start_date"_$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 8 ; echo '')
+export CURW_run_id=wrf0_"$start_date"_$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 4 ; echo '')
 echo "run id: $CURW_run_id"
 
 export CURW_nl_wps=$(cat << EOM

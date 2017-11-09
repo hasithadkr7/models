@@ -10,7 +10,6 @@ from zipfile import ZipFile, ZIP_DEFLATED
 
 from curw.rainfall.wrf.resources import manager as res_mgr
 from curw.rainfall.wrf import constants, utils
-from curw.rainfall.wrf.extraction import utils as ext_utils
 
 
 def download_single_inventory(url, dest, retries=constants.DEFAULT_RETRIES, delay=constants.DEFAULT_DELAY_S):
@@ -277,7 +276,8 @@ def run_em_real(wrf_config):
     logging.info('WRF em_real: DONE! Moving data to the output dir')
 
     d03_nc = glob.glob(os.path.join(output_dir, 'wrfout_d03_*'))[0]
-    ext_utils.ncks_extract_variables(d03_nc, ['RAINC', 'RAINNC', 'XLAT', 'XLONG', 'Times'], d03_nc + '_rf')
+    ncks_query = 'ncks -v %s %s %s' % ('RAINC,RAINNC,XLAT,XLONG,Times', d03_nc, d03_nc + '_rf')
+    utils.run_subprocess(ncks_query)
 
     logging.info('Moving data to the output dir')
     utils.move_files_with_prefix(em_real_dir, 'namelist.input', output_dir)
