@@ -7,7 +7,7 @@ from airflow.operators.python_operator import PythonOperator
 from curw.workflow.airflow.dags import utils as dag_utils
 from curw.workflow.airflow.extensions.operators.curw_docker_operator import CurwDockerOperator
 
-wrf_dag_name = 'docker_wrf_run_v2'
+wrf_dag_name = 'docker_wrf_run_v3'
 wrf_config_key = 'docker_wrf_config'
 namelist_wps_key = 'docker_namelist_wps'
 namelist_input_key = 'docker_namelist_input'
@@ -15,7 +15,7 @@ wrf_home_key = 'docker_wrf_home'
 wrf_start_date_key = 'docker_wrf_start_date'
 # queue = 'wrf_docker_queue'
 queue = 'default'
-schedule_interval = '@once'
+schedule_interval = '0 18 * * *'
 
 run_id = '{{ var.json.%s.start_date }}_test' % wrf_config_key
 

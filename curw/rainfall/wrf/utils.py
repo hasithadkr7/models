@@ -185,14 +185,13 @@ def replace_file_with_values(source, destination, val_dict):
     # pattern = re.compile(r'\b(' + '|'.join(val_dict.keys()) + r')\b')
     pattern = re.compile('|'.join(list(val_dict.keys())))
 
-    dest = open(destination, 'w')
-    out = ''
-    with open(source, 'r') as src:
-        line = pattern.sub(lambda x: val_dict[x.group()], src.read())
-        dest.write(line)
-        out += line
+    with open(destination, 'w') as dest:
+        out = ''
+        with open(source, 'r') as src:
+            line = pattern.sub(lambda x: val_dict[x.group()], src.read())
+            dest.write(line)
+            out += line
 
-    dest.close()
     logging.debug('replace file final content \n' + out)
 
 

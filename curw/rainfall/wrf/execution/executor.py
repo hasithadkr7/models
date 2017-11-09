@@ -1,4 +1,5 @@
 import datetime as dt
+import glob
 import json
 import logging
 import os
@@ -9,6 +10,7 @@ from zipfile import ZipFile, ZIP_DEFLATED
 
 from curw.rainfall.wrf.resources import manager as res_mgr
 from curw.rainfall.wrf import constants, utils
+from curw.rainfall.wrf.extraction import utils as ext_utils
 
 
 def download_single_inventory(url, dest, retries=constants.DEFAULT_RETRIES, delay=constants.DEFAULT_DELAY_S):
@@ -209,6 +211,8 @@ def replace_file_with_values(wrf_config, src, dest, aux_dict, start_date=None, e
     if end_date is None:
         end_date = start_date + dt.timedelta(days=wrf_config.get('period'))
 
+    period = wrf_config.get('period')
+
     d = {
         'YYYY1': start_date.strftime('%Y'),
         'MM1': start_date.strftime('%m'),
@@ -220,7 +224,8 @@ def replace_file_with_values(wrf_config, src, dest, aux_dict, start_date=None, e
         'DD2': end_date.strftime('%d'),
         'hh2': end_date.strftime('%H'),
         'mm2': end_date.strftime('%M'),
-        'GEOG': wrf_config.get('geog_dir')
+        'GEOG': wrf_config.get('geog_dir'),
+        'RD0': str(int(period)), 'RH0': str(int(period * 24 % 24)), 'RM0': str(int(period * 60 * 24 % 60))
     }
 
     if aux_dict and wrf_config.is_set(aux_dict):
@@ -237,6 +242,7 @@ def run_em_real(wrf_config):
     procs = wrf_config.get('procs')
     run_id = wrf_config.get('run_id')
     output_dir = utils.create_dir_if_not_exists(os.path.join(wrf_config.get('nfs_dir'), 'results', run_id, 'wrf'))
+    archive_dir = utils.create_dir_if_not_exists(os.path.join(wrf_config.get('archive_dir'), 'results', run_id, 'wrf'))
 
     logging.info('Backup the output dir')
     utils.backup_dir(output_dir)
@@ -270,8 +276,14 @@ def run_em_real(wrf_config):
 
     logging.info('WRF em_real: DONE! Moving data to the output dir')
 
-    utils.move_files_with_prefix(em_real_dir, 'wrfout_*', output_dir)
+    d03_nc = glob.glob(os.path.join(output_dir, 'wrfout_d03_*'))[0]
+    ext_utils.ncks_extract_variables(d03_nc, ['RAINC', 'RAINNC', 'XLAT', 'XLONG', 'Times'], d03_nc + '_rf')
+
+    logging.info('Moving data to the output dir')
     utils.move_files_with_prefix(em_real_dir, 'namelist.input', output_dir)
+    utils.move_files_with_prefix(em_real_dir, 'wrfout_d03*_rf', output_dir)
+    logging.info('Moving data to the archive dir')
+    utils.move_files_with_prefix(em_real_dir, 'wrfout_*', archive_dir)
 
     logging.info('Cleaning up files')
     utils.delete_files_with_prefix(em_real_dir, 'met_em*')

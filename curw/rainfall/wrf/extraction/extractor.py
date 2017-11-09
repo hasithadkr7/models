@@ -712,7 +712,7 @@ def push_wrf_rainfall_to_db(nc_f, curw_db_adapter=None, lon_min=None, lat_min=No
 
             if not stations_exists:
                 logging.info('Creating station %s ...' % name)
-                station = [Station.CUrW, station_id, name, str(lon), str(lat), str(0), "WRF point"]
+                station = [Station.WRF, station_id, name, str(lon), str(lat), str(0), "WRF point"]
                 curw_db_adapter.create_station(station)
 
             # add rf series to the dict
