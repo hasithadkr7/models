@@ -1,6 +1,15 @@
 #!/usr/bin/env bash
 
 start_date=$(date +"%Y-%m-%d_%H:%M")
+
+while getopts ":d:" option
+do
+ case "${option}"
+ in
+ d) start_date=$OPTARG;;
+ esac
+done
+
 echo "start date: $start_date"
 
 export CURW_run_id=wrf0_"$start_date"_$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 8 ; echo '')
