@@ -17,7 +17,7 @@ echo "start date: $start_date"
 export CURW_run_id=${run_id}
 echo "run id: $CURW_run_id"
 
-export CURW_nl_wps=$(cat << EOM
+CURW_nl_wps=$(cat << EOM
 &share
  wrf_core = 'ARW',
  max_dom = 3,
@@ -58,8 +58,9 @@ export CURW_nl_wps=$(cat << EOM
 
 EOM
 )
+export CURW_nl_wps
 
-export CURW_nl_input=$(cat << EOM
+CURW_nl_input=$(cat << EOM
  &time_control
  run_days                            = RD0,
  run_hours                           = RH0,
@@ -170,8 +171,9 @@ export CURW_nl_input=$(cat << EOM
 
 EOM
 )
+export CURW_nl_input
 
-export CURW_wrf_config=$(cat << EOM
+CURW_wrf_config=$(cat << EOM
 {
 	"wrf_home": "/wrf",
 	"gfs_dir": "/wrf/gfs",
@@ -183,8 +185,9 @@ export CURW_wrf_config=$(cat << EOM
 }
 EOM
 )
+export CURW_wrf_config
 
-export CURW_db_config=$(cat << EOM
+CURW_db_config=$(cat << EOM
 {
   "host": "localhost",
   "user": "test",
@@ -193,6 +196,7 @@ export CURW_db_config=$(cat << EOM
 }
 EOM
 )
+export CURW_db_config
 
 export CURW_mode=all
 
