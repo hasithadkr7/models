@@ -275,7 +275,7 @@ def run_em_real(wrf_config):
 
     logging.info('WRF em_real: DONE! Moving data to the output dir')
 
-    d03_nc = glob.glob(os.path.join(output_dir, 'wrfout_d03_*'))[0]
+    d03_nc = glob.glob(os.path.join(em_real_dir, 'wrfout_d03_*'))[0]
     ncks_query = 'ncks -v %s %s %s' % ('RAINC,RAINNC,XLAT,XLONG,Times', d03_nc, d03_nc + '_rf')
     utils.run_subprocess(ncks_query)
 
