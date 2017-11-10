@@ -1,18 +1,20 @@
 #!/usr/bin/env bash
 
 start_date=$(date +"%Y-%m-%d_%H:%M")
+run_id=wrf0_"$start_date"_$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 4 ; echo '')
 
-while getopts ":d:" option
+while getopts ":d:i:" option
 do
  case "${option}"
  in
  d) start_date=$OPTARG;;
+ i) run_id=$OPTARG;;
  esac
 done
 
 echo "start date: $start_date"
 
-export CURW_run_id=wrf0_"$start_date"_$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 4 ; echo '')
+export CURW_run_id=${run_id}
 echo "run id: $CURW_run_id"
 
 export CURW_nl_wps=$(cat << EOM
