@@ -153,6 +153,25 @@ class TestSpatialUtils(unittest.TestCase):
         result = get_voronoi_polygons(points, shp, ['OBJECTID', 1], output_shape_file=os.path.join(out, 'out.shp'))
         print(result)
 
+    def test_get_voronoi_polygons_kub(self):
+        points = {
+            'Colombo': [79.8653, 6.898158],
+            'IBATTARA3': [79.86, 6.89],
+            'Isurupaya': [79.92, 6.89],
+            'Daraniyagala': [80.33805556, 6.924444444],
+            'Glencourse': [80.20305556, 6.978055556],
+            'Hanwella': [80.08166667, 6.909722222],
+            'Holombuwa': [80.26480556, 7.185166667],
+            'Kitulgala': [80.41777778, 6.989166667],
+            'Borella': [79.86, 6.93, ],
+            'Kompannaveediya': [79.85, 6.92],
+        }
+
+        shp = res_mgr.get_resource_path('extraction/shp/kelani-upper-basin.shp')
+        out = tempfile.mkdtemp(prefix='voronoi_')
+        print(out)
+        result = get_voronoi_polygons(points, shp, ['OBJECTID', 1], output_shape_file=os.path.join(out, 'out.shp'))
+        print(result)
 
 def suite():
     s = unittest.TestSuite()
