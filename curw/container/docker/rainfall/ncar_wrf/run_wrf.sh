@@ -25,5 +25,5 @@ cd /wrf/curwsl
 git pull
 cd /wrf
 
-echo "#### Running the data extraction procedures..."
+echo "#### Running WRF procedures..."
 python3.6 /wrf/curwsl/curw/container/docker/rainfall/ncar_wrf/run_wrf.py -run_id="$ID" -wrf_config="$CONFIG" -mode="$MODE" -nl_wps="$WPS" -nl_input="$INPUT"
