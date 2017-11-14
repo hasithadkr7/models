@@ -659,7 +659,7 @@ def _process_zip_file(zip_file_path, out_file_path, lat_min, lon_min, lat_max, l
 
 
 def push_wrf_rainfall_to_db(nc_f, curw_db_adapter=None, lon_min=None, lat_min=None, lon_max=None,
-                            lat_max=None, run_prefix='WRF', upsert=False, run_name='Cloud-1'):
+                            lat_max=None, run_prefix='WRF', upsert=False, run_name='Cloud-1', station_prefix='wrf'):
     """
 
     :param run_name: 
@@ -691,7 +691,7 @@ def push_wrf_rainfall_to_db(nc_f, curw_db_adapter=None, lon_min=None, lat_min=No
         for _ in range(10):
             _x = lons[int(random() * width)]
             _y = lats[int(random() * height)]
-            _name = '%s_%.6f_%.6f' % (run_prefix, _x, _y)
+            _name = '%s_%.6f_%.6f' % (station_prefix, _x, _y)
             _query = {'name': _name}
             if curw_db_adapter.get_station(_query) is None:
                 logging.debug('Random stations check fail')
@@ -707,7 +707,7 @@ def push_wrf_rainfall_to_db(nc_f, curw_db_adapter=None, lon_min=None, lat_min=No
             lat = lats[y]
             lon = lons[x]
 
-            station_id = '%s_%.6f_%.6f' % (run_prefix, lon, lat)
+            station_id = '%s_%.6f_%.6f' % (station_prefix, lon, lat)
             name = station_id
 
             if not stations_exists:

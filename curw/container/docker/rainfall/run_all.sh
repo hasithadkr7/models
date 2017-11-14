@@ -2,13 +2,17 @@
 
 start_date=$(date +"%Y-%m-%d_%H:%M")
 run_id=wrf0_"$start_date"_$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 4 ; echo '')
+extract=1
+wrf=1
 
-while getopts ":d:i:" option
+while getopts ":d:i:w:e:" option
 do
  case "${option}"
  in
  d) start_date=$OPTARG;;
  i) run_id=$OPTARG;;
+ e) extract=$OPTARG;;
+ w) wrf=$OPTARG;;
  esac
 done
 
@@ -209,8 +213,6 @@ EOM
 # curw_archive="/mnt/disks/curwsl_archive"
 geog_dir="/mnt/disks/workspace1/wrf-data/geog"
 
-echo "Running WPS and WRF"
-docker run -i --rm --privileged -v $geog_dir:/wrf/geog nirandaperera/curw-wrf-391  /wrf/run_wrf.sh -c "$CURW_wrf_config" -m "$CURW_mode" -i "$CURW_run_id" -x "$CURW_nl_wps" -y "$CURW_nl_input" -k "$gcs_key" -v curwsl_nfs_1:/wrf/output -v curwsl_archive_1:/wrf/archive
+[ "$wrf" != 0 ] && echo "Running WPS and WRF" && docker run -i --rm --privileged -v $geog_dir:/wrf/geog nirandaperera/curw-wrf-391  /wrf/run_wrf.sh -c "$CURW_wrf_config" -m "$CURW_mode" -i "$CURW_run_id" -x "$CURW_nl_wps" -y "$CURW_nl_input" -k "$gcs_key" -v curwsl_nfs_1:/wrf/output -v curwsl_archive_1:/wrf/archive || echo "Running WPS and WRF Skipped"
 
-echo "Running WRF extraction"
-docker run -i --rm --privileged nirandaperera/curw-wrf-391-extract /wrf/extract_data_wrf.sh -c "$CURW_wrf_config" -i "$CURW_run_id" -d "$CURW_db_config" -k "$gcs_key" -o true -v curwsl_nfs_1:/wrf/output
+[ "$extract" != 0 ] && echo "Running WRF extraction" && docker run -i --rm --privileged nirandaperera/curw-wrf-391-extract /wrf/extract_data_wrf.sh -c "$CURW_wrf_config" -i "$CURW_run_id" -d "$CURW_db_config" -k "$gcs_key" -o true -v curwsl_nfs_1:/wrf/output || echo "Running WRF extraction skipped"
