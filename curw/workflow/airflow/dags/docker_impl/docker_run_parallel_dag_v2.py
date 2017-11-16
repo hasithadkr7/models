@@ -28,7 +28,8 @@ namelists_path_key = 'namelists_path'
 queue = 'wrf_docker_queue'
 schedule_interval = '0 18 * * *'
 
-image = 'nirandaperera/curw-wrf-391'
+wrf_image = 'nirandaperera/curw-wrf-391'
+extract_image = 'nirandaperera/curw-wrf-391-extract'
 geog_dir = "/mnt/disks/workspace1/wrf-data/geog"
 curw_nfs = 'curwsl_nfs_1'
 curw_archive = 'curwsl_archive_1'
@@ -76,10 +77,12 @@ dag = DAG(
 namelist_tar = Variable.get(namelists_path_key)
 
 
-for i in range()
+for i in range(parallel_runs):
+    pass
+
 wps = CurwDockerOperator(
     task_id='wps',
-    image=image,
+    image=wrf_image,
     command=get_docker_cmd(run_id, '{{ var.json.%s }}' % wrf_config_key, 'wps', '{{ var.value.%s }}' % namelist_wps_key,
                            '{{ var.value.%s }}' % namelist_input_key),
     cpus=1,
@@ -90,7 +93,7 @@ wps = CurwDockerOperator(
 
 wrf = CurwDockerOperator(
     task_id='wrf',
-    image=image,
+    image=wrf_image,
     command=get_docker_cmd(run_id, '{{ var.json.%s }}' % wrf_config_key, 'wrf', '{{ var.value.%s }}' % namelist_wps_key,
                            '{{ var.value.%s }}' % namelist_input_key),
     cpus=2,
@@ -99,4 +102,3 @@ wrf = CurwDockerOperator(
     dag=dag
 )
 
-initialize_params >> wps >> wrf
