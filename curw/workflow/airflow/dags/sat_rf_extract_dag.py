@@ -37,10 +37,10 @@ cmd_str_d03 = 'python3 %s/curw/rainfall/wrf/extraction/sat_extractor.py ' \
               '-output %s' % (curw_py_dir, output_dir)
 
 # D01 boundaries
-lat_min = -3.06107
-lon_min = 71.2166
-lat_max = 18.1895
-lon_max = 90.3315
+lat_min = max(5.0, -3.06107)
+lon_min = max(60.0, 71.2166)
+lat_max = min(40.0, 18.1895)
+lon_max = min(93.0, 90.3315)
 
 cmd_str_d01 = 'python3 %s/curw/rainfall/wrf/extraction/sat_extractor.py ' \
               '-end {{ macros.datetime.strftime(execution_date + macros.timedelta(hours=1), \'%%Y-%%m-%%d_%%H:%%M\') }} ' \
