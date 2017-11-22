@@ -153,8 +153,11 @@ def get_logs_dir(wrf_home=constants.DEFAULT_WRF_HOME):
 
 
 def get_gfs_data_url_dest_tuple(url, inv, date_str, cycle, fcst_id, res, gfs_dir):
-    url0 = url.replace('YYYYMMDD', date_str).replace('CC', cycle)
-    inv0 = inv.replace('CC', cycle).replace('FFF', fcst_id).replace('RRRR', res)
+    url0 = url.replace('YYYY', date_str[0:4]).replace('MM', date_str[4:6]).replace('DD', date_str[6:8]).replace('CC',
+                                                                                                                cycle)
+    inv0 = inv.replace('CC', cycle).replace('FFF', fcst_id).replace('RRRR', res).replace('YYYY', date_str[0:4]).replace(
+        'MM', date_str[4:6]).replace('DD', date_str[6:8])
+
     dest = os.path.join(gfs_dir, date_str + '.' + inv0)
     return url0 + inv0, dest
 
