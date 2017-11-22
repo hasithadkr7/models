@@ -144,7 +144,7 @@ def run_wps(wrf_config):
     # Running link_grib.csh
     gfs_date, gfs_cycle, start = utils.get_appropriate_gfs_inventory(wrf_config)
     dest = utils.get_gfs_data_url_dest_tuple(wrf_config.get('gfs_url'), wrf_config.get('gfs_inv'), gfs_date, gfs_cycle,
-                                             '', wrf_config.get('gfs_res'), '')[1]
+                                             '', wrf_config.get('gfs_res'), '')[1].replace('.grb2', '')
     utils.run_subprocess(
         'csh link_grib.csh %s/%s' % (wrf_config.get('gfs_dir'), dest), cwd=wps_dir)
 
