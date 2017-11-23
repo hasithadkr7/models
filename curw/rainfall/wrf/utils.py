@@ -360,6 +360,10 @@ def download_file(url, dest, retries=0, delay=60, overwrite=False, secondary_des
             try_count += 1
             last_e = e
             time.sleep(delay)
+        except FileExistsError:
+            logging.info('File was already downloaded by another process! Returning')
+            return
+
     raise last_e
 
 
