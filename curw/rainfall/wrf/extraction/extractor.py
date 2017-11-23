@@ -763,6 +763,10 @@ def create_rf_plots_wrf(nc_f, wrf_output, wrf_output_base, lon_min=None, lat_min
 
     prefix = 'wrf_plots'
     with TemporaryDirectory(prefix=prefix) as temp_dir:
+        t0 = dt.datetime.strptime(variables['Times'][0], '%Y-%m-%d_%H:%M:%S')
+        t1 = dt.datetime.strptime(variables['Times'][1], '%Y-%m-%d_%H:%M:%S')
+        step = (t1 - t0).total_seconds() / 3600.0
+
         for i in range(1, len(variables['Times'])):
             time = variables['Times'][i]
             ts = dt.datetime.strptime(time, '%Y-%m-%d_%H:%M:%S')
@@ -783,10 +787,10 @@ def create_rf_plots_wrf(nc_f, wrf_output, wrf_output_base, lon_min=None, lat_min
             ext_utils.create_contour_plot(inst_precip, inst_file + '.png', lat_min, lon_min, lat_max, lon_max,
                                           title, clevs=clevs, cmap=cmap, basemap=basemap)
 
-            if i % 24 == 0:
+            if (i * step) % 24 == 0:
                 t = 'Daily rf from %s LK to %s LK' % (
                     (lk_ts - dt.timedelta(hours=24)).strftime('%Y-%m-%d_%H:%M:%S'), lk_ts.strftime('%Y-%m-%d_%H:%M:%S'))
-                d = int(i / 24) - 1
+                d = int(i * step / 24) - 1
                 logging.info('Creating images for D%d' % d)
                 cum_file = os.path.join(temp_dir, 'wrf_cum_%dd' % d)
 
@@ -798,9 +802,9 @@ def create_rf_plots_wrf(nc_f, wrf_output, wrf_output_base, lon_min=None, lat_min
                                               basemap=basemap)
 
                 gif_file = os.path.join(temp_dir, 'wrf_inst_%dd' % d)
-                images = [os.path.join(temp_dir, 'wrf_inst_' + i.strftime('%Y-%m-%d_%H:%M:%S') + '.png') for i in
-                          np.arange(lk_ts - dt.timedelta(hours=23), lk_ts + dt.timedelta(hours=1),
-                                    dt.timedelta(hours=1)).astype(dt.datetime)]
+                images = [os.path.join(temp_dir, 'wrf_inst_' + j.strftime('%Y-%m-%d_%H:%M:%S') + '.png') for j in
+                          np.arange(lk_ts - dt.timedelta(hours=24 - step), lk_ts + dt.timedelta(hours=step),
+                                    dt.timedelta(hours=step)).astype(dt.datetime)]
                 ext_utils.create_gif(images, gif_file + '.gif')
 
         logging.info('Creating the zips')
