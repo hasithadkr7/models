@@ -118,6 +118,8 @@ def extract_metro_colombo(nc_f, wrf_output, wrf_output_base, curw_db_adapter=Non
 
         logging.info('Pushing data to the db...')
         ext_utils.push_rainfall_to_db(curw_db_adapter, div_rf, upsert=curw_db_upsert, source=run_prefix, name=run_name)
+    else:
+        logging.info('curw_db_adapter not available. Unable to push data!')
 
     return basin_rf
 
@@ -171,6 +173,8 @@ def extract_weather_stations(nc_f, wrf_output, weather_stations=None, curw_db_ad
         logging.info('Pushing data to the db...')
         ext_utils.push_rainfall_to_db(curw_db_adapter, stations_rf, upsert=curw_db_upsert, name=run_name,
                                       source=run_prefix)
+    else:
+        logging.info('curw_db_adapter not available. Unable to push data!')
 
     nc_fid.close()
 
@@ -294,6 +298,8 @@ def extract_kelani_upper_basin_mean_rainfall(nc_f, wrf_output, basin_shp_file=No
         logging.info('Pushing data to the db...')
         ext_utils.push_rainfall_to_db(curw_db_adapter, kub_rf, upsert=curw_db_upsert, name=run_name,
                                       source=run_prefix)
+    else:
+        logging.info('curw_db_adapter not available. Unable to push data!')
 
 
 def test_extract_kelani_upper_basin_mean_rainfall():
@@ -673,6 +679,10 @@ def push_wrf_rainfall_to_db(nc_f, curw_db_adapter=None, lon_min=None, lat_min=No
     :param upsert: 
     :return:
     """
+    if curw_db_adapter is None:
+        logging.info('curw_db_adapter not available. Unable to push data!')
+        return
+
     if not all([lon_min, lat_min, lon_max, lat_max]):
         lon_min, lat_min, lon_max, lat_max = constants.SRI_LANKA_EXTENT
 

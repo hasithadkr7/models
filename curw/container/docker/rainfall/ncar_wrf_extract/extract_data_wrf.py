@@ -24,7 +24,7 @@ def parse_args():
             return d_val
 
     parser.add_argument('-run_id', default=check_key('run_id', docker_rf_utils.id_generator()))
-    parser.add_argument('-db_config', default=check_key('db_config', None))
+    parser.add_argument('-db_config', default=check_key('db_config', '{}'))
     parser.add_argument('-wrf_config', default=check_key('wrf_config', '{}'))
     parser.add_argument('-overwrite', default=check_key('overwrite', 'False'))
 
@@ -42,7 +42,7 @@ def run(run_id, wrf_config_dict, db_config_dict, upsert=False, run_name='Cloud-1
     run_output_dir = os.path.join(output_dir_base, run_id)
     wrf_output_dir = os.path.join(run_output_dir, 'wrf')
 
-    db_adapter = ext_utils.get_curw_adapter(mysql_config=db_config_dict)
+    db_adapter = ext_utils.get_curw_adapter(mysql_config=db_config_dict) if db_config_dict else None
 
     logging.info('Creating temp file space')
 
