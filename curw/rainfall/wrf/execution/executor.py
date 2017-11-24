@@ -281,13 +281,20 @@ def run_em_real(wrf_config):
 
     logging.info('WRF em_real: DONE! Moving data to the output dir')
 
+    logging.info('Extracting rf from domain3')
     d03_nc = glob.glob(os.path.join(em_real_dir, 'wrfout_d03_*'))[0]
     ncks_query = 'ncks -v %s %s %s' % ('RAINC,RAINNC,XLAT,XLONG,Times', d03_nc, d03_nc + '_rf')
+    utils.run_subprocess(ncks_query)
+
+    logging.info('Extracting rf from domain1')
+    d01_nc = glob.glob(os.path.join(em_real_dir, 'wrfout_d01_*'))[0]
+    ncks_query = 'ncks -v %s %s %s' % ('RAINC,RAINNC,XLAT,XLONG,Times', d01_nc, d01_nc + '_rf')
     utils.run_subprocess(ncks_query)
 
     logging.info('Moving data to the output dir')
     utils.move_files_with_prefix(em_real_dir, 'namelist.input', output_dir)
     utils.move_files_with_prefix(em_real_dir, 'wrfout_d03*_rf', output_dir)
+    utils.move_files_with_prefix(em_real_dir, 'wrfout_d01*_rf', output_dir)
     logging.info('Moving data to the archive dir')
     utils.move_files_with_prefix(em_real_dir, 'wrfout_*', archive_dir)
 
