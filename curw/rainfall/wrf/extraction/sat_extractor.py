@@ -1,4 +1,5 @@
 import argparse
+import ast
 import datetime as dt
 import logging
 import multiprocessing
@@ -6,6 +7,7 @@ import os
 import shutil
 import tempfile
 import zipfile
+from random import random
 
 import matplotlib
 import numpy as np
@@ -13,6 +15,7 @@ from curw.rainfall.wrf.extraction import utils as ext_utils
 from joblib import Parallel, delayed
 from mpl_toolkits.basemap import cm
 from curw.rainfall.wrf import utils
+from curwmysqladapter import Station
 
 matplotlib.use('Agg')
 from matplotlib import colors, pyplot as plt
@@ -41,7 +44,7 @@ def create_daily_gif(start, output_dir, output_filename, output_prefix):
 
 def extract_jaxa_satellite_data(start_ts_utc, end_ts_utc, output_dir, cleanup=True, cum=False, tmp_dir=None,
                                 lat_min=5.722969, lon_min=79.52146, lat_max=10.06425, lon_max=82.18992,
-                                output_prefix='jaxa_sat'):
+                                output_prefix='jaxa_sat', db_adapter=None):
     start = utils.datetime_floor(start_ts_utc, 3600)
     end = utils.datetime_floor(end_ts_utc, 3600)
 
@@ -82,8 +85,8 @@ def extract_jaxa_satellite_data(start_ts_utc, end_ts_utc, output_dir, cleanup=Tr
 
     logging.info('Processing files in parallel')
     Parallel(n_jobs=procs)(
-        delayed(process_jaxa_zip_file)(i[1], i[2], lat_min, lon_min, lat_max, lon_max, cum, output_prefix) for i in
-        url_dest_list)
+        delayed(process_jaxa_zip_file)(i[1], i[2], lat_min, lon_min, lat_max, lon_max, cum, output_prefix, db_adapter)
+        for i in url_dest_list)
     logging.info('Processing files complete')
 
     logging.info('Creating sat rf gif for today')
@@ -113,6 +116,23 @@ def test_extract_jaxa_satellite_data():
     start = end - dt.timedelta(hours=1)
 
     extract_jaxa_satellite_data(start, end, '/home/curw/temp/jaxa', cleanup=False, tmp_dir='/home/curw/temp/jaxa/data')
+
+
+def test_extract_jaxa_satellite_data_with_db():
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s %(threadName)s %(module)s %(levelname)s %(message)s')
+    end = dt.datetime.utcnow() - dt.timedelta(hours=3)
+    start = end - dt.timedelta(hours=1)
+
+    config = {
+        "host": "localhost",
+        "user": "test",
+        "password": "password",
+        "db": "testdb"
+    }
+    adptr = ext_utils.get_curw_adapter(mysql_config=config)
+
+    extract_jaxa_satellite_data(start, end, '/home/nira/temp1/jaxa', cleanup=False, tmp_dir='/home/nira/temp1/jaxa/data',
+                                db_adapter=adptr)
 
 
 def test_extract_jaxa_satellite_data_d01():
@@ -152,7 +172,7 @@ def process_cumulative_plot(url_dest_list, start_ts_utc, end_ts_utc, output_dir,
 
 
 def process_jaxa_zip_file(zip_file_path, out_file_path, lat_min, lon_min, lat_max, lon_max, archive_data=False,
-                          output_prefix='jaxa_sat'):
+                          output_prefix='jaxa_sat', db_adapter=None):
     sat_zip = zipfile.ZipFile(zip_file_path)
     sat = np.genfromtxt(sat_zip.open(os.path.basename(zip_file_path).replace('.zip', '')), delimiter=',', names=True)
     sat_filt = np.sort(
@@ -190,6 +210,50 @@ def process_jaxa_zip_file(zip_file_path, out_file_path, lat_min, lon_min, lat_ma
     else:
         logging.info('%s already exits' % (out_file_path + '.archive'))
 
+    if db_adapter is None:
+        logging.info('db_adapter not available. Unable to push data!')
+        return
+
+    width = len(lons)
+    height = len(lats)
+    station_prefix = 'sat'
+    run_name = 'Cloud-1'
+    upsert = True
+
+    def random_check_stations_exist():
+        for _ in range(10):
+            _x = lons[int(random() * width)]
+            _y = lats[int(random() * height)]
+            _name = '%s_%.6f_%.6f' % (station_prefix, _x, _y)
+            _query = {'name': _name}
+            if db_adapter.get_station(_query) is None:
+                logging.debug('Random stations check fail')
+                return False
+        logging.debug('Random stations check success')
+        return True
+
+    stations_exists = random_check_stations_exist()
+
+    rf_ts = {}
+    for y in range(height):
+        for x in range(width):
+            lat = lats[y]
+            lon = lons[x]
+
+            station_id = '%s_%.6f_%.6f' % (station_prefix, lon, lat)
+            name = station_id
+
+            if not stations_exists:
+                logging.info('Creating station %s ...' % name)
+                station = [Station.Sat, station_id, name, str(lon), str(lat), str(0), "WRF point"]
+                db_adapter.create_station(station)
+
+            # add rf series to the dict
+            rf_ts[name] = [[lk_ts.strftime('%Y-%m-%d %H:%M:%S'), data[y, x]]]
+
+    ext_utils.push_rainfall_to_db(db_adapter, rf_ts, source=station_prefix, name=run_name, types=['Observed'],
+                                  upsert=upsert)
+
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format='%(asctime)s %(threadName)s %(module)s %(levelname)s %(message)s')
@@ -209,6 +273,8 @@ if __name__ == "__main__":
     parser.add_argument('-lat_max', default=10.06425, help='Lat max', type=float)
     parser.add_argument('-lon_max', default=82.18992, help='Lon max', type=float)
 
+    parser.add_argument('-db_config', default='{}', help='DB config of to push sat data', dest='db_config')
+
     args = parser.parse_args()
 
     if args.output is None:
@@ -216,8 +282,11 @@ if __name__ == "__main__":
     else:
         output = args.output
 
+    db_config_dict = ast.literal_eval(args.db_config)
+    adapter = ext_utils.get_curw_adapter(mysql_config=db_config_dict) if db_config_dict else None
+
     extract_jaxa_satellite_data(dt.datetime.strptime(args.start_ts, '%Y-%m-%d_%H:%M'),
                                 dt.datetime.strptime(args.end_ts, '%Y-%m-%d_%H:%M'),
                                 output, cleanup=bool(args.clean), cum=bool(args.cum), lat_min=args.lat_min,
                                 lon_min=args.lon_min, lat_max=args.lat_max, lon_max=args.lon_max,
-                                output_prefix=args.prefix)
+                                output_prefix=args.prefix, db_adapter=adapter)
