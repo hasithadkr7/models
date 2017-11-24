@@ -44,7 +44,7 @@ def create_daily_gif(start, output_dir, output_filename, output_prefix):
 
 def extract_jaxa_satellite_data(start_ts_utc, end_ts_utc, output_dir, cleanup=True, cum=False, tmp_dir=None,
                                 lat_min=5.722969, lon_min=79.52146, lat_max=10.06425, lon_max=82.18992,
-                                output_prefix='jaxa_sat', db_adapter=None):
+                                output_prefix='jaxa_sat', db_adapter_config=None):
     start = utils.datetime_floor(start_ts_utc, 3600)
     end = utils.datetime_floor(end_ts_utc, 3600)
 
@@ -85,8 +85,8 @@ def extract_jaxa_satellite_data(start_ts_utc, end_ts_utc, output_dir, cleanup=Tr
 
     logging.info('Processing files in parallel')
     Parallel(n_jobs=procs)(
-        delayed(process_jaxa_zip_file)(i[1], i[2], lat_min, lon_min, lat_max, lon_max, cum, output_prefix, db_adapter)
-        for i in url_dest_list)
+        delayed(process_jaxa_zip_file)(i[1], i[2], lat_min, lon_min, lat_max, lon_max, cum, output_prefix,
+                                       db_adapter_config) for i in url_dest_list)
     logging.info('Processing files complete')
 
     logging.info('Creating sat rf gif for today')
@@ -129,10 +129,9 @@ def test_extract_jaxa_satellite_data_with_db():
         "password": "password",
         "db": "testdb"
     }
-    adptr = ext_utils.get_curw_adapter(mysql_config=config)
-
-    extract_jaxa_satellite_data(start, end, '/home/nira/temp1/jaxa', cleanup=False, tmp_dir='/home/nira/temp1/jaxa/data',
-                                db_adapter=adptr)
+    extract_jaxa_satellite_data(start, end, '/home/nira/temp1/jaxa', cleanup=False,
+                                tmp_dir='/home/nira/temp1/jaxa/data',
+                                db_adapter_config=config)
 
 
 def test_extract_jaxa_satellite_data_d01():
@@ -172,7 +171,7 @@ def process_cumulative_plot(url_dest_list, start_ts_utc, end_ts_utc, output_dir,
 
 
 def process_jaxa_zip_file(zip_file_path, out_file_path, lat_min, lon_min, lat_max, lon_max, archive_data=False,
-                          output_prefix='jaxa_sat', db_adapter=None):
+                          output_prefix='jaxa_sat', db_adapter_config=None):
     sat_zip = zipfile.ZipFile(zip_file_path)
     sat = np.genfromtxt(sat_zip.open(os.path.basename(zip_file_path).replace('.zip', '')), delimiter=',', names=True)
     sat_filt = np.sort(
@@ -210,9 +209,11 @@ def process_jaxa_zip_file(zip_file_path, out_file_path, lat_min, lon_min, lat_ma
     else:
         logging.info('%s already exits' % (out_file_path + '.archive'))
 
-    if db_adapter is None:
+    if not db_adapter_config:
         logging.info('db_adapter not available. Unable to push data!')
         return
+
+    db_adapter = ext_utils.get_curw_adapter(mysql_config=db_adapter_config)
 
     width = len(lons)
     height = len(lats)
@@ -283,10 +284,10 @@ if __name__ == "__main__":
         output = args.output
 
     db_config_dict = ast.literal_eval(args.db_config)
-    adapter = ext_utils.get_curw_adapter(mysql_config=db_config_dict) if db_config_dict else None
+    # adapter = ext_utils.get_curw_adapter(mysql_config=db_config_dict) if db_config_dict else None
 
     extract_jaxa_satellite_data(dt.datetime.strptime(args.start_ts, '%Y-%m-%d_%H:%M'),
                                 dt.datetime.strptime(args.end_ts, '%Y-%m-%d_%H:%M'),
                                 output, cleanup=bool(args.clean), cum=bool(args.cum), lat_min=args.lat_min,
                                 lon_min=args.lon_min, lat_max=args.lat_max, lon_max=args.lon_max,
-                                output_prefix=args.prefix, db_adapter=adapter)
+                                output_prefix=args.prefix, db_adapter_config=db_config_dict)
