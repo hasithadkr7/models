@@ -735,12 +735,10 @@ def push_wrf_rainfall_to_db(nc_f, curw_db_adapter=None, lon_min=None, lat_min=No
     ext_utils.push_rainfall_to_db(curw_db_adapter, rf_ts, source=run_prefix, upsert=upsert, name=run_name)
 
 
-def create_rf_plots_wrf(nc_f, wrf_output, wrf_output_base, lon_min=None, lat_min=None, lon_max=None, lat_max=None,
+def create_rf_plots_wrf(nc_f, plots_output_dir, plots_output_base_dir, lon_min=None, lat_min=None, lon_max=None, lat_max=None,
                         filter_threshold=0.05, run_prefix='WRF'):
     if not all([lon_min, lat_min, lon_max, lat_max]):
         lon_min, lat_min, lon_max, lat_max = constants.SRI_LANKA_EXTENT
-
-    d03_dir = os.path.join(wrf_output, 'plots_d03')
 
     variables = ext_utils.extract_variables(nc_f, 'RAINC, RAINNC', lat_min, lat_max, lon_min, lon_max)
 
@@ -815,21 +813,21 @@ def create_rf_plots_wrf(nc_f, wrf_output, wrf_output_base, lon_min=None, lat_min
         utils.delete_files_with_prefix(temp_dir, 'wrf_inst_*.png')
         utils.delete_files_with_prefix(temp_dir, 'wrf_inst_*.asc')
 
-        logging.info('Copying pngs to ' + d03_dir)
-        utils.move_files_with_prefix(temp_dir, '*.png', d03_dir)
-        logging.info('Copying ascs to ' + d03_dir)
-        utils.move_files_with_prefix(temp_dir, '*.asc', d03_dir)
-        logging.info('Copying gifs to ' + d03_dir)
-        utils.copy_files_with_prefix(temp_dir, '*.gif', d03_dir)
-        logging.info('Copying zips to ' + d03_dir)
-        utils.copy_files_with_prefix(temp_dir, '*.zip', d03_dir)
+        logging.info('Copying pngs to ' + plots_output_dir)
+        utils.move_files_with_prefix(temp_dir, '*.png', plots_output_dir)
+        logging.info('Copying ascs to ' + plots_output_dir)
+        utils.move_files_with_prefix(temp_dir, '*.asc', plots_output_dir)
+        logging.info('Copying gifs to ' + plots_output_dir)
+        utils.copy_files_with_prefix(temp_dir, '*.gif', plots_output_dir)
+        logging.info('Copying zips to ' + plots_output_dir)
+        utils.copy_files_with_prefix(temp_dir, '*.zip', plots_output_dir)
 
-        d03_latest_dir = os.path.join(wrf_output_base, 'latest', run_prefix)
+        plots_latest_dir = os.path.join(plots_output_base_dir, 'latest', run_prefix)
         # <nfs>/latest/wrf0 .. 3
-        utils.create_dir_if_not_exists(d03_latest_dir)
+        utils.create_dir_if_not_exists(plots_latest_dir)
         # todo: this needs to be adjusted to handle the multiple runs
-        logging.info('Copying gifs to ' + d03_latest_dir)
-        utils.copy_files_with_prefix(temp_dir, '*.gif', d03_latest_dir)
+        logging.info('Copying gifs to ' + plots_latest_dir)
+        utils.copy_files_with_prefix(temp_dir, '*.gif', plots_latest_dir)
 
 
 def suite():
