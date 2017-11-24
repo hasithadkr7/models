@@ -69,8 +69,9 @@ def download_gfs_data(wrf_conf):
 
     start_time = time.time()
     utils.download_parallel(inventories, procs=gfs_threads, retries=wrf_conf.get('gfs_retries'),
-                            delay=wrf_conf.get('gfs_delay'),
-                            secondary_dest_dir=utils.get_nfs_gfs_dir(wrf_conf.get('nfs_dir')))
+                            delay=wrf_conf.get('gfs_delay'), secondary_dest_dir=None)
+    # todo: fix this
+    # secondary_dest_dir=utils.get_nfs_gfs_dir(wrf_conf.get('nfs_dir')))
 
     elapsed_time = time.time() - start_time
     logging.info('Downloading GFS data: END Elapsed time: %f' % elapsed_time)
