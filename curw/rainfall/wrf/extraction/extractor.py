@@ -735,7 +735,8 @@ def push_wrf_rainfall_to_db(nc_f, curw_db_adapter=None, lon_min=None, lat_min=No
     ext_utils.push_rainfall_to_db(curw_db_adapter, rf_ts, source=run_prefix, upsert=upsert, name=run_name)
 
 
-def create_rf_plots_wrf(nc_f, plots_output_dir, plots_output_base_dir, lon_min=None, lat_min=None, lon_max=None, lat_max=None,
+def create_rf_plots_wrf(nc_f, plots_output_dir, plots_output_base_dir, lon_min=None, lat_min=None, lon_max=None,
+                        lat_max=None,
                         filter_threshold=0.05, run_prefix='WRF'):
     if not all([lon_min, lat_min, lon_max, lat_max]):
         lon_min, lat_min, lon_max, lat_max = constants.SRI_LANKA_EXTENT
@@ -792,12 +793,11 @@ def create_rf_plots_wrf(nc_f, plots_output_dir, plots_output_base_dir, lon_min=N
                 logging.info('Creating images for D%d' % d)
                 cum_file = os.path.join(temp_dir, 'wrf_cum_%dd' % d)
 
-                ext_utils.create_asc_file(np.flip(variables['PRECIP'][i], 0), lats, lons, cum_file + '.asc',
-                                          cell_size=cz)
+                cum_precip = variables['PRECIP'][i] - variables['PRECIP'][i - int(24 / step)]
+                ext_utils.create_asc_file(np.flip(cum_precip, 0), lats, lons, cum_file + '.asc', cell_size=cz)
 
-                ext_utils.create_contour_plot(variables['PRECIP'][i] - variables['PRECIP'][i - 24], cum_file + '.png',
-                                              lat_min, lon_min, lat_max, lon_max, t, clevs=clevs, cmap=cmap,
-                                              basemap=basemap)
+                ext_utils.create_contour_plot(cum_precip, cum_file + '.png', lat_min, lon_min, lat_max, lon_max, t,
+                                              clevs=clevs, cmap=cmap, basemap=basemap)
 
                 gif_file = os.path.join(temp_dir, 'wrf_inst_%dd' % d)
                 images = [os.path.join(temp_dir, 'wrf_inst_' + j.strftime('%Y-%m-%d_%H:%M:%S') + '.png') for j in
