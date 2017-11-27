@@ -1,20 +1,27 @@
 #!/usr/bin/env bash
 
-start_date=$(date +"%Y-%m-%d_%H:%M")
-run_id=wrf0_"$start_date"_$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 4 ; echo '')
-extract=1
-wrf=1
+#start_date=$(date +"%Y-%m-%d_%H:%M")
+#run_id=wrf0_"$start_date"_$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 4 ; echo '')
+#extract=1
+#wrf=1
 
 while getopts ":d:i:w:e:" option
 do
  case "${option}"
  in
+ p) prefix=$OPTARG;;
  d) start_date=$OPTARG;;
  i) run_id=$OPTARG;;
  e) extract=$OPTARG;;
  w) wrf=$OPTARG;;
  esac
 done
+
+[ -z "$prefix" ] && prefix="wrf0-6d"
+[ -z "$start_date" ] && start_date=$(date +"%Y-%m-%d_%H:%M")
+[ -z "$run_id" ] && run_id="$prefix"_"$start_date"_$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 4 ; echo '')
+[ -z "$extract" ] && extract=1
+[ -z "$wrf" ] && wrf=1
 
 echo "start date: $start_date"
 
