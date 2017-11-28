@@ -11,6 +11,7 @@ from curw.container.docker.rainfall import utils as docker_rf_utils
 from curw.rainfall.wrf.execution.executor import get_wrf_config
 from curw.rainfall.wrf.extraction import extractor, constants
 from curw.rainfall.wrf.extraction import utils as ext_utils
+from curw.rainfall.wrf.resources import manager as res_mgr
 
 
 def parse_args():
@@ -81,11 +82,23 @@ def run(run_id, wrf_config_dict, db_config_dict, upsert=False, run_name='Cloud-1
 
             try:
                 logging.info('Extract Kelani upper Basin mean rainfall')
-                extractor.extract_kelani_upper_basin_mean_rainfall(d03_nc_f, run_output_dir, curw_db_adapter=db_adapter,
-                                                                   run_prefix=run_prefix, run_name=run_name,
-                                                                   curw_db_upsert=upsert)
+                basin_shp_file = res_mgr.get_resource_path('extraction/shp/kelani-upper-basin.shp')
+                extractor.extract_mean_rainfall_from_shp_file(d03_nc_f, run_output_dir, 'kub_mean_rf', 'kub_mean',
+                                                              basin_shp_file, constants.KELANI_UPPER_BASIN_EXTENT,
+                                                              curw_db_adapter=db_adapter, run_prefix=run_prefix,
+                                                              run_name=run_name, curw_db_upsert=upsert)
             except Exception as e:
                 logging.error('Extract Kelani upper Basin mean rainfall FAILED: ' + str(e))
+
+            try:
+                logging.info('Extract Kelani lower Basin mean rainfall')
+                basin_shp_file = res_mgr.get_resource_path('extraction/shp/klb-wgs84/klb-wgs84.shp')
+                extractor.extract_mean_rainfall_from_shp_file(d03_nc_f, run_output_dir, 'klb_mean_rf', 'klb_mean',
+                                                              basin_shp_file, constants.KELANI_LOWER_BASIN_EXTENT,
+                                                              curw_db_adapter=db_adapter, run_prefix=run_prefix,
+                                                              run_name=run_name, curw_db_upsert=upsert)
+            except Exception as e:
+                logging.error('Extract Kelani lower Basin mean rainfall FAILED: ' + str(e))
 
             # logging.info('Extract Kelani Basin rainfall')
             # extractor.extract_kelani_basin_rainfall(d03_nc_f, date, output_dir, avg_basin_rf=basin_rf)

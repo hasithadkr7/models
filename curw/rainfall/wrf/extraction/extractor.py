@@ -4,6 +4,7 @@ import logging
 import multiprocessing
 import os
 import shutil
+import tempfile
 import unittest
 import zipfile
 from random import random
@@ -247,12 +248,10 @@ def extract_kelani_basin_rainfall(nc_f, date, wrf_output, avg_basin_rf=1.0, kela
         write_forecast_to_raincell_file('%s.%d' % (raincell_file_path, target_rf), target_rf / avg_basin_rf)
 
 
-def extract_kelani_upper_basin_mean_rainfall(nc_f, wrf_output, basin_shp_file=None, curw_db_adapter=None,
-                                             curw_db_upsert=False, run_prefix='WRF', run_name='Cloud-1'):
-    if basin_shp_file is None:
-        basin_shp_file = res_mgr.get_resource_path('extraction/shp/kelani-upper-basin.shp')
-
-    lon_min, lat_min, lon_max, lat_max = constants.KELANI_UPPER_BASIN_EXTENT
+def extract_mean_rainfall_from_shp_file(nc_f, wrf_output, output_prefix, output_name, basin_shp_file, basin_extent,
+                                        curw_db_adapter=None, curw_db_upsert=False, run_prefix='WRF',
+                                        run_name='Cloud-1'):
+    lon_min, lat_min, lon_max, lat_max = basin_extent
 
     nc_vars = ext_utils.extract_variables(nc_f, ['RAINC', 'RAINNC'], lat_min, lat_max, lon_min, lon_max)
     lats = nc_vars['XLAT']
@@ -264,14 +263,13 @@ def extract_kelani_upper_basin_mean_rainfall(nc_f, wrf_output, basin_shp_file=No
 
     polys = shapefile.Reader(basin_shp_file)
 
-    prefix = 'kub_mean_rf'
-    output_dir = utils.create_dir_if_not_exists(os.path.join(wrf_output, prefix))
+    output_dir = utils.create_dir_if_not_exists(os.path.join(wrf_output, output_prefix))
 
-    with TemporaryDirectory(prefix=prefix) as temp_dir:
-        output_file_path = os.path.join(temp_dir, prefix + '.txt')
+    with TemporaryDirectory(prefix=output_prefix) as temp_dir:
+        output_file_path = os.path.join(temp_dir, output_prefix + '.txt')
         kub_rf = {}
         with open(output_file_path, 'w') as output_file:
-            kub_rf['kub_mean'] = []
+            kub_rf[output_name] = []
             for t in range(0, len(times) - 1):
                 cnt = 0
                 rf_sum = 0.0
@@ -285,15 +283,14 @@ def extract_kelani_upper_basin_mean_rainfall(nc_f, wrf_output, basin_shp_file=No
                 t_str = (utils.datetime_utc_to_lk(dt.datetime.strptime(times[t], '%Y-%m-%d_%H:%M:%S'))).strftime(
                     '%Y-%m-%d %H:%M:%S')
                 output_file.write('%s %f\n' % (t_str, mean_rf))
-                kub_rf['kub_mean'].append([t_str, mean_rf])
+                kub_rf[output_name].append([t_str, mean_rf])
 
         utils.move_files_with_prefix(temp_dir, '*.txt', output_dir)
 
     if curw_db_adapter is not None:
-        name = 'kub_mean'
-        station = [Station.CUrW, name, name, -999, -999, 0, 'Kelani upper basin mean rainfall']
+        station = [Station.CUrW, output_name, output_name, -999, -999, 0, 'Kelani upper basin mean rainfall']
         if ext_utils.create_station_if_not_exists(curw_db_adapter, station):
-            logging.info('%s station created' % name)
+            logging.info('%s station created' % output_name)
 
         logging.info('Pushing data to the db...')
         ext_utils.push_rainfall_to_db(curw_db_adapter, kub_rf, upsert=curw_db_upsert, name=run_name,
@@ -302,12 +299,14 @@ def extract_kelani_upper_basin_mean_rainfall(nc_f, wrf_output, basin_shp_file=No
         logging.info('curw_db_adapter not available. Unable to push data!')
 
 
-def test_extract_kelani_upper_basin_mean_rainfall():
+def test_extract_mean_rainfall_from_shp_file():
     # adapter = ext_utils.get_curw_adapter()
     adapter = None
-    extract_kelani_upper_basin_mean_rainfall('/home/curw/Desktop/wrfout_d03_2017-07-31_00:00:00',
-                                             dt.datetime.strptime('2017-07-31', '%Y-%m-%d'),
-                                             '/home/curw/temp/', curw_db_adapter=adapter)
+    basin_shp_file = res_mgr.get_resource_path('extraction/shp/kelani-upper-basin.shp')
+    basin_extent = constants.KELANI_UPPER_BASIN_EXTENT
+    extract_mean_rainfall_from_shp_file(res_mgr.get_resource_path('test/wrfout_d03_2017-10-02_12:00:00'),
+                                        tempfile.mkdtemp(prefix='temp_'), 'kub_mean_rf', 'kub_mean', basin_shp_file,
+                                        basin_extent, curw_db_adapter=adapter)
 
 
 # def extract_kelani_upper_basin_mean_rainfall_sat(sat_dir, date, kelani_basin_shp_file, wrf_output):
