@@ -3,7 +3,7 @@
 export GOOGLE_APPLICATION_CREDENTIALS=/wrf/gcs.json
 
 echo "#### Reading running args..."
-while getopts ":i:c:d:o:k:v:" option
+while getopts ":i:c:d:o:k:v:t:" option
 do
  case "${option}"
  in
@@ -11,6 +11,7 @@ do
  c) CONFIG=$OPTARG;;
  d) DB=$OPTARG;;
  o) OW="True";;
+ t) DT=$OPTARG;;
  k) echo $OPTARG > /wrf/gcs.json;;
  v) bucket=$(echo $OPTARG | cut -d':' -f1)
     path=$(echo $OPTARG | cut -d':' -f2)
@@ -31,4 +32,4 @@ cd /wrf
 
 echo "#### Running the data extraction procedures..."
 python3.6 /wrf/curwsl/curw/container/docker/rainfall/ncar_wrf_extract/extract_data_wrf.py -run_id="$ID" \
--wrf_config="$CONFIG" -db_config="$DB" -overwrite="$OW"
+-wrf_config="$CONFIG" -db_config="$DB" -overwrite="$OW" -data_type="$DT"

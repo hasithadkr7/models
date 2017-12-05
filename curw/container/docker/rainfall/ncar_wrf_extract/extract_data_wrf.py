@@ -12,6 +12,7 @@ from curw.rainfall.wrf.execution.executor import get_wrf_config
 from curw.rainfall.wrf.extraction import extractor, constants
 from curw.rainfall.wrf.extraction import utils as ext_utils
 from curw.rainfall.wrf.resources import manager as res_mgr
+from curwmysqladapter import Data
 
 
 def parse_args():
@@ -28,11 +29,12 @@ def parse_args():
     parser.add_argument('-db_config', default=check_key('db_config', '{}'))
     parser.add_argument('-wrf_config', default=check_key('wrf_config', '{}'))
     parser.add_argument('-overwrite', default=check_key('overwrite', 'False'))
+    parser.add_argument('-data_type', default=check_key('data_type', 'data'))
 
     return parser.parse_args()
 
 
-def run(run_id, wrf_config_dict, db_config_dict, upsert=False, run_name='Cloud-1'):
+def run(run_id, wrf_config_dict, db_config_dict, upsert=False, run_name='Cloud-1', data_type=Data.data):
     logging.info('**** Extracting data from WRF **** Run ID: ' + run_id)
     run_prefix = run_id.split('_')[0]
 
@@ -135,4 +137,4 @@ if __name__ == "__main__":
     logging.info('Running arguments:\n%s' % json.dumps(args, sort_keys=True, indent=0))
 
     run(args['run_id'], ast.literal_eval(args['wrf_config']), ast.literal_eval(args['db_config']),
-        ast.literal_eval(args['overwrite']))
+        ast.literal_eval(args['overwrite']), data_type= ext_utils.parse_database_data_type(args['data_type']))

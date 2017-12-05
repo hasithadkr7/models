@@ -295,6 +295,13 @@ def create_station_if_not_exists(curw_db_adapter, station):
     return False
 
 
+def parse_database_data_type(d_type, adapter_pkg_name='curwmysqladapter', adapter_class_name='Data'):
+    p = __import__(adapter_pkg_name)
+    c = getattr(p, adapter_class_name)
+    return getattr(c, d_type)
+
+
+
 # def draw_center_of_mass(data, com_dot='ro'):
 #     com = ndimage.measurements.center_of_mass(data)
 #     plt.plot(com[1], com[0], com_dot)
