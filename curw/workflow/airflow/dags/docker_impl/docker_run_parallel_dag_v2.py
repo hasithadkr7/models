@@ -2,17 +2,18 @@ import datetime as dt
 import random
 import string
 
-from airflow.models import Variable
+from airflow.operators.dummy_operator import DummyOperator
+
+from airflow.models import Variable, Connection
 
 import airflow
 from airflow import DAG
 from airflow.operators.python_operator import PythonOperator
 
-from curw.workflow.airflow.dags import utils as dag_utils
+from curw.workflow.airflow.dags.docker_impl import utils as docker_utils
 from curw.workflow.airflow.extensions.operators.curw_docker_operator import CurwDockerOperator
 
 wrf_dag_name = 'docker_wrf_run_v4'
-wrf_config_key = 'docker_wrf_config'
 namelist_wps_key = 'docker_namelist_wps'
 namelist_input_key = 'docker_namelist_input'
 
@@ -39,21 +40,15 @@ gcs_volumes = ' -v %s:/wrf/output -v %s:/wrf/archive' % (curw_nfs, curw_archive)
 
 test_mode = False
 
+nl_inp_keys = ["nl_inp_SIDAT", "nl_inp_C", "nl_inp_H", "nl_inp_NW", "nl_inp_SW", "nl_inp_W"]
+nl_wps_key = "nl_wps"
+curw_gcs_key_path = 'curw_gcs_key_path'
 
-def get_run_id(run_name, suffix=None):
-    return run_name + '_' + '{{ execution_date.strftime(\'%%Y-%%m-%%d_%%H:%%M\') }}' + (
-        ('_' + suffix) if suffix else '')
+curw_db_config_path = 'curw_db_config_path'
+wrf_config_key = 'docker_wrf_config'
 
-
-def id_generator(size=4, chars=string.ascii_uppercase + string.digits + string.ascii_lowercase):
-    return ''.join(random.choice(chars) for _ in range(size))
-
-
-def get_docker_cmd(run_id, wrf_config, mode, nl_wps, nl_input):
-    cmd = '/wrf/run_wrf.sh -i \"%s\" -c \"%s\" -m \"%s\" -x \"%s\" -y \"%s\"' % (
-        run_id, wrf_config, mode, nl_wps, nl_input)
-    return cmd
-
+airflow_vars = docker_utils.check_airflow_variables(nl_inp_keys.extend([nl_wps_key, curw_gcs_key_path]),
+                                                    ignore_error=True)
 
 default_args = {
     'owner': 'curwsl admin',
@@ -71,11 +66,19 @@ default_args = {
 dag = DAG(
     wrf_dag_name,
     default_args=default_args,
-    description='Running 5 WRFs simultaneously using docker',
+    description='Running 6 WRFs simultaneously using docker',
     schedule_interval=schedule_interval)
 
-namelist_tar = Variable.get(namelists_path_key)
 
+def initialize_config(**context):
+    config = context['templates_dict']['wrf_config']
+    kv = context['templates_dict']['kv_dict']
+    config.update(kv)
+
+    context['ti'].xcom_push[]
+
+
+init = DummyOperator()
 
 for i in range(parallel_runs):
     pass
@@ -83,8 +86,9 @@ for i in range(parallel_runs):
 wps = CurwDockerOperator(
     task_id='wps',
     image=wrf_image,
-    command=get_docker_cmd(run_id, '{{ var.json.%s }}' % wrf_config_key, 'wps', '{{ var.value.%s }}' % namelist_wps_key,
-                           '{{ var.value.%s }}' % namelist_input_key),
+    command=docker_utils.get_docker_cmd(run_id, '{{ var.json.%s }}' % wrf_config_key, 'wps',
+                                        '{{ var.value.%s }}' % namelist_wps_key,
+                                        '{{ var.value.%s }}' % namelist_input_key),
     cpus=1,
     volumes=docker_volumes,
     auto_remove=True,
@@ -94,11 +98,11 @@ wps = CurwDockerOperator(
 wrf = CurwDockerOperator(
     task_id='wrf',
     image=wrf_image,
-    command=get_docker_cmd(run_id, '{{ var.json.%s }}' % wrf_config_key, 'wrf', '{{ var.value.%s }}' % namelist_wps_key,
-                           '{{ var.value.%s }}' % namelist_input_key),
+    command=docker_utils.get_docker_cmd(run_id, '{{ var.json.%s }}' % wrf_config_key, 'wrf',
+                                        '{{ var.value.%s }}' % namelist_wps_key,
+                                        '{{ var.value.%s }}' % namelist_input_key),
     cpus=2,
     volumes=docker_volumes,
     auto_remove=True,
     dag=dag
 )
-
