@@ -35,11 +35,12 @@ curw_gcs_key_path = 'curw_gcs_key_path'
 curw_db_config_path = 'curw_db_config_path'
 
 wrf_config_key = 'docker_wrf_config'
+wrf_pool = 'parallel_wrf_runs'
 run_id_prefix = 'wrf-doc'
 run_id_suffix = docker_utils.id_generator(size=4)
 
-airflow_vars = docker_utils.check_airflow_variables(nl_inp_keys.extend([nl_wps_key, curw_gcs_key_path]),
-                                                    ignore_error=True)
+nl_inp_keys.extend([nl_wps_key, curw_gcs_key_path])
+airflow_vars = docker_utils.check_airflow_variables(nl_inp_keys, ignore_error=True)
 
 default_args = {
     'owner': 'curwsl admin',
@@ -91,14 +92,15 @@ wps = CurwDockerOperator(
                                         '{{ task_instance.xcom_pull(task_ids=\'init-config\', key=\'wrf_config\') }}',
                                         'wps',
                                         airflow_vars[nl_wps_key],
-                                        airflow_vars[nl_inp_keys][0],
+                                        airflow_vars[nl_inp_keys[0]],
                                         docker_utils.read_file(airflow_vars[curw_gcs_key_path], ignore_errors=True),
                                         gcs_volumes),
     cpus=1,
     volumes=docker_volumes,
     auto_remove=True,
     priviliedged=True,
-    dag=dag
+    dag=dag,
+    pool=wrf_pool,
 )
 
 wrf = CurwDockerOperator(
@@ -108,14 +110,15 @@ wrf = CurwDockerOperator(
                                         '{{ task_instance.xcom_pull(task_ids=\'init-config\', key=\'wrf_config\') }}',
                                         'wrf',
                                         airflow_vars[nl_wps_key],
-                                        airflow_vars[nl_inp_keys][0],
+                                        airflow_vars[nl_inp_keys[0]],
                                         docker_utils.read_file(airflow_vars[curw_gcs_key_path], ignore_errors=True),
                                         gcs_volumes),
     cpus=2,
     volumes=docker_volumes,
     auto_remove=True,
     priviliedged=True,
-    dag=dag
+    dag=dag,
+    pool=wrf_pool,
 )
 
 init >> wps >> wrf
