@@ -1,24 +1,44 @@
 import random
 import string
-
 import logging
 
 from airflow.models import Variable
 
 
+def get_exec_date_template():
+    return '{{ execution_date.strftime(\'%%Y-%%m-%%d_%%H:%%M\') }}'
+
+
 def get_run_id(run_name, suffix=None):
-    return run_name + '_' + '{{ execution_date.strftime(\'%%Y-%%m-%%d_%%H:%%M\') }}' + (
-        ('_' + suffix) if suffix else '')
+    return run_name + '_' + get_exec_date_template() + (('_' + suffix) if suffix else '')
 
 
 def id_generator(size=4, chars=string.ascii_uppercase + string.digits + string.ascii_lowercase):
     return ''.join(random.choice(chars) for _ in range(size))
 
 
-def get_docker_cmd(run_id, wrf_config, mode, nl_wps, nl_input):
-    cmd = '/wrf/run_wrf.sh -i \"%s\" -c \"%s\" -m \"%s\" -x \"%s\" -y \"%s\"' % (
-        run_id, wrf_config, mode, nl_wps, nl_input)
+def get_docker_cmd(run_id, wrf_config, mode, nl_wps, nl_input, gcs_key, gcs_volumes=None):
+    cmd = '/wrf/run_wrf.sh -i \"%s\" -c \"%s\" -m \"%s\" -x \"%s\" -y \"%s\" -k \"%s\" ' % (
+        run_id, wrf_config, mode, nl_wps, nl_input, gcs_key)
+
+    if gcs_volumes:
+        for vol in gcs_volumes:
+            cmd = cmd + ' -v %s ' % vol
+
     return cmd
+
+
+def read_file(file_path, ignore_errors=False):
+    data = ''
+    try:
+        with open(file_path, 'r') as f:
+            data = f.read()
+    except FileNotFoundError as e:
+        logging.error('File %s not found!' % file_path)
+        if not ignore_errors:
+            raise e
+
+    return data
 
 
 def check_airflow_variables(var_list, ignore_error=False, deserialize_json=False):
@@ -32,7 +52,3 @@ def check_airflow_variables(var_list, ignore_error=False, deserialize_json=False
             if not ignore_error:
                 raise e
     return out
-
-
-def initialize_wrf_config(wrf_config, **kwargs):
-

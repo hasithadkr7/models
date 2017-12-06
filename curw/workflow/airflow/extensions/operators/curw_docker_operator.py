@@ -91,6 +91,7 @@ class CurwDockerOperator(BaseOperator):
             xcom_push=False,
             xcom_all=False,
             auto_remove=False,
+            priviliedged=False,
             *args,
             **kwargs):
 
@@ -115,6 +116,7 @@ class CurwDockerOperator(BaseOperator):
         self.xcom_push = xcom_push
         self.xcom_all = xcom_all
         self.auto_remove = auto_remove
+        self.priviledged = priviliedged
 
         self.cli = None
         self.container = None
@@ -161,7 +163,8 @@ class CurwDockerOperator(BaseOperator):
                     environment=self.environment,
                     host_config=self.cli.create_host_config(binds=self.volumes,
                                                             network_mode=self.network_mode,
-                                                            auto_remove=self.auto_remove),
+                                                            auto_remove=self.auto_remove,
+                                                            privileged=self.priviledged),
                     image=image,
                     mem_limit=self.mem_limit,
                     user=self.user
