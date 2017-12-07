@@ -1,3 +1,4 @@
+import ast
 import datetime as dt
 import json
 
@@ -37,7 +38,6 @@ curw_db_config_path = 'curw_db_config_path'
 wrf_config_key = 'docker_wrf_config'
 wrf_pool = 'parallel_wrf_runs'
 run_id_prefix = 'wrf-doc'
-run_id_suffix = docker_utils.id_generator(size=4)
 
 nl_inp_keys.extend([nl_wps_key, curw_gcs_key_path])
 airflow_vars = docker_utils.check_airflow_variables(nl_inp_keys, ignore_error=True)
@@ -62,25 +62,40 @@ dag = DAG(
     schedule_interval=schedule_interval)
 
 
-def initialize_config(**context):
-    config = context['templates_dict']['wrf_config']
-    kv = context['templates_dict']['kv_dict']
-    config.update(kv)
+def initialize_config(config_key='wrf_config', configs_prefix='wrf_config_', **context):
+    print(context)
+    print(context['templates_dict'])
+    config = ast.literal_eval(context['templates_dict'][config_key])
+    for k, v in context['templates_dict'].items():
+        if k.startswith(configs_prefix):
+            config[k.replace(configs_prefix, '')] = v
 
     context['ti'].xcom_push(key='wrf_config', value=json.dumps(config, sort_keys=True))
 
 
-init = PythonOperator(
+def generate_random_run_id(prefix, random_str_len=4, **context):
+    return '_'.join(
+        [prefix, context['execution_date'].strftime('%Y-%m-%d_%H:%M'), docker_utils.id_generator(size=random_str_len)])
+
+
+generate_run_id = PythonOperator(
+    task_id='gen-run-id',
+    python_callable=generate_random_run_id,
+    op_args=[run_id_prefix],
+    provide_context=True,
+    dag=dag
+)
+
+init_config = PythonOperator(
     task_id='init-config',
     python_callable=initialize_config,
     provide_context=True,
+    op_args=['wrf_config', 'wrf_config_'],
     templates_dict={
         'wrf_config': '{{ var.json.%s }}' % wrf_config_key,
-        'kv_dict': {
-            'start_date': docker_utils.get_exec_date_template(),
-            'run_id': docker_utils.get_run_id(run_id_prefix, suffix=run_id_suffix),
-            'wps_run_id': docker_utils.get_run_id(run_id_prefix, suffix=run_id_suffix),
-        }
+        'wrf_config_start_date': '{{ execution_date.strftime(\'%Y-%m-%d_%H:%M\') }}',
+        'wrf_config_run_id': '{{ task_instance.xcom_pull(task_ids=\'gen-run-id\') }}',
+        'wrf_config_wps_run_id': '{{ task_instance.xcom_pull(task_ids=\'gen-run-id\') }}',
     },
     dag=dag,
 )
@@ -88,7 +103,7 @@ init = PythonOperator(
 wps = CurwDockerOperator(
     task_id='wps',
     image=wrf_image,
-    command=docker_utils.get_docker_cmd(docker_utils.get_run_id(run_id_prefix, suffix=run_id_suffix),
+    command=docker_utils.get_docker_cmd('{{ task_instance.xcom_pull(task_ids=\'gen-run-id\') }}',
                                         '{{ task_instance.xcom_pull(task_ids=\'init-config\', key=\'wrf_config\') }}',
                                         'wps',
                                         airflow_vars[nl_wps_key],
@@ -103,10 +118,20 @@ wps = CurwDockerOperator(
     pool=wrf_pool,
 )
 
+
+generate_run_id_wrf0 = PythonOperator(
+    task_id='gen-run-id-wrf0',
+    python_callable=generate_random_run_id,
+    op_args=[run_id_prefix + '0'],
+    provide_context=True,
+    dag=dag
+)
+
+
 wrf = CurwDockerOperator(
     task_id='wrf',
     image=wrf_image,
-    command=docker_utils.get_docker_cmd(docker_utils.get_run_id(run_id_prefix + '0', suffix=run_id_suffix),
+    command=docker_utils.get_docker_cmd('{{ task_instance.xcom_pull(task_ids=\'gen-run-id-wrf0\') }}',
                                         '{{ task_instance.xcom_pull(task_ids=\'init-config\', key=\'wrf_config\') }}',
                                         'wrf',
                                         airflow_vars[nl_wps_key],
@@ -121,4 +146,4 @@ wrf = CurwDockerOperator(
     pool=wrf_pool,
 )
 
-init >> wps >> wrf
+generate_run_id >> init_config >> wps >> generate_run_id_wrf0 >> wrf
