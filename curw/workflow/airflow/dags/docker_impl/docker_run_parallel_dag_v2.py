@@ -108,7 +108,8 @@ wps = CurwDockerOperator(
                                         'wps',
                                         airflow_vars[nl_wps_key],
                                         airflow_vars[nl_inp_keys[0]],
-                                        docker_utils.read_file(airflow_vars[curw_gcs_key_path], ignore_errors=True),
+                                        docker_utils.read_file(airflow_vars[curw_gcs_key_path], json_file=True,
+                                                               ignore_errors=True),
                                         gcs_volumes),
     cpus=1,
     volumes=docker_volumes,
@@ -118,7 +119,6 @@ wps = CurwDockerOperator(
     pool=wrf_pool,
 )
 
-
 generate_run_id_wrf0 = PythonOperator(
     task_id='gen-run-id-wrf0',
     python_callable=generate_random_run_id,
@@ -126,7 +126,6 @@ generate_run_id_wrf0 = PythonOperator(
     provide_context=True,
     dag=dag
 )
-
 
 wrf = CurwDockerOperator(
     task_id='wrf',

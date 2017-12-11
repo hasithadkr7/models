@@ -70,7 +70,20 @@ if __name__ == "__main__":
     nl_wps = args['nl_wps']  # env_vars.pop('nl_wps', None)
     nl_input = args['nl_input']  # env_vars.pop('nl_input', None)
 
-    wrf_config_dict = ast.literal_eval(args['wrf_config'])
+    wrf_config_dict = None
+    try:
+        wrf_config_eval = ast.literal_eval(args['wrf_config'])
+        if isinstance(wrf_config_eval, dict):
+            logging.info('Using wrf_config dict')
+            wrf_config_dict = wrf_config_eval
+        elif isinstance(wrf_config_eval, str) and os.path.isfile(wrf_config_eval):
+            logging.info('Using wrf_config path')
+            with open(wrf_config_eval, 'r') as f:
+                wrf_config_dict = json.load(f)
+        else:
+            raise Exception
+    except Exception as e:
+        raise docker_rf_utils.CurwDockerRainfallException('Unknown wrf_config ' + args['wrf_config'])
 
     config = executor.get_wrf_config(**wrf_config_dict)
     config.set('run_id', run_id)
@@ -79,27 +92,41 @@ if __name__ == "__main__":
 
 
     def write_wps():
-        if nl_wps is not None:
+        if nl_wps:
             logging.info('Reading namelist wps')
             nl_wps_path = os.path.join(wrf_home, 'namelist.wps')
-            content = nl_wps.replace('\\n', '\n')
-            logging.debug('namelist.wps content: \n%s' % content)
-            with open(nl_wps_path, 'w') as f:
-                f.write(content)
-                f.write('\n')
+            if os.path.isfile(nl_wps):
+                logging.info('Using namelist wps path')
+                shutil.copyfile(nl_wps, nl_wps_path)
+            else:
+                logging.info('Using namelist wps content')
+                content = nl_wps.replace('\\n', '\n')
+                logging.debug('namelist.wps content: \n%s' % content)
+                with open(nl_wps_path, 'w') as f:
+                    f.write(content)
+                    f.write('\n')
             config.set('namelist_wps', nl_wps_path)
+        else:
+            logging.info('Namelist wps not provided!')
 
 
     def write_input():
-        if nl_input is not None:
+        if nl_input:
             logging.info('Reading namelist input')
             nl_input_path = os.path.join(wrf_home, 'namelist.input')
-            content = nl_input.replace('\\n', '\n')
-            logging.debug('namelist.input content: \n%s' % content)
-            with open(nl_input_path, 'w') as f:
-                f.write(content)
-                f.write('\n')
+            if os.path.isfile(nl_input):
+                logging.info('Using namelist input path')
+                shutil.copyfile(nl_input, nl_input_path)
+            else:
+                logging.info('Using namelist input content')
+                content = nl_input.replace('\\n', '\n')
+                logging.debug('namelist.input content: \n%s' % content)
+                with open(nl_input_path, 'w') as f:
+                    f.write(content)
+                    f.write('\n')
             config.set('namelist_input', nl_input_path)
+        else:
+            logging.info('Namelist input not provided!')
 
 
     logging.info('WRF config: %s' % config.to_json_string())

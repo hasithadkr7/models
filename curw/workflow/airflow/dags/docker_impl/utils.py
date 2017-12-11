@@ -1,3 +1,4 @@
+import json
 import random
 import string
 import logging
@@ -28,11 +29,14 @@ def get_docker_cmd(run_id, wrf_config, mode, nl_wps, nl_input, gcs_key, gcs_volu
     return cmd
 
 
-def read_file(file_path, ignore_errors=False):
+def read_file(file_path, ignore_errors=False, json_file=False):
     data = ''
     try:
         with open(file_path, 'r') as f:
-            data = f.read()
+            if json_file:
+                    data = json.dumps(json.load(f))
+            else:
+                    data = f.read()
     except FileNotFoundError as e:
         logging.error('File %s not found!' % file_path)
         if not ignore_errors:
