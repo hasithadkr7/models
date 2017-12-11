@@ -76,9 +76,12 @@ if __name__ == "__main__":
         if isinstance(wrf_config_eval, dict):
             logging.info('Using wrf_config dict')
             wrf_config_dict = wrf_config_eval
-        elif isinstance(wrf_config_eval, str) and os.path.isfile(wrf_config_eval):
+        else:
+            raise Exception
+    except (SyntaxError, ValueError):
+        if os.path.isfile(args['wrf_config']):
             logging.info('Using wrf_config path')
-            with open(wrf_config_eval, 'r') as f:
+            with open(args['wrf_config'], 'r') as f:
                 wrf_config_dict = json.load(f)
         else:
             raise Exception
