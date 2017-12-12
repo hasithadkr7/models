@@ -167,7 +167,7 @@ select_wrf = DummyOperator(task_id='select-wrf', dag=dag)
 
 for i in range(parallel_runs):
     generate_run_id_wrf = PythonOperator(
-        task_id='gen-run-id-wrf-%d' % i,
+        task_id='gen-run-id-wrf%d' % i,
         python_callable=generate_random_run_id,
         op_args=[run_id_prefix + str(i)],
         provide_context=True,

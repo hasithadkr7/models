@@ -1,5 +1,6 @@
 import csv
 import datetime as dt
+import glob
 import logging
 import multiprocessing
 import os
@@ -188,7 +189,8 @@ def test_extract_weather_stations():
 
 
 # todo: update this!!!
-def extract_kelani_basin_rainfall(nc_f, date, wrf_output, avg_basin_rf=1.0, kelani_basin_file=None):
+def extract_kelani_basin_rainfall_flo2d(nc_f, nc_f_prev_days, output_dir, avg_basin_rf=1.0,
+                                        kelani_basin_file=None):
     if kelani_basin_file is None:
         kelani_basin_file = res_mgr.get_resource_path('extraction/local/kelani_basin_points_250m.txt')
 
@@ -208,38 +210,41 @@ def extract_kelani_basin_rainfall(nc_f, date, wrf_output, avg_basin_rf=1.0, kela
     lat_bins = get_bins(kel_lats)
     lon_bins = get_bins(kel_lons)
 
-    output_dir = wrf_output + '/kelani-basin/created-' + date.strftime('%Y-%m-%d')
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
+    t0 = dt.datetime.strptime(times[0], '%Y-%m-%d_%H:%M:%S')
+    t1 = dt.datetime.strptime(times[1], '%Y-%m-%d_%H:%M:%S')
 
-    prev_day_1_file = wrf_output + '/wrfout_d03_' + (date - dt.timedelta(days=1)).strftime('%Y-%m-%d') + '_00:00:00'
-    prev_day_2_file = wrf_output + '/wrfout_d03_' + (date - dt.timedelta(days=2)).strftime('%Y-%m-%d') + '_00:00:00'
+    utils.create_dir_if_not_exists(output_dir)
 
-    diff1, _, _, times1 = extract_area_rf_series(prev_day_1_file, kel_lat_min, kel_lat_max, kel_lon_min, kel_lon_max)
-    diff2, _, _, times2 = extract_area_rf_series(prev_day_2_file, kel_lat_min, kel_lat_max, kel_lon_min, kel_lon_max)
+    prev_diff = []
+    prev_days = len(nc_f_prev_days)
+    for i in range(prev_days):
+        p_diff, _, _, _ = extract_area_rf_series(nc_f_prev_days[i], kel_lat_min, kel_lat_max, kel_lon_min, kel_lon_max)
+        prev_diff.append(p_diff)
 
     def write_forecast_to_raincell_file(output_file_path, alpha):
-        output_file = open(output_file_path, 'w')
+        with open(output_file_path, 'w') as output_file:
+            res_mins = int((t1 - t0).total_seconds() / 60)
+            data_hours = int(len(times) + prev_days * 24 * 60 / res_mins)
+            start_ts = (t0 - dt.timedelta(days=prev_days)).strftime('%Y-%m-%d %H:%M:%S')
+            end_ts = times[-1].replace('_', ' ')
 
-        res = 60
-        data_hours = len(times) + 48
-        start_ts = (date - dt.timedelta(days=2)).strftime('%Y-%m-%d %H:%M:%S')
-        end_ts = (date + dt.timedelta(hours=len(times) - 1)).strftime('%Y-%m-%d %H:%M:%S')
-        output_file.write("%d %d %s %s\n" % (res, data_hours, start_ts, end_ts))
+            output_file.write("%d %d %s %s\n" % (res_mins, data_hours, start_ts, end_ts))
 
-        for h in range(0, data_hours):
-            for point in points:
-                rf_x = np.digitize(point[1], lon_bins)
-                rf_y = np.digitize(point[2], lat_bins)
-                if h < 24:
-                    output_file.write('%d %f\n' % (point[0], diff2[h, rf_y, rf_x]))
-                elif h < 48:
-                    output_file.write('%d %f\n' % (point[0], diff1[h - 24, rf_y, rf_x]))
-                elif h < 72:
-                    output_file.write('%d %f\n' % (point[0], diff[h - 48, rf_y, rf_x] * alpha))
-                else:
-                    output_file.write('%d %f\n' % (point[0], diff[h - 48, rf_y, rf_x]))
-        output_file.close()
+            for d in range(prev_days):
+                for t in range(int(24 * 60 / res_mins)):
+                    for point in points:
+                        rf_x = np.digitize(point[1], lon_bins)
+                        rf_y = np.digitize(point[2], lat_bins)
+                        output_file.write('%d %.1f\n' % (point[0], prev_diff[prev_days - 1 - d][t, rf_y, rf_x]))
+
+            for t in range(len(times)):
+                for point in points:
+                    rf_x = np.digitize(point[1], lon_bins)
+                    rf_y = np.digitize(point[2], lat_bins)
+                    if t < int(24 * 60 / res_mins):
+                        output_file.write('%d %.1f\n' % (point[0], diff[t, rf_y, rf_x] * alpha))
+                    else:
+                        output_file.write('%d %.1f\n' % (point[0], diff[t, rf_y, rf_x]))
 
     raincell_file_path = output_dir + '/RAINCELL.DAT'
     write_forecast_to_raincell_file(raincell_file_path, 1)
@@ -480,10 +485,8 @@ def extract_area_rf_series(nc_f, lat_min, lat_max, lon_min, lon_max):
     lon_max_idx = np.argmax(lons >= lon_max)
     lat_max_idx = np.argmax(lats >= lat_max)
 
-    prcp = nc_fid.variables['RAINC'][:, lat_min_idx:lat_max_idx, lon_min_idx:lon_max_idx] + \
-           nc_fid.variables['RAINNC'][:, lat_min_idx:lat_max_idx, lon_min_idx:lon_max_idx] + \
-           nc_fid.variables['SNOWNC'][:, lat_min_idx:lat_max_idx, lon_min_idx:lon_max_idx] + \
-           nc_fid.variables['GRAUPELNC'][:, lat_min_idx:lat_max_idx, lon_min_idx:lon_max_idx]
+    prcp = nc_fid.variables['RAINC'][:, lat_min_idx:lat_max_idx, lon_min_idx:lon_max_idx] \
+           + nc_fid.variables['RAINNC'][:, lat_min_idx:lat_max_idx, lon_min_idx:lon_max_idx]
 
     diff = prcp[1:times_len] - prcp[0:times_len - 1]
 
@@ -851,3 +854,19 @@ class TestExtractor(unittest.TestCase):
         lon_min, lat_min, lon_max, lat_max = constants.KELANI_KALU_BASIN_EXTENT
         push_wrf_rainfall_to_db(nc_f, curw_db_adapter=adapter, lat_min=lat_min, lon_min=lon_min,
                                 lat_max=lat_max, lon_max=lon_max, upsert=True)
+
+    def test_extract_kelani_basin_rainfall_flo2d(self):
+        wrf_output_dir = '/home/curw/temp/results'
+        run_date = dt.datetime.strptime('2017-12-11_18:00', '%Y-%m-%d_%H:%M')
+        run_prefix = 'wrf0'
+        now = '_'.join([run_prefix, run_date.strftime('%Y-%m-%d_%H:%M'), '*'])
+        prev_1 = '_'.join([run_prefix, (run_date - dt.timedelta(days=1)).strftime('%Y-%m-%d_%H:%M'), '*'])
+        prev_2 = '_'.join([run_prefix, (run_date - dt.timedelta(days=2)).strftime('%Y-%m-%d_%H:%M'), '*'])
+        d03_nc_f = glob.glob(os.path.join(wrf_output_dir, now, 'wrf', 'wrfout_d03_*'))[0]
+        d03_nc_f_prev_1 = glob.glob(os.path.join(wrf_output_dir, prev_1, 'wrf', 'wrfout_d03_*'))[0]
+        d03_nc_f_prev_2 = glob.glob(os.path.join(wrf_output_dir, prev_2, 'wrf', 'wrfout_d03_*'))[0]
+
+        kelani_basin_flo2d_file = res_mgr.get_resource_path('extraction/local/kelani_basin_points_250m.txt')
+        extract_kelani_basin_rainfall_flo2d(d03_nc_f, [d03_nc_f_prev_1, d03_nc_f_prev_2],
+                                            os.path.join(wrf_output_dir, 'klb_flo2d'),
+                                            kelani_basin_file=kelani_basin_flo2d_file)

@@ -5,6 +5,7 @@ import json
 import logging
 import os
 import shutil
+import datetime as dt
 from tempfile import TemporaryDirectory
 
 from curw.container.docker.rainfall import utils as docker_rf_utils
@@ -123,6 +124,23 @@ def run(run_id, wrf_config_dict, db_config_dict, upsert=False, run_name='Cloud-1
                                               run_prefix=run_prefix)
             except Exception as e:
                 logging.error('Create plots for D01 FAILED: ' + str(e))
+
+            # try:
+            #     logging.info('Extract Kelani lower Basin rainfall for FLO2D')
+            #     run_date = dt.datetime.strptime(config.get('start_date'), '%Y-%m-%d_%H:%M')
+            #     prev_1 = '_'.join([run_prefix, (run_date - dt.timedelta(days=1)).strftime('%Y-%m-%d_%H:%M'), '*'])
+            #     prev_2 = '_'.join([run_prefix, (run_date - dt.timedelta(days=2)).strftime('%Y-%m-%d_%H:%M'), '*'])
+            #     d03_nc_f_prev_1 = shutil.copy2(
+            #         glob.glob(os.path.join(wrf_output_dir, prev_1, 'wrf', 'wrfout_d03_*'))[0], temp_dir)
+            #     d03_nc_f_prev_2 = shutil.copy2(
+            #         glob.glob(os.path.join(wrf_output_dir, prev_2, 'wrf', 'wrfout_d03_*'))[0], temp_dir)
+            #
+            #     kelani_basin_flo2d_file = res_mgr.get_resource_path('extraction/local/kelani_basin_points_250m.txt')
+            #     extractor.extract_kelani_basin_rainfall_flo2d(d03_nc_f, [d03_nc_f_prev_1, d03_nc_f_prev_2],
+            #                                                   os.path.join(run_output_dir, 'klb_flo2d'),
+            #                                                   kelani_basin_file=kelani_basin_flo2d_file)
+            # except Exception as e:
+            #     logging.error('Extract Kelani lower Basin mean rainfall FAILED: ' + str(e))
 
         except Exception as e:
             logging.error('Copying wrfout_* to temp_dir %s FAILED: %s' % (temp_dir, str(e)))
