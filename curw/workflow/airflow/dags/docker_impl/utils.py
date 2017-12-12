@@ -30,7 +30,7 @@ def get_docker_cmd(run_id, wrf_config, mode, nl_wps, nl_input, gcs_key, gcs_volu
 
 
 def get_docker_extract_cmd(run_id, wrf_config, db_config, gcs_key, gcs_volumes=None, overwrite=True):
-    cmd = '/wrf/ extract_data_wrf.sh -i \"%s\" -c \"%s\" -d \"%s\" -k \"%s\" -o \"%s\" ' % (
+    cmd = '/wrf/extract_data_wrf.sh -i \"%s\" -c \"%s\" -d \"%s\" -k \"%s\" -o \"%s\" ' % (
         run_id, wrf_config, db_config, gcs_key, str(overwrite))
 
     if gcs_volumes:
