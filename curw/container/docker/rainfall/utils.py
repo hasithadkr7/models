@@ -1,7 +1,12 @@
 import argparse
+import ast
 import os
 import random
 import string
+
+import logging
+
+import json
 
 
 def get_env_vars(prefix):
@@ -17,6 +22,29 @@ def get_var(var, env_vars, args, default=None):
 
 def id_generator(size=8, chars=string.ascii_uppercase + string.digits):
     return ''.join(random.choice(chars) for _ in range(size))
+
+
+def get_config_dict(config_str):
+    try:
+        wrf_config_eval = ast.literal_eval(config_str)
+        if isinstance(wrf_config_eval, dict):
+            logging.info('Using config content')
+            wrf_config_dict = wrf_config_eval
+        else:
+            logging.error('Unable to load config from content')
+            raise Exception
+    except (SyntaxError, ValueError):
+        if os.path.isfile(config_str):
+            logging.info('Using config path')
+            with open(config_str, 'r') as f:
+                wrf_config_dict = json.load(f)
+        else:
+            logging.error('Unable to load config from path')
+            raise Exception
+    except Exception:
+        raise CurwDockerRainfallException('Unknown config: ' + config_str)
+
+    return wrf_config_dict
 
 
 class CurwDockerRainfallException(Exception):

@@ -53,7 +53,7 @@ RUN cd /basemap-1.1.0 \
  && python3.6 setup.py install
 
 RUN cd /wrf
-RUN mkdir gfs output geog
+RUN mkdir gfs output geog config
 
 RUN git clone -b $CURW_VERSION https://github.com/nirandaperera/models.git curwsl
 RUN pip3.6 install -e curwsl/

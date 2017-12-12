@@ -1,5 +1,4 @@
 import argparse
-import ast
 import json
 import logging
 import os
@@ -70,24 +69,8 @@ if __name__ == "__main__":
     nl_wps = args['nl_wps']  # env_vars.pop('nl_wps', None)
     nl_input = args['nl_input']  # env_vars.pop('nl_input', None)
 
-    wrf_config_dict = None
-    try:
-        wrf_config_eval = ast.literal_eval(args['wrf_config'])
-        if isinstance(wrf_config_eval, dict):
-            logging.info('Using wrf_config dict')
-            wrf_config_dict = wrf_config_eval
-        else:
-            raise Exception
-    except (SyntaxError, ValueError):
-        if os.path.isfile(args['wrf_config']):
-            logging.info('Using wrf_config path')
-            with open(args['wrf_config'], 'r') as f:
-                wrf_config_dict = json.load(f)
-        else:
-            raise Exception
-    except Exception as e:
-        raise docker_rf_utils.CurwDockerRainfallException('Unknown wrf_config ' + args['wrf_config'])
-
+    logging.info('Getting wrf_config')
+    wrf_config_dict = docker_rf_utils.get_config_dict(args['wrf_config'])
     config = executor.get_wrf_config(**wrf_config_dict)
     config.set('run_id', run_id)
 

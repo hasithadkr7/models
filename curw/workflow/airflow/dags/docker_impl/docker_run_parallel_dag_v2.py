@@ -3,6 +3,8 @@ import json
 import logging
 import os
 
+from airflow.operators.dummy_operator import DummyOperator
+
 import airflow
 from airflow import DAG
 from airflow.operators.python_operator import PythonOperator
@@ -88,7 +90,8 @@ def initialize_config(local_config_path, run_id_task_name, configs_prefix='wrf_c
 
     xcom_val = os.path.join(config_output_dir, os.path.basename(out_wc_path))
     logging.info('Returned xcom: ' + xcom_val)
-    context['ti'].xcom_push(key='wrf_config', value=xcom_val)
+    # context['ti'].xcom_push(key='config', value=xcom_val)
+    return xcom_val
 
 
 def generate_random_run_id(prefix, random_str_len=4, **context):
@@ -96,6 +99,12 @@ def generate_random_run_id(prefix, random_str_len=4, **context):
         [prefix, context['execution_date'].strftime('%Y-%m-%d_%H:%M'), docker_utils.id_generator(size=random_str_len)])
     logging.info('Generated run_id: ' + run_id)
     return run_id
+
+
+def clean_up_wrf_config(init_task_id, **context):
+    wc_path = context['task_instance'].xcom_pull(task_ids=init_task_id)
+    logging.info('Cleaning up ' + wc_path)
+    os.remove(wc_path)
 
 
 generate_run_id = PythonOperator(
@@ -119,11 +128,19 @@ init_config = PythonOperator(
     dag=dag,
 )
 
+clean_up = PythonOperator(
+    task_id='cleanup-config',
+    python_callable=clean_up_wrf_config,
+    provide_context=True,
+    op_args=['init-config'],
+    dag=dag,
+)
+
 wps = CurwDockerOperator(
     task_id='wps',
     image=wrf_image,
     command=docker_utils.get_docker_cmd('{{ task_instance.xcom_pull(task_ids=\'gen-run-id\') }}',
-                                        '{{ task_instance.xcom_pull(task_ids=\'init-config\', key=\'wrf_config\') }}',
+                                        '{{ task_instance.xcom_pull(task_ids=\'init-config\') }}',
                                         'wps',
                                         airflow_vars[nl_wps_key],
                                         airflow_vars[nl_inp_keys[0]],
@@ -137,30 +154,37 @@ wps = CurwDockerOperator(
     pool=wrf_pool,
 )
 
-generate_run_id_wrf0 = PythonOperator(
-    task_id='gen-run-id-wrf0',
-    python_callable=generate_random_run_id,
-    op_args=[run_id_prefix + '0'],
-    provide_context=True,
-    dag=dag
-)
+generate_run_id >> init_config >> wps
 
-wrf = CurwDockerOperator(
-    task_id='wrf',
-    image=wrf_image,
-    command=docker_utils.get_docker_cmd('{{ task_instance.xcom_pull(task_ids=\'gen-run-id-wrf0\') }}',
-                                        '{{ task_instance.xcom_pull(task_ids=\'init-config\', key=\'wrf_config\') }}',
-                                        'wrf',
-                                        airflow_vars[nl_wps_key],
-                                        airflow_vars[nl_inp_keys[0]],
-                                        airflow_vars[curw_gcs_key_path],
-                                        gcs_volumes),
-    cpus=2,
-    volumes=docker_volumes,
-    auto_remove=True,
-    priviliedged=True,
-    dag=dag,
-    pool=wrf_pool,
-)
+end_wrf = DummyOperator(task_id='end-wrf', dag=dag)
 
-generate_run_id >> init_config >> wps >> generate_run_id_wrf0 >> wrf
+for i in range(parallel_runs):
+    generate_run_id_wrf = PythonOperator(
+        task_id='gen-run-id-wrf-%d' % i,
+        python_callable=generate_random_run_id,
+        op_args=[run_id_prefix + str(i)],
+        provide_context=True,
+        dag=dag
+    )
+
+    wrf = CurwDockerOperator(
+        task_id='wrf%d' % i,
+        image=wrf_image,
+        command=docker_utils.get_docker_cmd('{{ task_instance.xcom_pull(task_ids=\'gen-run-id-wrf%d\') }}' % i,
+                                            '{{ task_instance.xcom_pull(task_ids=\'init-config\' }}',
+                                            'wrf',
+                                            airflow_vars[nl_wps_key],
+                                            airflow_vars[nl_inp_keys[i]],
+                                            airflow_vars[curw_gcs_key_path],
+                                            gcs_volumes),
+        cpus=2,
+        volumes=docker_volumes,
+        auto_remove=True,
+        priviliedged=True,
+        dag=dag,
+        pool=wrf_pool,
+    )
+
+    wps >> generate_run_id_wrf >> wrf >> end_wrf
+
+end_wrf >> clean_up
