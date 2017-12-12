@@ -3,11 +3,10 @@ import json
 import logging
 import os
 
-from airflow.operators.dummy_operator import DummyOperator
-
 import airflow
 from airflow import DAG
-from airflow.operators.python_operator import PythonOperator
+from airflow.operators.dummy_operator import DummyOperator
+from airflow.operators.python_operator import PythonOperator, BranchPythonOperator
 from curw.workflow.airflow.dags.docker_impl import utils as docker_utils
 from curw.workflow.airflow.extensions.operators.curw_docker_operator import CurwDockerOperator
 
@@ -44,7 +43,7 @@ local_wrf_config_path = '/mnt/disks/wrf-mod/config/local-wrf-config.json'
 wrf_pool = 'parallel_wrf_runs'
 run_id_prefix = 'wrf-doc'
 
-nl_inp_keys.extend([nl_wps_key, curw_gcs_key_path])
+nl_inp_keys.extend([nl_wps_key, curw_gcs_key_path, curw_db_config_path])
 airflow_vars = docker_utils.check_airflow_variables(nl_inp_keys, ignore_error=True)
 
 default_args = {
@@ -105,6 +104,14 @@ def clean_up_wrf_config(init_task_id, **context):
     wc_path = context['task_instance'].xcom_pull(task_ids=init_task_id)
     logging.info('Cleaning up ' + wc_path)
     os.remove(wc_path)
+
+
+def check_data_push_callable(task_ids, **context):
+    exec_date = context['execution_date']
+    if exec_date.hour == 18 and exec_date.minute == 0:
+        return task_ids[0]
+    else:
+        return task_ids[1]
 
 
 generate_run_id = PythonOperator(
@@ -202,6 +209,40 @@ for i in range(parallel_runs):
         pool=wrf_pool,
     )
 
-    wps >> generate_run_id_wrf >> wrf >> extract_wrf >> select_wrf
+    extract_wrf_no_data_push = CurwDockerOperator(
+        task_id='wrf%d-extract-no-data-push' % i,
+        image=extract_image,
+        command=docker_utils.get_docker_extract_cmd('{{ task_instance.xcom_pull(task_ids=\'gen-run-id-wrf%d\') }}' % i,
+                                                    '{{ task_instance.xcom_pull(task_ids=\'init-config\' }}',
+                                                    '{}',
+                                                    airflow_vars[curw_gcs_key_path],
+                                                    gcs_volumes,
+                                                    overwrite=False),
+        cpus=2,
+        volumes=docker_volumes,
+        auto_remove=True,
+        priviliedged=True,
+        dag=dag,
+        pool=wrf_pool,
+    )
+
+    check_data_push = BranchPythonOperator(
+        task_id='check-data-push' + str(i),
+        python_callable=check_data_push_callable,
+        provide_context=True,
+        op_args=[['wrf%d-extract' % i, 'wrf%d-extract-no-data-push' % i]],
+        dag=dag
+    )
+
+    join_branch = DummyOperator(
+        task_id='join-branch' + str(i),
+        trigger_rule='one_success',
+        dag=dag
+    )
+
+    wps >> generate_run_id_wrf >> wrf >> check_data_push
+    check_data_push >> extract_wrf >> join_branch
+    check_data_push >> extract_wrf_no_data_push >> join_branch
+    join_branch >> select_wrf
 
 select_wrf >> clean_up
