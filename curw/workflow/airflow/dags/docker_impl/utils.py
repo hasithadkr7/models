@@ -29,14 +29,25 @@ def get_docker_cmd(run_id, wrf_config, mode, nl_wps, nl_input, gcs_key, gcs_volu
     return cmd
 
 
+def get_docker_extract_cmd(run_id, wrf_config, db_config, gcs_key, gcs_volumes=None, overwrite=True):
+    cmd = '/wrf/ extract_data_wrf.sh -i \"%s\" -c \"%s\" -d \"%s\" -k \"%s\" -o \"%s\" ' % (
+        run_id, wrf_config, db_config, gcs_key, str(overwrite))
+
+    if gcs_volumes:
+        for vol in gcs_volumes:
+            cmd = cmd + ' -v %s ' % vol
+
+    return cmd
+
+
 def read_file(file_path, ignore_errors=False, json_file=False):
     data = ''
     try:
         with open(file_path, 'r') as f:
             if json_file:
-                    data = json.dumps(json.load(f))
+                data = json.dumps(json.load(f))
             else:
-                    data = f.read()
+                data = f.read()
     except FileNotFoundError as e:
         logging.error('File %s not found!' % file_path)
         if not ignore_errors:

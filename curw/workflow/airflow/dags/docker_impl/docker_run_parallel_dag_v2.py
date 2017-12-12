@@ -156,7 +156,7 @@ wps = CurwDockerOperator(
 
 generate_run_id >> init_config >> wps
 
-end_wrf = DummyOperator(task_id='end-wrf', dag=dag)
+select_wrf = DummyOperator(task_id='select-wrf', dag=dag)
 
 for i in range(parallel_runs):
     generate_run_id_wrf = PythonOperator(
@@ -185,6 +185,23 @@ for i in range(parallel_runs):
         pool=wrf_pool,
     )
 
-    wps >> generate_run_id_wrf >> wrf >> end_wrf
+    extract_wrf = CurwDockerOperator(
+        task_id='wrf%d-extract' % i,
+        image=extract_image,
+        command=docker_utils.get_docker_extract_cmd('{{ task_instance.xcom_pull(task_ids=\'gen-run-id-wrf%d\') }}' % i,
+                                                    '{{ task_instance.xcom_pull(task_ids=\'init-config\' }}',
+                                                    airflow_vars[curw_db_config_path],
+                                                    airflow_vars[curw_gcs_key_path],
+                                                    gcs_volumes,
+                                                    overwrite=False),
+        cpus=2,
+        volumes=docker_volumes,
+        auto_remove=True,
+        priviliedged=True,
+        dag=dag,
+        pool=wrf_pool,
+    )
 
-end_wrf >> clean_up
+    wps >> generate_run_id_wrf >> wrf >> extract_wrf >> select_wrf
+
+select_wrf >> clean_up
