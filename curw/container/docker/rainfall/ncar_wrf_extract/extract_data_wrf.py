@@ -118,9 +118,10 @@ def run(run_id, wrf_config_dict, db_config_dict, upsert=False, run_name='Cloud-1
                 prev_1 = '_'.join([run_prefix, (run_date - dt.timedelta(days=1)).strftime('%Y-%m-%d_%H:%M'), '*'])
                 prev_2 = '_'.join([run_prefix, (run_date - dt.timedelta(days=2)).strftime('%Y-%m-%d_%H:%M'), '*'])
                 d03_nc_f_prev_1 = shutil.copy2(
-                    glob.glob(os.path.join(wrf_output_dir, prev_1, 'wrf', 'wrfout_d03_*'))[0], temp_dir)
+                    glob.glob(os.path.join(output_dir_base, prev_1, 'wrf', 'wrfout_d03_*'))[0], temp_dir)
+
                 d03_nc_f_prev_2 = shutil.copy2(
-                    glob.glob(os.path.join(wrf_output_dir, prev_2, 'wrf', 'wrfout_d03_*'))[0], temp_dir)
+                    glob.glob(os.path.join(output_dir_base, prev_2, 'wrf', 'wrfout_d03_*'))[0], temp_dir)
 
                 kelani_basin_flo2d_file = res_mgr.get_resource_path('extraction/local/kelani_basin_points_250m.txt')
                 extractor.extract_kelani_basin_rainfall_flo2d(d03_nc_f, [d03_nc_f_prev_1, d03_nc_f_prev_2],
@@ -134,8 +135,8 @@ def run(run_id, wrf_config_dict, db_config_dict, upsert=False, run_name='Cloud-1
                 run_date = dt.datetime.strptime(config.get('start_date'), '%Y-%m-%d_%H:%M')
                 prev_1 = '_'.join([run_prefix, (run_date - dt.timedelta(days=1)).strftime('%Y-%m-%d_%H:%M'), '*'])
                 prev_2 = '_'.join([run_prefix, (run_date - dt.timedelta(days=2)).strftime('%Y-%m-%d_%H:%M'), '*'])
-                klb_prev_1 = glob.glob(os.path.join(wrf_output_dir, prev_1, 'klb_mean_rf', 'klb_mean_rf.txt'))[0]
-                klb_prev_2 = glob.glob(os.path.join(wrf_output_dir, prev_2, 'klb_mean_rf', 'klb_mean_rf.txt'))[0]
+                klb_prev_1 = glob.glob(os.path.join(output_dir_base, prev_1, 'klb_mean_rf', 'klb_mean_rf.txt'))[0]
+                klb_prev_2 = glob.glob(os.path.join(output_dir_base, prev_2, 'klb_mean_rf', 'klb_mean_rf.txt'))[0]
 
                 extractor.create_rainfall_for_mike21(d03_nc_f, [klb_prev_1, klb_prev_2],
                                                      os.path.join(run_output_dir, 'klb_mike21'))
