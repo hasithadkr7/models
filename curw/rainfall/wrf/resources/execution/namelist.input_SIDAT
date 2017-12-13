@@ -1,7 +1,7 @@
  &time_control
- run_days                            = 3,
- run_hours                           = 0,
- run_minutes                         = 0,
+ run_days                            = RD0,
+ run_hours                           = RH0,
+ run_minutes                         = RM0,
  run_seconds                         = 0,
  start_year                          = YYYY1, YYYY1,  YYYY1,
  start_month                         = MM1, MM1,  MM1,
