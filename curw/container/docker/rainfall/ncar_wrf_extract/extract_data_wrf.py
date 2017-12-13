@@ -56,61 +56,61 @@ def run(run_id, wrf_config_dict, db_config_dict, upsert=False, run_name='Cloud-1
             d03_nc_f = shutil.copy2(glob.glob(os.path.join(wrf_output_dir, 'wrfout_d03_*'))[0], temp_dir)
             d01_nc_f = shutil.copy2(glob.glob(os.path.join(wrf_output_dir, 'wrfout_d01_*'))[0], temp_dir)
 
-            logging.info('Extracting data from ' + d03_nc_f)
-            try:
-                logging.info('Extract WRF data points in the Kelani and Kalu basins')
-                lon_min, lat_min, lon_max, lat_max = constants.KELANI_KALU_BASIN_EXTENT
-                extractor.push_wrf_rainfall_to_db(d03_nc_f, curw_db_adapter=db_adapter, lat_min=lat_min,
-                                                  lon_min=lon_min,
-                                                  lat_max=lat_max, lon_max=lon_max, run_prefix=run_prefix,
-                                                  upsert=upsert)
-            except Exception as e:
-                logging.error('Extract WRF data points in the Kelani and Kalu basins FAILED: ' + str(e))
-
-            try:
-                logging.info('Extract rainfall data for the metro colombo area')
-                basin_rf = extractor.extract_metro_colombo(d03_nc_f, run_output_dir, output_dir_base,
-                                                           curw_db_adapter=db_adapter, run_prefix=run_prefix,
-                                                           run_name=run_name, curw_db_upsert=upsert)
-                logging.info('Basin rainfall' + str(basin_rf))
-            except Exception as e:
-                logging.error('Extract rainfall data for the metro colombo area FAILED: ' + str(e))
-
-            try:
-                logging.info('Extract weather station rainfall')
-                extractor.extract_weather_stations(d03_nc_f, run_output_dir, curw_db_adapter=db_adapter,
-                                                   curw_db_upsert=upsert, run_prefix=run_prefix, run_name=run_name)
-            except Exception as e:
-                logging.error('Extract weather station rainfall FAILED: ' + str(e))
-
-            try:
-                logging.info('Extract Kelani upper Basin mean rainfall')
-                basin_shp_file = res_mgr.get_resource_path('extraction/shp/kelani-upper-basin.shp')
-                extractor.extract_mean_rainfall_from_shp_file(d03_nc_f, run_output_dir, 'kub_mean_rf', 'kub_mean',
-                                                              basin_shp_file, constants.KELANI_UPPER_BASIN_EXTENT,
-                                                              curw_db_adapter=db_adapter, run_prefix=run_prefix,
-                                                              run_name=run_name, curw_db_upsert=upsert)
-            except Exception as e:
-                logging.error('Extract Kelani upper Basin mean rainfall FAILED: ' + str(e))
-
-            try:
-                logging.info('Extract Kelani lower Basin mean rainfall')
-                basin_shp_file = res_mgr.get_resource_path('extraction/shp/klb-wgs84/klb-wgs84.shp')
-                extractor.extract_mean_rainfall_from_shp_file(d03_nc_f, run_output_dir, 'klb_mean_rf', 'klb_mean',
-                                                              basin_shp_file, constants.KELANI_LOWER_BASIN_EXTENT,
-                                                              curw_db_adapter=db_adapter, run_prefix=run_prefix,
-                                                              run_name=run_name, curw_db_upsert=upsert)
-            except Exception as e:
-                logging.error('Extract Kelani lower Basin mean rainfall FAILED: ' + str(e))
-
-            try:
-                logging.info('Create plots for D03')
-                lon_min, lat_min, lon_max, lat_max = constants.SRI_LANKA_EXTENT
-                extractor.create_rf_plots_wrf(d03_nc_f, os.path.join(run_output_dir, 'plots_D03'), output_dir_base,
-                                              lat_min=lat_min, lon_min=lon_min, lat_max=lat_max, lon_max=lon_max,
-                                              run_prefix=run_prefix)
-            except Exception as e:
-                logging.error('Create plots for D03 FAILED: ' + str(e))
+            # logging.info('Extracting data from ' + d03_nc_f)
+            # try:
+            #     logging.info('Extract WRF data points in the Kelani and Kalu basins')
+            #     lon_min, lat_min, lon_max, lat_max = constants.KELANI_KALU_BASIN_EXTENT
+            #     extractor.push_wrf_rainfall_to_db(d03_nc_f, curw_db_adapter=db_adapter, lat_min=lat_min,
+            #                                       lon_min=lon_min,
+            #                                       lat_max=lat_max, lon_max=lon_max, run_prefix=run_prefix,
+            #                                       upsert=upsert)
+            # except Exception as e:
+            #     logging.error('Extract WRF data points in the Kelani and Kalu basins FAILED: ' + str(e))
+            #
+            # try:
+            #     logging.info('Extract rainfall data for the metro colombo area')
+            #     basin_rf = extractor.extract_metro_colombo(d03_nc_f, run_output_dir, output_dir_base,
+            #                                                curw_db_adapter=db_adapter, run_prefix=run_prefix,
+            #                                                run_name=run_name, curw_db_upsert=upsert)
+            #     logging.info('Basin rainfall' + str(basin_rf))
+            # except Exception as e:
+            #     logging.error('Extract rainfall data for the metro colombo area FAILED: ' + str(e))
+            #
+            # try:
+            #     logging.info('Extract weather station rainfall')
+            #     extractor.extract_weather_stations(d03_nc_f, run_output_dir, curw_db_adapter=db_adapter,
+            #                                        curw_db_upsert=upsert, run_prefix=run_prefix, run_name=run_name)
+            # except Exception as e:
+            #     logging.error('Extract weather station rainfall FAILED: ' + str(e))
+            #
+            # try:
+            #     logging.info('Extract Kelani upper Basin mean rainfall')
+            #     basin_shp_file = res_mgr.get_resource_path('extraction/shp/kelani-upper-basin.shp')
+            #     extractor.extract_mean_rainfall_from_shp_file(d03_nc_f, run_output_dir, 'kub_mean_rf', 'kub_mean',
+            #                                                   basin_shp_file, constants.KELANI_UPPER_BASIN_EXTENT,
+            #                                                   curw_db_adapter=db_adapter, run_prefix=run_prefix,
+            #                                                   run_name=run_name, curw_db_upsert=upsert)
+            # except Exception as e:
+            #     logging.error('Extract Kelani upper Basin mean rainfall FAILED: ' + str(e))
+            #
+            # try:
+            #     logging.info('Extract Kelani lower Basin mean rainfall')
+            #     basin_shp_file = res_mgr.get_resource_path('extraction/shp/klb-wgs84/klb-wgs84.shp')
+            #     extractor.extract_mean_rainfall_from_shp_file(d03_nc_f, run_output_dir, 'klb_mean_rf', 'klb_mean',
+            #                                                   basin_shp_file, constants.KELANI_LOWER_BASIN_EXTENT,
+            #                                                   curw_db_adapter=db_adapter, run_prefix=run_prefix,
+            #                                                   run_name=run_name, curw_db_upsert=upsert)
+            # except Exception as e:
+            #     logging.error('Extract Kelani lower Basin mean rainfall FAILED: ' + str(e))
+            #
+            # try:
+            #     logging.info('Create plots for D03')
+            #     lon_min, lat_min, lon_max, lat_max = constants.SRI_LANKA_EXTENT
+            #     extractor.create_rf_plots_wrf(d03_nc_f, os.path.join(run_output_dir, 'plots_D03'), output_dir_base,
+            #                                   lat_min=lat_min, lon_min=lon_min, lat_max=lat_max, lon_max=lon_max,
+            #                                   run_prefix=run_prefix)
+            # except Exception as e:
+            #     logging.error('Create plots for D03 FAILED: ' + str(e))
 
             try:
                 logging.info('Extract Kelani lower Basin rainfall for FLO2D')
@@ -142,15 +142,15 @@ def run(run_id, wrf_config_dict, db_config_dict, upsert=False, run_name='Cloud-1
             except Exception as e:
                 logging.error('Extract Kelani lower Basin mean rainfall for MIKE21 FAILED: ' + str(e))
 
-            logging.info('Extracting data from ' + d01_nc_f)
-            try:
-                logging.info('Create plots for D01')
-                lon_min, lat_min, lon_max, lat_max = constants.SRI_LANKA_D01_EXTENT
-                extractor.create_rf_plots_wrf(d01_nc_f, os.path.join(run_output_dir, 'plots_D01'), output_dir_base,
-                                              lat_min=lat_min, lon_min=lon_min, lat_max=lat_max, lon_max=lon_max,
-                                              run_prefix=run_prefix)
-            except Exception as e:
-                logging.error('Create plots for D01 FAILED: ' + str(e))
+            # logging.info('Extracting data from ' + d01_nc_f)
+            # try:
+            #     logging.info('Create plots for D01')
+            #     lon_min, lat_min, lon_max, lat_max = constants.SRI_LANKA_D01_EXTENT
+            #     extractor.create_rf_plots_wrf(d01_nc_f, os.path.join(run_output_dir, 'plots_D01'), output_dir_base,
+            #                                   lat_min=lat_min, lon_min=lon_min, lat_max=lat_max, lon_max=lon_max,
+            #                                   run_prefix=run_prefix)
+            # except Exception as e:
+            #     logging.error('Create plots for D01 FAILED: ' + str(e))
 
         except Exception as e:
             logging.error('Copying wrfout_* to temp_dir %s FAILED: %s' % (temp_dir, str(e)))
