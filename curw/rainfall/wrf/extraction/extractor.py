@@ -256,12 +256,10 @@ def create_rainfall_for_mike21(d0_rf_file, prev_rf_files, output_dir):
     with open(d0_rf_file) as d0_file:
         t0 = dt.datetime.strptime(' '.join(next(d0_file).split()[:-1]), '%Y-%m-%d %H:%M:%S')
         t1 = dt.datetime.strptime(' '.join(next(d0_file).split()[:-1]), '%Y-%m-%d %H:%M:%S')
-    logging.info('#######')
     res_min = int((t1 - t0).total_seconds() / 60)
     lines_per_day = int(24 * 60 / res_min)
     prev_days = len(prev_rf_files)
 
-    logging.info('#######')
     output = None
     for i in range(len(prev_rf_files)):
         if output is not None:
@@ -269,11 +267,9 @@ def create_rainfall_for_mike21(d0_rf_file, prev_rf_files, output_dir):
                                axis=0)
         else:
             output = np.genfromtxt(prev_rf_files[prev_days - 1 - i], dtype=str, max_rows=lines_per_day)
-    logging.info('#######')
     output = np.append(output, np.genfromtxt(d0_rf_file, dtype=str), axis=0)
     out_file = os.path.join(utils.create_dir_if_not_exists(output_dir), 'rf_mike21.txt')
 
-    logging.info('#######')
     np.savetxt(out_file, output, fmt='%s')
 
 

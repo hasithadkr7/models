@@ -135,25 +135,26 @@ def run(run_id, wrf_config_dict, db_config_dict, upsert=False, run_name='Cloud-1
                 run_date = dt.datetime.strptime(config.get('start_date'), '%Y-%m-%d_%H:%M')
                 prev_1 = '_'.join([run_prefix, (run_date - dt.timedelta(days=1)).strftime('%Y-%m-%d_%H:%M'), '*'])
                 prev_2 = '_'.join([run_prefix, (run_date - dt.timedelta(days=2)).strftime('%Y-%m-%d_%H:%M'), '*'])
-                klb_prev_1 = glob.glob(os.path.join(output_dir_base, prev_1, 'klb_mean_rf', 'klb_mean_rf.txt'))[0]
-                klb_prev_2 = glob.glob(os.path.join(output_dir_base, prev_2, 'klb_mean_rf', 'klb_mean_rf.txt'))[0]
+                klb_prev_1 = shutil.copy2(
+                    glob.glob(os.path.join(output_dir_base, prev_1, 'klb_mean_rf', 'klb_mean_rf.txt'))[0], temp_dir)
+                klb_prev_2 = shutil.copy2(
+                    glob.glob(os.path.join(output_dir_base, prev_2, 'klb_mean_rf', 'klb_mean_rf.txt'))[0], temp_dir)
 
-                logging.info('*******')
                 extractor.create_rainfall_for_mike21(d03_nc_f, [klb_prev_1, klb_prev_2],
                                                      os.path.join(run_output_dir, 'klb_mike21'))
             except Exception as e:
                 logging.error('Extract Kelani lower Basin mean rainfall for MIKE21 FAILED: ' + str(e))
                 raise e
 
-            # logging.info('Extracting data from ' + d01_nc_f)
-            # try:
-            #     logging.info('Create plots for D01')
-            #     lon_min, lat_min, lon_max, lat_max = constants.SRI_LANKA_D01_EXTENT
-            #     extractor.create_rf_plots_wrf(d01_nc_f, os.path.join(run_output_dir, 'plots_D01'), output_dir_base,
-            #                                   lat_min=lat_min, lon_min=lon_min, lat_max=lat_max, lon_max=lon_max,
-            #                                   run_prefix=run_prefix)
-            # except Exception as e:
-            #     logging.error('Create plots for D01 FAILED: ' + str(e))
+                # logging.info('Extracting data from ' + d01_nc_f)
+                # try:
+                #     logging.info('Create plots for D01')
+                #     lon_min, lat_min, lon_max, lat_max = constants.SRI_LANKA_D01_EXTENT
+                #     extractor.create_rf_plots_wrf(d01_nc_f, os.path.join(run_output_dir, 'plots_D01'), output_dir_base,
+                #                                   lat_min=lat_min, lon_min=lon_min, lat_max=lat_max, lon_max=lon_max,
+                #                                   run_prefix=run_prefix)
+                # except Exception as e:
+                #     logging.error('Create plots for D01 FAILED: ' + str(e))
 
         except Exception as e:
             logging.error('Copying wrfout_* to temp_dir %s FAILED: %s' % (temp_dir, str(e)))
