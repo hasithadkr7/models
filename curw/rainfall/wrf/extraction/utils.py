@@ -296,7 +296,7 @@ def create_station_if_not_exists(curw_db_adapter, station):
 
 
 def parse_database_data_type(d_type, adapter_pkg_name='curwmysqladapter', adapter_class_name='Data'):
-    if d_type is None:
+    if not d_type:
         d_type = 'data'
     p = __import__(adapter_pkg_name)
     c = getattr(p, adapter_class_name)
