@@ -254,6 +254,7 @@ def extract_kelani_basin_rainfall_flo2d(nc_f, nc_f_prev_days, output_dir, avg_ba
 
 def create_rainfall_for_mike21(d0_rf_file, prev_rf_files, output_dir):
     d0 = np.genfromtxt(d0_rf_file, dtype=str)
+    print(d0)
 
     t0 = dt.datetime.strptime(' '.join(d0[0][:-1]), '%Y-%m-%d %H:%M:%S')
     t1 = dt.datetime.strptime(' '.join(d0[1][:-1]), '%Y-%m-%d %H:%M:%S')
