@@ -181,16 +181,10 @@ def extract_weather_stations(nc_f, wrf_output, weather_stations=None, curw_db_ad
     nc_fid.close()
 
 
-def test_extract_weather_stations():
-    adapter = ext_utils.get_curw_adapter()
-    extract_weather_stations('/home/curw/Desktop/wrfout_d03_2017-07-31_00:00:00',
-                             dt.datetime.strptime('2017-07-31', '%Y-%m-%d'), '/home/curw/temp/',
-                             curw_db_adapter=adapter)
-
-
-# todo: update this!!!
 def extract_kelani_basin_rainfall_flo2d(nc_f, nc_f_prev_days, output_dir, avg_basin_rf=1.0,
-                                        kelani_basin_file=None):
+                                        kelani_basin_file=None, target_rfs=None):
+    if target_rfs is None:
+        target_rfs = [100, 150, 200, 250, 300]
     if kelani_basin_file is None:
         kelani_basin_file = res_mgr.get_resource_path('extraction/local/kelani_basin_points_250m.txt')
 
@@ -246,11 +240,38 @@ def extract_kelani_basin_rainfall_flo2d(nc_f, nc_f_prev_days, output_dir, avg_ba
                     else:
                         output_file.write('%d %.1f\n' % (point[0], diff[t, rf_y, rf_x]))
 
-    raincell_file_path = output_dir + '/RAINCELL.DAT'
-    write_forecast_to_raincell_file(raincell_file_path, 1)
+    with TemporaryDirectory(prefix='curw_raincell') as temp_dir:
+        raincell_temp = os.path.join(temp_dir, 'RAINCELL.DAT')
+        write_forecast_to_raincell_file(raincell_temp, 1)
 
-    for target_rf in [100, 150, 200, 250, 300]:
-        write_forecast_to_raincell_file('%s.%d' % (raincell_file_path, target_rf), target_rf / avg_basin_rf)
+        for target_rf in target_rfs:
+            write_forecast_to_raincell_file('%s.%d' % (raincell_temp, target_rf), target_rf / avg_basin_rf)
+
+        utils.create_zip_with_prefix(temp_dir, 'RAINCELL.DAT*', os.path.join(temp_dir, 'RAINCELL.zip'),
+                                     clean_up=True)
+        utils.move_files_with_prefix(temp_dir, 'RAINCELL.zip', utils.create_dir_if_not_exists(output_dir))
+
+
+def create_rainfall_for_mike21(d0_rf_file, prev_rf_files, output_dir):
+    with open(d0_rf_file) as d0_file:
+        t0 = dt.datetime.strptime(' '.join(next(d0_file).split()[:-1]), '%Y-%m-%d %H:%M:%S')
+        t1 = dt.datetime.strptime(' '.join(next(d0_file).split()[:-1]), '%Y-%m-%d %H:%M:%S')
+
+    res_min = int((t1 - t0).total_seconds() / 60)
+    lines_per_day = int(24 * 60 / res_min)
+    prev_days = len(prev_rf_files)
+
+    output = None
+    for i in range(len(prev_rf_files)):
+        if output is not None:
+            output = np.append(output, np.genfromtxt(prev_rf_files[prev_days - 1 - i], dtype=str, max_rows=lines_per_day),
+                      axis=0)
+        else:
+            output = np.genfromtxt(prev_rf_files[prev_days - 1 - i], dtype=str, max_rows=lines_per_day)
+    output = np.append(output, np.genfromtxt(d0_rf_file, dtype=str), axis=0)
+    out_file = os.path.join(utils.create_dir_if_not_exists(output_dir), 'rf_mike21.txt')
+
+    np.savetxt(out_file, output, fmt='%s')
 
 
 def extract_mean_rainfall_from_shp_file(nc_f, wrf_output, output_prefix, output_name, basin_shp_file, basin_extent,
@@ -868,5 +889,25 @@ class TestExtractor(unittest.TestCase):
 
         kelani_basin_flo2d_file = res_mgr.get_resource_path('extraction/local/kelani_basin_points_250m.txt')
         extract_kelani_basin_rainfall_flo2d(d03_nc_f, [d03_nc_f_prev_1, d03_nc_f_prev_2],
-                                            os.path.join(wrf_output_dir, 'klb_flo2d'),
+                                            os.path.join(wrf_output_dir, now, 'klb_flo2d'),
                                             kelani_basin_file=kelani_basin_flo2d_file)
+
+    def test_create_rainfall_for_mike21(self):
+        wrf_output_dir = '/home/curw/temp/results'
+        run_date = dt.datetime.strptime('2017-12-11_18:00', '%Y-%m-%d_%H:%M')
+        run_prefix = 'wrf0'
+        now = '_'.join([run_prefix, run_date.strftime('%Y-%m-%d_%H:%M'), '*'])
+        prev_1 = '_'.join([run_prefix, (run_date - dt.timedelta(days=1)).strftime('%Y-%m-%d_%H:%M'), '*'])
+        prev_2 = '_'.join([run_prefix, (run_date - dt.timedelta(days=2)).strftime('%Y-%m-%d_%H:%M'), '*'])
+        d03_nc_f = glob.glob(os.path.join(wrf_output_dir, now, 'klb_mean_rf', 'klb_mean_rf.txt'))[0]
+        d03_nc_f_prev_1 = glob.glob(os.path.join(wrf_output_dir, prev_1, 'klb_mean_rf', 'klb_mean_rf.txt'))[0]
+        d03_nc_f_prev_2 = glob.glob(os.path.join(wrf_output_dir, prev_2, 'klb_mean_rf', 'klb_mean_rf.txt'))[0]
+
+        create_rainfall_for_mike21(d03_nc_f, [d03_nc_f_prev_1, d03_nc_f_prev_2],
+                                   os.path.join(wrf_output_dir, now, 'mike_21'))
+
+    def test_extract_weather_stations(self):
+        adapter = ext_utils.get_curw_adapter()
+        extract_weather_stations('/home/curw/Desktop/wrfout_d03_2017-07-31_00:00:00',
+                                 dt.datetime.strptime('2017-07-31', '%Y-%m-%d'), '/home/curw/temp/',
+                                 curw_db_adapter=adapter)

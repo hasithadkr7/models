@@ -103,9 +103,6 @@ def run(run_id, wrf_config_dict, db_config_dict, upsert=False, run_name='Cloud-1
             except Exception as e:
                 logging.error('Extract Kelani lower Basin mean rainfall FAILED: ' + str(e))
 
-            # logging.info('Extract Kelani Basin rainfall')
-            # extractor.extract_kelani_basin_rainfall(d03_nc_f, date, output_dir, avg_basin_rf=basin_rf)
-
             try:
                 logging.info('Create plots for D03')
                 lon_min, lat_min, lon_max, lat_max = constants.SRI_LANKA_EXTENT
@@ -114,6 +111,36 @@ def run(run_id, wrf_config_dict, db_config_dict, upsert=False, run_name='Cloud-1
                                               run_prefix=run_prefix)
             except Exception as e:
                 logging.error('Create plots for D03 FAILED: ' + str(e))
+
+            try:
+                logging.info('Extract Kelani lower Basin rainfall for FLO2D')
+                run_date = dt.datetime.strptime(config.get('start_date'), '%Y-%m-%d_%H:%M')
+                prev_1 = '_'.join([run_prefix, (run_date - dt.timedelta(days=1)).strftime('%Y-%m-%d_%H:%M'), '*'])
+                prev_2 = '_'.join([run_prefix, (run_date - dt.timedelta(days=2)).strftime('%Y-%m-%d_%H:%M'), '*'])
+                d03_nc_f_prev_1 = shutil.copy2(
+                    glob.glob(os.path.join(wrf_output_dir, prev_1, 'wrf', 'wrfout_d03_*'))[0], temp_dir)
+                d03_nc_f_prev_2 = shutil.copy2(
+                    glob.glob(os.path.join(wrf_output_dir, prev_2, 'wrf', 'wrfout_d03_*'))[0], temp_dir)
+
+                kelani_basin_flo2d_file = res_mgr.get_resource_path('extraction/local/kelani_basin_points_250m.txt')
+                extractor.extract_kelani_basin_rainfall_flo2d(d03_nc_f, [d03_nc_f_prev_1, d03_nc_f_prev_2],
+                                                              os.path.join(run_output_dir, 'klb_flo2d'),
+                                                              kelani_basin_file=kelani_basin_flo2d_file)
+            except Exception as e:
+                logging.error('Extract Kelani lower Basin mean rainfall for FLO2D FAILED: ' + str(e))
+
+            try:
+                logging.info('Extract Kelani lower Basin rainfall for MIKE21')
+                run_date = dt.datetime.strptime(config.get('start_date'), '%Y-%m-%d_%H:%M')
+                prev_1 = '_'.join([run_prefix, (run_date - dt.timedelta(days=1)).strftime('%Y-%m-%d_%H:%M'), '*'])
+                prev_2 = '_'.join([run_prefix, (run_date - dt.timedelta(days=2)).strftime('%Y-%m-%d_%H:%M'), '*'])
+                d03_nc_f_prev_1 = glob.glob(os.path.join(wrf_output_dir, prev_1, 'klb_mean_rf', 'klb_mean_rf.txt'))[0]
+                d03_nc_f_prev_2 = glob.glob(os.path.join(wrf_output_dir, prev_2, 'klb_mean_rf', 'klb_mean_rf.txt'))[0]
+
+                extractor.create_rainfall_for_mike21(d03_nc_f, [d03_nc_f_prev_1, d03_nc_f_prev_2],
+                                                     os.path.join(run_output_dir, 'klb_mike21'))
+            except Exception as e:
+                logging.error('Extract Kelani lower Basin mean rainfall for MIKE21 FAILED: ' + str(e))
 
             logging.info('Extracting data from ' + d01_nc_f)
             try:
@@ -124,23 +151,6 @@ def run(run_id, wrf_config_dict, db_config_dict, upsert=False, run_name='Cloud-1
                                               run_prefix=run_prefix)
             except Exception as e:
                 logging.error('Create plots for D01 FAILED: ' + str(e))
-
-            # try:
-            #     logging.info('Extract Kelani lower Basin rainfall for FLO2D')
-            #     run_date = dt.datetime.strptime(config.get('start_date'), '%Y-%m-%d_%H:%M')
-            #     prev_1 = '_'.join([run_prefix, (run_date - dt.timedelta(days=1)).strftime('%Y-%m-%d_%H:%M'), '*'])
-            #     prev_2 = '_'.join([run_prefix, (run_date - dt.timedelta(days=2)).strftime('%Y-%m-%d_%H:%M'), '*'])
-            #     d03_nc_f_prev_1 = shutil.copy2(
-            #         glob.glob(os.path.join(wrf_output_dir, prev_1, 'wrf', 'wrfout_d03_*'))[0], temp_dir)
-            #     d03_nc_f_prev_2 = shutil.copy2(
-            #         glob.glob(os.path.join(wrf_output_dir, prev_2, 'wrf', 'wrfout_d03_*'))[0], temp_dir)
-            #
-            #     kelani_basin_flo2d_file = res_mgr.get_resource_path('extraction/local/kelani_basin_points_250m.txt')
-            #     extractor.extract_kelani_basin_rainfall_flo2d(d03_nc_f, [d03_nc_f_prev_1, d03_nc_f_prev_2],
-            #                                                   os.path.join(run_output_dir, 'klb_flo2d'),
-            #                                                   kelani_basin_file=kelani_basin_flo2d_file)
-            # except Exception as e:
-            #     logging.error('Extract Kelani lower Basin mean rainfall FAILED: ' + str(e))
 
         except Exception as e:
             logging.error('Copying wrfout_* to temp_dir %s FAILED: %s' % (temp_dir, str(e)))
