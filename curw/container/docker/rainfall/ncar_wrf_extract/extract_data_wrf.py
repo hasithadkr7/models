@@ -129,6 +129,7 @@ def run(run_id, wrf_config_dict, db_config_dict, upsert=False, run_name='Cloud-1
                                                               kelani_basin_file=kelani_basin_flo2d_file)
             except Exception as e:
                 logging.error('Extract Kelani lower Basin mean rainfall for FLO2D FAILED: ' + str(e))
+                raise e
 
             try:
                 logging.info('Extract Kelani lower Basin rainfall for MIKE21')
