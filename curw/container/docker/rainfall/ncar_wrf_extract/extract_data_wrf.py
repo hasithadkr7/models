@@ -150,12 +150,10 @@ def run(run_id, wrf_config_dict, db_config_dict, upsert=False, run_name='Cloud-1
 
                 extractor.create_rainfall_for_mike21(d03_nc_f, [klb_prev_1, klb_prev_2],
                                                      os.path.join(run_output_dir, 'klb_mike21'))
-            except UnicodeDecodeError as e:
-                logging.error('Extract Kelani lower Basin mean rainfall for MIKE21 FAILED: ' + str(e))
-                logging.error(e)
             except Exception as e:
                 logging.error('Extract Kelani lower Basin mean rainfall for MIKE21 FAILED: ' + str(e))
                 logging.error(sys.exc_info()[0])
+                raise e
 
             # logging.info('Extracting data from ' + d01_nc_f)
             # try:
@@ -169,6 +167,7 @@ def run(run_id, wrf_config_dict, db_config_dict, upsert=False, run_name='Cloud-1
 
         except Exception as e:
             logging.error('Copying wrfout_* to temp_dir %s FAILED: %s' % (temp_dir, str(e)))
+            raise e
 
     logging.info('**** Extracting data from WRF **** Run ID: ' + run_id + ' COMPLETED!')
 
