@@ -134,10 +134,10 @@ def run(run_id, wrf_config_dict, db_config_dict, upsert=False, run_name='Cloud-1
                 run_date = dt.datetime.strptime(config.get('start_date'), '%Y-%m-%d_%H:%M')
                 prev_1 = '_'.join([run_prefix, (run_date - dt.timedelta(days=1)).strftime('%Y-%m-%d_%H:%M'), '*'])
                 prev_2 = '_'.join([run_prefix, (run_date - dt.timedelta(days=2)).strftime('%Y-%m-%d_%H:%M'), '*'])
-                d03_nc_f_prev_1 = glob.glob(os.path.join(wrf_output_dir, prev_1, 'klb_mean_rf', 'klb_mean_rf.txt'))[0]
-                d03_nc_f_prev_2 = glob.glob(os.path.join(wrf_output_dir, prev_2, 'klb_mean_rf', 'klb_mean_rf.txt'))[0]
+                klb_prev_1 = glob.glob(os.path.join(wrf_output_dir, prev_1, 'klb_mean_rf', 'klb_mean_rf.txt'))[0]
+                klb_prev_2 = glob.glob(os.path.join(wrf_output_dir, prev_2, 'klb_mean_rf', 'klb_mean_rf.txt'))[0]
 
-                extractor.create_rainfall_for_mike21(d03_nc_f, [d03_nc_f_prev_1, d03_nc_f_prev_2],
+                extractor.create_rainfall_for_mike21(d03_nc_f, [klb_prev_1, klb_prev_2],
                                                      os.path.join(run_output_dir, 'klb_mike21'))
             except Exception as e:
                 logging.error('Extract Kelani lower Basin mean rainfall for MIKE21 FAILED: ' + str(e))
