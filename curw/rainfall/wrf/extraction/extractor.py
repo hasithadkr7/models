@@ -253,9 +253,11 @@ def extract_kelani_basin_rainfall_flo2d(nc_f, nc_f_prev_days, output_dir, avg_ba
 
 
 def create_rainfall_for_mike21(d0_rf_file, prev_rf_files, output_dir):
-    with open(d0_rf_file) as d0_file:
-        t0 = dt.datetime.strptime(' '.join(str(next(d0_file)).split()[:-1]), '%Y-%m-%d %H:%M:%S')
-        t1 = dt.datetime.strptime(' '.join(str(next(d0_file)).split()[:-1]), '%Y-%m-%d %H:%M:%S')
+    d0 = np.genfromtxt(d0_rf_file, dtype=str)
+
+    t0 = dt.datetime.strptime(' '.join(d0[0][:-1]), '%Y-%m-%d %H:%M:%S')
+    t1 = dt.datetime.strptime(' '.join(d0[1][:-1]), '%Y-%m-%d %H:%M:%S')
+
     res_min = int((t1 - t0).total_seconds() / 60)
     lines_per_day = int(24 * 60 / res_min)
     prev_days = len(prev_rf_files)
@@ -267,7 +269,7 @@ def create_rainfall_for_mike21(d0_rf_file, prev_rf_files, output_dir):
                                axis=0)
         else:
             output = np.genfromtxt(prev_rf_files[prev_days - 1 - i], dtype=str, max_rows=lines_per_day)
-    output = np.append(output, np.genfromtxt(d0_rf_file, dtype=str), axis=0)
+    output = np.append(output, d0, axis=0)
     out_file = os.path.join(utils.create_dir_if_not_exists(output_dir), 'rf_mike21.txt')
 
     np.savetxt(out_file, output, fmt='%s')
