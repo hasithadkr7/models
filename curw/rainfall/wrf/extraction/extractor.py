@@ -265,7 +265,8 @@ def create_rainfall_for_mike21(d0_rf_file, prev_rf_files, output_dir):
     output = None
     for i in range(len(prev_rf_files)):
         if output is not None:
-            output = np.append(output, np.genfromtxt(prev_rf_files[prev_days - 1 - i], dtype=str, max_rows=lines_per_day),
+            output = np.append(output,
+                               np.genfromtxt(prev_rf_files[prev_days - 1 - i], dtype=str, max_rows=lines_per_day),
                                axis=0)
         else:
             output = np.genfromtxt(prev_rf_files[prev_days - 1 - i], dtype=str, max_rows=lines_per_day)
