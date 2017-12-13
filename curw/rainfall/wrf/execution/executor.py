@@ -149,28 +149,31 @@ def run_wps(wrf_config):
     utils.run_subprocess(
         'csh link_grib.csh %s/%s' % (wrf_config.get('gfs_dir'), dest), cwd=wps_dir)
 
-    # Starting ungrib.exe
     try:
-        utils.run_subprocess('./ungrib.exe', cwd=wps_dir)
-    finally:
-        utils.move_files_with_prefix(wps_dir, 'ungrib.log', logs_dir)
-
-    # Starting geogrid.exe'
-    if not check_geogrid_output(wps_dir):
-        logging.info('Geogrid output not available')
+        # Starting ungrib.exe
         try:
-            utils.run_subprocess('./geogrid.exe', cwd=wps_dir)
+            utils.run_subprocess('./ungrib.exe', cwd=wps_dir)
         finally:
-            utils.move_files_with_prefix(wps_dir, 'geogrid.log', logs_dir)
+            utils.move_files_with_prefix(wps_dir, 'ungrib.log', logs_dir)
 
-    # Starting metgrid.exe'
-    try:
-        utils.run_subprocess('./metgrid.exe', cwd=wps_dir)
+        # Starting geogrid.exe'
+        if not check_geogrid_output(wps_dir):
+            logging.info('Geogrid output not available')
+            try:
+                utils.run_subprocess('./geogrid.exe', cwd=wps_dir)
+            finally:
+                utils.move_files_with_prefix(wps_dir, 'geogrid.log', logs_dir)
+
+        # Starting metgrid.exe'
+        try:
+            utils.run_subprocess('./metgrid.exe', cwd=wps_dir)
+        finally:
+            utils.move_files_with_prefix(wps_dir, 'metgrid.log', logs_dir)
     finally:
-        utils.move_files_with_prefix(wps_dir, 'metgrid.log', logs_dir)
+        logging.info('Moving namelist wps file')
+        utils.move_files_with_prefix(wps_dir, 'namelist.wps', output_dir)
 
     logging.info('Running WPS: DONE')
-    utils.move_files_with_prefix(wps_dir, 'namelist.wps', output_dir)
 
     logging.info('Zipping metgrid data')
     metgrid_zip = os.path.join(wps_dir, wrf_config.get('run_id') + '_metgrid.zip')
@@ -264,20 +267,24 @@ def run_em_real(wrf_config):
 
     # logs destination: nfs/logs/xxxx/rsl*
     try:
-        logging.info('Starting real.exe')
-        utils.run_subprocess('mpirun --allow-run-as-root -np %d ./real.exe' % procs, cwd=em_real_dir)
-    finally:
-        logging.info('Moving Real log files...')
-        utils.create_zip_with_prefix(em_real_dir, 'rsl*', os.path.join(em_real_dir, 'real_rsl.zip'), clean_up=True)
-        utils.move_files_with_prefix(em_real_dir, 'real_rsl.zip', logs_dir)
+        try:
+            logging.info('Starting real.exe')
+            utils.run_subprocess('mpirun --allow-run-as-root -np %d ./real.exe' % procs, cwd=em_real_dir)
+        finally:
+            logging.info('Moving Real log files...')
+            utils.create_zip_with_prefix(em_real_dir, 'rsl*', os.path.join(em_real_dir, 'real_rsl.zip'), clean_up=True)
+            utils.move_files_with_prefix(em_real_dir, 'real_rsl.zip', logs_dir)
 
-    try:
-        logging.info('Starting wrf.exe')
-        utils.run_subprocess('mpirun --allow-run-as-root -np %d ./wrf.exe' % procs, cwd=em_real_dir)
+        try:
+            logging.info('Starting wrf.exe')
+            utils.run_subprocess('mpirun --allow-run-as-root -np %d ./wrf.exe' % procs, cwd=em_real_dir)
+        finally:
+            logging.info('Moving WRF log files...')
+            utils.create_zip_with_prefix(em_real_dir, 'rsl*', os.path.join(em_real_dir, 'wrf_rsl.zip'), clean_up=True)
+            utils.move_files_with_prefix(em_real_dir, 'wrf_rsl.zip', logs_dir)
     finally:
-        logging.info('Moving WRF log files...')
-        utils.create_zip_with_prefix(em_real_dir, 'rsl*', os.path.join(em_real_dir, 'wrf_rsl.zip'), clean_up=True)
-        utils.move_files_with_prefix(em_real_dir, 'wrf_rsl.zip', logs_dir)
+        logging.info('Moving namelist input file')
+        utils.move_files_with_prefix(em_real_dir, 'namelist.input', output_dir)
 
     logging.info('WRF em_real: DONE! Moving data to the output dir')
 
@@ -292,7 +299,6 @@ def run_em_real(wrf_config):
     utils.run_subprocess(ncks_query)
 
     logging.info('Moving data to the output dir')
-    utils.move_files_with_prefix(em_real_dir, 'namelist.input', output_dir)
     utils.move_files_with_prefix(em_real_dir, 'wrfout_d03*_rf', output_dir)
     utils.move_files_with_prefix(em_real_dir, 'wrfout_d01*_rf', output_dir)
     logging.info('Moving data to the archive dir')
