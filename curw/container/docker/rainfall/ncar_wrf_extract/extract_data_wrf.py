@@ -8,6 +8,8 @@ import shutil
 import datetime as dt
 from tempfile import TemporaryDirectory
 
+import sys
+
 from curw.container.docker.rainfall import utils as docker_rf_utils
 from curw.rainfall.wrf.execution.executor import get_wrf_config
 from curw.rainfall.wrf.extraction import extractor, constants
@@ -134,18 +136,21 @@ def run(run_id, wrf_config_dict, db_config_dict, upsert=False, run_name='Cloud-1
                 logging.info('Extract Kelani lower Basin rainfall for MIKE21')
                 run_date = dt.datetime.strptime(config.get('start_date'), '%Y-%m-%d_%H:%M')
                 prev_1 = '_'.join([run_prefix, (run_date - dt.timedelta(days=1)).strftime('%Y-%m-%d_%H:%M'), '*'])
+                logging.info(prev_1)
                 prev_2 = '_'.join([run_prefix, (run_date - dt.timedelta(days=2)).strftime('%Y-%m-%d_%H:%M'), '*'])
+                logging.info(prev_2)
                 klb_prev_1 = shutil.copy2(
                     glob.glob(os.path.join(output_dir_base, prev_1, 'klb_mean_rf', 'klb_mean_rf.txt'))[0], temp_dir)
+                logging.info(klb_prev_1)
                 klb_prev_2 = shutil.copy2(
                     glob.glob(os.path.join(output_dir_base, prev_2, 'klb_mean_rf', 'klb_mean_rf.txt'))[0], temp_dir)
+                logging.info(klb_prev_2)
 
                 extractor.create_rainfall_for_mike21(d03_nc_f, [klb_prev_1, klb_prev_2],
                                                      os.path.join(run_output_dir, 'klb_mike21'))
             except Exception as e:
                 logging.error('Extract Kelani lower Basin mean rainfall for MIKE21 FAILED: ' + str(e))
-                raise e
-
+                logging.error(sys.exc_info()[0])
                 # logging.info('Extracting data from ' + d01_nc_f)
                 # try:
                 #     logging.info('Create plots for D01')
