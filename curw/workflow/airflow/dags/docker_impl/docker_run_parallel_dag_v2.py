@@ -101,7 +101,9 @@ def generate_random_run_id(prefix, random_str_len=4, **context):
 
 
 def clean_up_wrf_config(init_task_id, **context):
-    wc_path = context['task_instance'].xcom_pull(task_ids=init_task_id)
+    wc_file = os.path.basename(context['task_instance'].xcom_pull(task_ids=init_task_id))
+    wc_dir = os.path.dirname(local_wrf_config_path)
+    wc_path = os.path.join(wc_dir, wc_file)
     logging.info('Cleaning up ' + wc_path)
     os.remove(wc_path)
 
