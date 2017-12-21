@@ -59,7 +59,7 @@ def extract_metro_colombo(nc_f, wrf_output, wrf_output_base, curw_db_adapter=Non
     prcp = nc_vars['RAINC'] + nc_vars['RAINNC']
     times = nc_vars['Times']
 
-    diff = prcp[1:len(times), :, :] - prcp[0:len(times) - 1, :, :]
+    diff = prcp[1:len(times), :, :] * 0.5 + prcp[0:len(times) - 1, :, :] * 0.5
 
     width = len(lons)
     height = len(lats)
@@ -71,7 +71,7 @@ def extract_metro_colombo(nc_f, wrf_output, wrf_output_base, curw_db_adapter=Non
     alpha_file_path = os.path.join(wrf_output_base, prefix + '_alphas.txt')
     utils.create_dir_if_not_exists(os.path.dirname(alpha_file_path))
     with open(alpha_file_path, 'a+') as alpha_file:
-        t = utils.datetime_utc_to_lk(dt.datetime.strptime(times[0], '%Y-%m-%d_%H:%M:%S'))
+        t = utils.datetime_utc_to_lk(dt.datetime.strptime(times[0], '%Y-%m-%d_%H:%M:%S'), shift_mins=30)
         alpha_file.write('%s %f\n' % (t.strftime('%Y-%m-%d_%H:%M:%S'), basin_rf))
 
     cz = ext_utils.get_mean_cell_size(lats, lons)
@@ -86,8 +86,9 @@ def extract_metro_colombo(nc_f, wrf_output, wrf_output_base, curw_db_adapter=Non
         subsection_file_path = os.path.join(temp_dir, 'sub_means.txt')
         with open(subsection_file_path, 'w') as subsection_file:
             for tm in range(0, len(times) - 1):
-                t_str = (utils.datetime_utc_to_lk(dt.datetime.strptime(times[tm], '%Y-%m-%d_%H:%M:%S'))).strftime(
-                    '%Y-%m-%d %H:%M:%S')
+                t_str = (
+                    utils.datetime_utc_to_lk(dt.datetime.strptime(times[tm], '%Y-%m-%d_%H:%M:%S'),
+                                             shift_mins=30)).strftime('%Y-%m-%d %H:%M:%S')
 
                 output_file_path = os.path.join(temp_dir, 'rf_' + t_str.replace(' ', '_') + '.asc')
                 ext_utils.create_asc_file(np.flip(diff[tm], 0), lats, lons, output_file_path, cell_size=cz,
@@ -156,7 +157,7 @@ def extract_weather_stations(nc_f, wrf_output, weather_stations=None, curw_db_ad
 
                 station_prcp = nc_fid.variables['RAINC'][:, lat, lon] + nc_fid.variables['RAINNC'][:, lat, lon]
 
-                station_diff = station_prcp[1:len(times)] - station_prcp[0:len(times) - 1]
+                station_diff = station_prcp[1:len(times)] * 0.5 + station_prcp[0:len(times) - 1] * 0.5
 
                 stations_rf[row[0]] = []
 
@@ -164,8 +165,8 @@ def extract_weather_stations(nc_f, wrf_output, weather_stations=None, curw_db_ad
                 with open(station_file_path, 'w') as station_file:
                     for t in range(0, len(times) - 1):
                         t_str = (
-                            utils.datetime_utc_to_lk(dt.datetime.strptime(times[t], '%Y-%m-%d_%H:%M:%S'))).strftime(
-                            '%Y-%m-%d %H:%M:%S')
+                            utils.datetime_utc_to_lk(dt.datetime.strptime(times[t], '%Y-%m-%d_%H:%M:%S'),
+                                                     shift_mins=30)).strftime('%Y-%m-%d %H:%M:%S')
                         station_file.write('%s %f\n' % (t_str, station_diff[t]))
                         stations_rf[row[0]].append([t_str, station_diff[t]])
 
