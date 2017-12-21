@@ -84,7 +84,7 @@ def create_asc_file(data, lats, lons, out_file_path, cell_size=0.1, no_data_val=
             out_file.write(('CELLSIZE %f\n' % cell_size).encode())
             out_file.write(('NODATA_VALUE %d\n' % no_data_val).encode())
 
-            np.savetxt(out_file, data, fmt='%g')
+            np.savetxt(out_file, data, fmt='%.4f')
     else:
         logging.info('%s already exits' % out_file_path)
 

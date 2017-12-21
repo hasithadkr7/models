@@ -317,7 +317,7 @@ def datetime_lk_to_utc(timestamp_lk):
 
 
 def datetime_utc_to_lk(timestamp_utc, shift_mins=0):
-    return timestamp_utc + dt.timedelta(hours=5, minutes=30) + dt.timedelta(minutes=shift_mins)
+    return timestamp_utc + dt.timedelta(hours=5, minutes=30 + shift_mins)
 
 
 def file_exists_nonempty(filename):
