@@ -11,7 +11,7 @@ from curw.rainfall.wrf import utils
 from curw.workflow.airflow.dags.docker_impl import utils as docker_utils
 from curw.workflow.airflow.extensions.operators.curw_docker_operator import CurwDockerOperator
 
-wrf_dag_name = 'docker_wrf_run_prod_cts_v1'
+wrf_dag_name = 'docker_wrf_run_prod_inst_v1'
 queue = 'docker_prod_queue'
 schedule_interval = None
 
