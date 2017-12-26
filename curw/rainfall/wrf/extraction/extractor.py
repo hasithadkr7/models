@@ -38,7 +38,7 @@ def extract_time_data(nc_f):
 
 def _get_two_element_average(prcp):
     avg_prcp = (prcp[1:] + prcp[:-1]) * 0.5
-    return avg_prcp - np.insert(avg_prcp[:-1], 0, [0])
+    return avg_prcp - np.insert(avg_prcp[:-1], 0, [0], axis=0)
 
 
 def extract_metro_colombo(nc_f, wrf_output, wrf_output_base, curw_db_adapter=None, curw_db_upsert=False,
