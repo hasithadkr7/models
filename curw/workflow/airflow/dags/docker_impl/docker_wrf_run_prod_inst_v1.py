@@ -27,8 +27,8 @@ extract_image = 'nirandaperera/curw-wrf-391-extract'
 # volumes and mounts
 curw_nfs = 'curwsl_nfs_1'
 curw_archive = 'curwsl_archive_1'
-geog_dir = "/mnt/disks/wrf-mod/DATA/geog"
-config_dir = "/mnt/disks/wrf-mod/config"
+geog_dir = "/mnt/disks/workspace1/wrf-data/geog"
+config_dir = "/mnt/disks/workspace1/wrf-config"
 docker_volumes = ['%s:/wrf/geog' % geog_dir, '%s:/wrf/config' % config_dir]
 gcs_volumes = ['%s:/wrf/output' % curw_nfs, '%s:/wrf/archive' % curw_archive]
 
@@ -43,7 +43,7 @@ curw_gcs_key_path = 'curw_gcs_key_path'
 curw_db_config_path = 'curw_db_config_path'
 
 wrf_config_key = 'docker_wrf_config'
-local_wrf_config_path = '/mnt/disks/wrf-mod/config/local-wrf-config.json'
+local_wrf_config_path = '/mnt/disks/workspace1/wrf-config/local-wrf-config.json'
 wrf_pool = 'parallel_wrf_runs'
 run_id_prefix = 'wrf-doc'
 
