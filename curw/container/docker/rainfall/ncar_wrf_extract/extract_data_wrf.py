@@ -53,9 +53,8 @@ def run(run_id, wrf_config_dict, db_config_dict, upsert=False, run_name='Cloud-1
 
     with TemporaryDirectory(prefix='wrfout_') as temp_dir:
         try:
-            logging.info('Copying wrfout_* to temp_dir ' + temp_dir)
+            logging.info('Copying wrfout_D03* to temp_dir ' + temp_dir)
             d03_nc_f = shutil.copy2(glob.glob(os.path.join(wrf_output_dir, 'wrfout_d03_*'))[0], temp_dir)
-            d01_nc_f = shutil.copy2(glob.glob(os.path.join(wrf_output_dir, 'wrfout_d01_*'))[0], temp_dir)
 
             logging.info('Extracting data from ' + d03_nc_f)
             try:
@@ -157,15 +156,21 @@ def run(run_id, wrf_config_dict, db_config_dict, upsert=False, run_name='Cloud-1
                 logging.error('Extract Kelani lower Basin mean rainfall for MIKE21 FAILED: ' + str(
                     e) + '\n' + traceback.format_exc())
 
-            logging.info('Extracting data from ' + d01_nc_f)
             try:
-                logging.info('Create plots for D01')
-                lon_min, lat_min, lon_max, lat_max = constants.SRI_LANKA_D01_EXTENT
-                extractor.create_rf_plots_wrf(d01_nc_f, os.path.join(run_output_dir, 'plots_D01'), output_dir_base,
-                                              lat_min=lat_min, lon_min=lon_min, lat_max=lat_max, lon_max=lon_max,
-                                              run_prefix=run_prefix)
+                d01_nc_f = shutil.copy2(glob.glob(os.path.join(wrf_output_dir, 'wrfout_d01_*'))[0], temp_dir)
+
+                logging.info('Extracting data from ' + d01_nc_f)
+                try:
+                    logging.info('Create plots for D01')
+                    lon_min, lat_min, lon_max, lat_max = constants.SRI_LANKA_D01_EXTENT
+                    extractor.create_rf_plots_wrf(d01_nc_f, os.path.join(run_output_dir, 'plots_D01'), output_dir_base,
+                                                  lat_min=lat_min, lon_min=lon_min, lat_max=lat_max, lon_max=lon_max,
+                                                  run_prefix=run_prefix)
+                except Exception as e:
+                    logging.error('Create plots for D01 FAILED: ' + str(e) + '\n' + traceback.format_exc())
             except Exception as e:
-                logging.error('Create plots for D01 FAILED: ' + str(e) + '\n' + traceback.format_exc())
+                logging.error(
+                    'Copying wrfout_d01_* to temp_dir %s FAILED: %s\n%s' % (temp_dir, str(e), traceback.format_exc()))
 
         except Exception as e:
             logging.error('Copying wrfout_* to temp_dir %s FAILED: %s\n%s' % (temp_dir, str(e), traceback.format_exc()))
