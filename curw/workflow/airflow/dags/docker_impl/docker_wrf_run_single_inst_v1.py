@@ -18,6 +18,8 @@ schedule_interval = None
 parallel_runs = 1
 priorities = [1]
 
+docker_url = 'tcp://10.128.0.5:2375'
+
 # docker images
 wrf_image = 'nirandaperera/curw-wrf-391'
 extract_image = 'nirandaperera/curw-wrf-391-extract'
@@ -161,6 +163,7 @@ clean_up = PythonOperator(
 wps = CurwDockerOperator(
     task_id='wps',
     image=wrf_image,
+    docker_url=docker_url,
     command=docker_utils.get_docker_cmd('{{ task_instance.xcom_pull(task_ids=\'gen-run-id\') }}',
                                         '{{ task_instance.xcom_pull(task_ids=\'init-config\') }}',
                                         'wps',
@@ -193,6 +196,7 @@ for i in range(parallel_runs):
     wrf = CurwDockerOperator(
         task_id='wrf%d' % i,
         image=wrf_image,
+        docker_url=docker_url,
         command=docker_utils.get_docker_cmd('{{ task_instance.xcom_pull(task_ids=\'gen-run-id-wrf%d\') }}' % i,
                                             '{{ task_instance.xcom_pull(task_ids=\'init-config\') }}',
                                             'wrf',
@@ -212,6 +216,7 @@ for i in range(parallel_runs):
     extract_wrf = CurwDockerOperator(
         task_id='wrf%d-extract' % i,
         image=extract_image,
+        docker_url=docker_url,
         command=docker_utils.get_docker_extract_cmd('{{ task_instance.xcom_pull(task_ids=\'gen-run-id-wrf%d\') }}' % i,
                                                     '{{ task_instance.xcom_pull(task_ids=\'init-config\') }}',
                                                     airflow_vars[curw_db_config_path],
@@ -230,6 +235,7 @@ for i in range(parallel_runs):
     extract_wrf_no_data_push = CurwDockerOperator(
         task_id='wrf%d-extract-no-data-push' % i,
         image=extract_image,
+        docker_url=docker_url,
         command=docker_utils.get_docker_extract_cmd('{{ task_instance.xcom_pull(task_ids=\'gen-run-id-wrf%d\') }}' % i,
                                                     '{{ task_instance.xcom_pull(task_ids=\'init-config\') }}',
                                                     '{}',
