@@ -18,7 +18,7 @@ def id_generator(size=4, chars=string.ascii_uppercase + string.digits + string.a
     return ''.join(random.choice(chars) for _ in range(size))
 
 
-def get_docker_cmd(run_id, wrf_config, mode, nl_wps, nl_input, gcs_key, gcs_volumes=None):
+def get_docker_cmd(run_id, wrf_config, mode, nl_wps, nl_input, gcs_volumes=None):
     cmd = '/wrf/run_wrf.sh -i \"%s\" -c \"%s\" -m \"%s\" -x \"%s\" -y \"%s\" ' % (
         run_id, wrf_config, mode, nl_wps, nl_input)
 
