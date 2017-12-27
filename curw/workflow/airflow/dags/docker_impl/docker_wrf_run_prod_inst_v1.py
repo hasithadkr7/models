@@ -218,7 +218,7 @@ for i in range(parallel_runs):
         command=airflow_docker_utils.get_docker_extract_cmd(
             '{{ task_instance.xcom_pull(task_ids=\'gen-run-id-wrf%d\') }}' % i,
             '{{ task_instance.xcom_pull(task_ids=\'init-config\') }}',
-            '{}',
+            docker_rf_utils.get_base64_encoded_str('{}'),
             gcs_volumes,
             overwrite=False),
         cpus=4,
