@@ -45,8 +45,8 @@ echo "#### Running WRF procedures..."
 #python3.6 /wrf/curwsl/curw/container/docker/rainfall/ncar_wrf/run_wrf.py -run_id="$ID" -wrf_config="$CONFIG" -mode="$MODE" -nl_wps="$WPS" -nl_input="$INPUT"
 python3.6 /wrf/curwsl/curw/container/docker/rainfall/ncar_wrf/run_wrf.py \
                                 $( check_empty "$ID" run_id ) \
-                                $( encode_base64 "$CONFIG" wrf_config ) \
+                                $( check_empty "$CONFIG" wrf_config ) \
                                 $( check_empty "$MODE" mode ) \
-                                $( encode_base64 "$WPS" nl_wps ) \
-                                $( encode_base64 "$INPUT" nl_input )
+                                $( check_empty "$WPS" nl_wps ) \
+                                $( check_empty "$INPUT" nl_input )
 
