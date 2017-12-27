@@ -8,10 +8,11 @@ from airflow import DAG
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.python_operator import PythonOperator, BranchPythonOperator
 from curw.rainfall.wrf import utils
-from curw.workflow.airflow.dags.docker_impl import utils as docker_utils
+from curw.container.docker.rainfall import utils as docker_rf_utils
+from curw.workflow.airflow.dags.docker_impl import utils as airflow_docker_utils
 from curw.workflow.airflow.extensions.operators.curw_docker_operator import CurwDockerOperator
 
-wrf_dag_name = 'docker_wrf_run_prod_cts_v1'
+wrf_dag_name = 'docker_wrf_run_prod_cts_v4'
 queue = 'docker_prod_queue'
 schedule_interval = '0 18 * * *'
 
@@ -27,28 +28,25 @@ extract_image = 'nirandaperera/curw-wrf-391-extract'
 # volumes and mounts
 curw_nfs = 'curwsl_nfs_1'
 curw_archive = 'curwsl_archive_1'
-geog_dir = "/mnt/disks/workspace1/wrf-data/geog"
-config_dir = "/mnt/disks/workspace1/wrf-config"
-docker_volumes = ['%s:/wrf/geog' % geog_dir, '%s:/wrf/config' % config_dir]
+local_geog_dir = "/mnt/disks/workspace1/wrf-data/geog"
+local_gcs_config_path = '/home/uwcc-admin/uwcc-admin.json'
+docker_volumes = ['%s:/wrf/geog' % local_geog_dir, '%s:/wrf/gcs.json' % local_gcs_config_path]
 gcs_volumes = ['%s:/wrf/output' % curw_nfs, '%s:/wrf/archive' % curw_archive]
-
-test_mode = False
 
 # namelist keys
 nl_wps_key = "nl_wps"
 nl_inp_keys = ["nl_inp_SIDAT", "nl_inp_C", "nl_inp_H", "nl_inp_NW", "nl_inp_SW", "nl_inp_W"]
 
-curw_gcs_key_path = 'curw_gcs_key_path'
+curw_db_config_path = 'curw_db_config'
 
-curw_db_config_path = 'curw_db_config_path'
+wrf_config_key = 'docker_wrf_config_prod_cts'
 
-wrf_config_key = 'docker_wrf_config'
-local_wrf_config_path = '/mnt/disks/workspace1/wrf-config/local-wrf-config.json'
 wrf_pool = 'parallel_wrf_runs'
-run_id_prefix = 'wrf-doc'
+run_id_prefix = 'wrf-doc-prod-cts'
 
-nl_inp_keys.extend([nl_wps_key, curw_gcs_key_path, curw_db_config_path])
-airflow_vars = docker_utils.check_airflow_variables(nl_inp_keys, ignore_error=True)
+airflow_vars = airflow_docker_utils.check_airflow_variables(
+    nl_inp_keys + [nl_wps_key, curw_db_config_path, wrf_config_key],
+    ignore_error=True)
 
 default_args = {
     'owner': 'curwsl admin',
@@ -70,57 +68,39 @@ dag = DAG(
     schedule_interval=schedule_interval)
 
 
-def initialize_config(local_config_path, run_id_task_name, configs_prefix='wrf_config_',
-                      config_output_dir='/wrf/config', **context):
-    run_id = context['task_instance'].xcom_pull(task_ids=run_id_task_name)
-
-    with open(local_config_path, 'r') as local_wc:
-        config = json.load(local_wc)
+def initialize_config(config_str, configs_prefix='wrf_config_', **context):
+    config = json.loads(config_str)
 
     for k, v in context['templates_dict'].items():
         if k.startswith(configs_prefix):
             config[k.replace(configs_prefix, '')] = v
 
-    out_wc_path = os.path.join(os.path.dirname(local_wrf_config_path), run_id + '-wrf-config.json')
+    config_str = json.dumps(config, sort_keys=True)
+    logging.info('Initialized wrf_config:\n' + config_str)
 
-    try:
-        with open(out_wc_path, 'w') as out_wc:
-            json.dump(config, out_wc, sort_keys=True)
-    except PermissionError as e:
-        logging.error('Unable to write wrf_config ' + str(e))
-
-    logging.info('Initialized wrf_config:\n' + json.dumps(config))
-
-    xcom_val = os.path.join(config_output_dir, os.path.basename(out_wc_path))
-    logging.info('Returned xcom: ' + xcom_val)
-    # context['ti'].xcom_push(key='config', value=xcom_val)
-    return xcom_val
+    b64_config = docker_rf_utils.get_base64_encoded_str(config_str)
+    logging.info('Returned xcom:\n' + b64_config)
+    return b64_config
 
 
 def generate_random_run_id(prefix, random_str_len=4, **context):
     run_id = '_'.join(
-        [prefix, context['execution_date'].strftime('%Y-%m-%d_%H:%M'), docker_utils.id_generator(size=random_str_len)])
+        [prefix, context['execution_date'].strftime('%Y-%m-%d_%H:%M'),
+         airflow_docker_utils.id_generator(size=random_str_len)])
     logging.info('Generated run_id: ' + run_id)
     return run_id
 
 
-def clean_up_wrf_config(init_task_id, **context):
-    run_id = context['task_instance'].xcom_pull(task_ids=init_task_id)
-    wc_file = os.path.basename(run_id)
-    wc_dir = os.path.dirname(local_wrf_config_path)
-    wc_path = os.path.join(wc_dir, wc_file)
+def clean_up_wrf_run(init_task_id, **context):
+    config_str = docker_rf_utils.get_base64_decoded_str(context['task_instance'].xcom_pull(task_ids=init_task_id))
+    wrf_config = json.loads(config_str)
 
-    with open(wc_path) as wc:
-        wrf_config = json.loads(wc)
-        metgrid_path = os.path.join(wrf_config.get('nfs_dir'), 'metgrid', run_id + '_metgrid.zip')
-        if utils.file_exists_nonempty(metgrid_path):
-            logging.info('Cleaning up metgrid ' + metgrid_path)
-            os.remove(metgrid_path)
-        else:
-            logging.info('No metgrid file')
-
-    logging.info('Cleaning up ' + wc_path)
-    os.remove(wc_path)
+    metgrid_path = os.path.join(wrf_config.get('nfs_dir'), 'metgrid', wrf_config.get('run_id') + '_metgrid.zip')
+    if utils.file_exists_nonempty(metgrid_path):
+        logging.info('Cleaning up metgrid ' + metgrid_path)
+        os.remove(metgrid_path)
+    else:
+        logging.info('No metgrid file')
 
 
 def check_data_push_callable(task_ids, **context):
@@ -143,7 +123,7 @@ init_config = PythonOperator(
     task_id='init-config',
     python_callable=initialize_config,
     provide_context=True,
-    op_args=[local_wrf_config_path, 'gen-run-id', 'wrf_config_', '/wrf/config'],
+    op_args=[airflow_vars[wrf_config_key], 'wrf_config_'],
     templates_dict={
         'wrf_config_start_date': '{{ execution_date.strftime(\'%Y-%m-%d_%H:%M\') }}',
         'wrf_config_run_id': '{{ task_instance.xcom_pull(task_ids=\'gen-run-id\') }}',
@@ -154,7 +134,7 @@ init_config = PythonOperator(
 
 clean_up = PythonOperator(
     task_id='cleanup-config',
-    python_callable=clean_up_wrf_config,
+    python_callable=clean_up_wrf_run,
     provide_context=True,
     op_args=['init-config'],
     dag=dag,
@@ -164,13 +144,12 @@ wps = CurwDockerOperator(
     task_id='wps',
     image=wrf_image,
     docker_url=docker_url,
-    command=docker_utils.get_docker_cmd('{{ task_instance.xcom_pull(task_ids=\'gen-run-id\') }}',
-                                        '{{ task_instance.xcom_pull(task_ids=\'init-config\') }}',
-                                        'wps',
-                                        airflow_vars[nl_wps_key],
-                                        airflow_vars[nl_inp_keys[0]],
-                                        airflow_vars[curw_gcs_key_path],
-                                        gcs_volumes),
+    command=airflow_docker_utils.get_docker_cmd('{{ task_instance.xcom_pull(task_ids=\'gen-run-id\') }}',
+                                                '{{ task_instance.xcom_pull(task_ids=\'init-config\') }}',
+                                                'wps',
+                                                docker_rf_utils.get_base64_encoded_str(airflow_vars[nl_wps_key]),
+                                                docker_rf_utils.get_base64_encoded_str(airflow_vars[nl_inp_keys[0]]),
+                                                gcs_volumes),
     cpus=1,
     volumes=docker_volumes,
     auto_remove=True,
@@ -197,13 +176,13 @@ for i in range(parallel_runs):
         task_id='wrf%d' % i,
         image=wrf_image,
         docker_url=docker_url,
-        command=docker_utils.get_docker_cmd('{{ task_instance.xcom_pull(task_ids=\'gen-run-id-wrf%d\') }}' % i,
-                                            '{{ task_instance.xcom_pull(task_ids=\'init-config\') }}',
-                                            'wrf',
-                                            airflow_vars[nl_wps_key],
-                                            airflow_vars[nl_inp_keys[i]],
-                                            airflow_vars[curw_gcs_key_path],
-                                            gcs_volumes),
+        command=airflow_docker_utils.get_docker_cmd('{{ task_instance.xcom_pull(task_ids=\'gen-run-id-wrf%d\') }}' % i,
+                                                    '{{ task_instance.xcom_pull(task_ids=\'init-config\') }}',
+                                                    'wrf',
+                                                    docker_rf_utils.get_base64_encoded_str(airflow_vars[nl_wps_key]),
+                                                    docker_rf_utils.get_base64_encoded_str(
+                                                        airflow_vars[nl_inp_keys[i]]),
+                                                    gcs_volumes),
         cpus=4,
         volumes=docker_volumes,
         auto_remove=True,
@@ -217,12 +196,12 @@ for i in range(parallel_runs):
         task_id='wrf%d-extract' % i,
         image=extract_image,
         docker_url=docker_url,
-        command=docker_utils.get_docker_extract_cmd('{{ task_instance.xcom_pull(task_ids=\'gen-run-id-wrf%d\') }}' % i,
-                                                    '{{ task_instance.xcom_pull(task_ids=\'init-config\') }}',
-                                                    airflow_vars[curw_db_config_path],
-                                                    airflow_vars[curw_gcs_key_path],
-                                                    gcs_volumes,
-                                                    overwrite=False),
+        command=airflow_docker_utils.get_docker_extract_cmd(
+            '{{ task_instance.xcom_pull(task_ids=\'gen-run-id-wrf%d\') }}' % i,
+            '{{ task_instance.xcom_pull(task_ids=\'init-config\') }}',
+            docker_rf_utils.get_base64_encoded_str(airflow_vars[curw_db_config_path]),
+            gcs_volumes,
+            overwrite=False),
         cpus=4,
         volumes=docker_volumes,
         auto_remove=True,
@@ -236,12 +215,12 @@ for i in range(parallel_runs):
         task_id='wrf%d-extract-no-data-push' % i,
         image=extract_image,
         docker_url=docker_url,
-        command=docker_utils.get_docker_extract_cmd('{{ task_instance.xcom_pull(task_ids=\'gen-run-id-wrf%d\') }}' % i,
-                                                    '{{ task_instance.xcom_pull(task_ids=\'init-config\') }}',
-                                                    '{}',
-                                                    airflow_vars[curw_gcs_key_path],
-                                                    gcs_volumes,
-                                                    overwrite=False),
+        command=airflow_docker_utils.get_docker_extract_cmd(
+            '{{ task_instance.xcom_pull(task_ids=\'gen-run-id-wrf%d\') }}' % i,
+            '{{ task_instance.xcom_pull(task_ids=\'init-config\') }}',
+            '{}',
+            gcs_volumes,
+            overwrite=False),
         cpus=4,
         volumes=docker_volumes,
         auto_remove=True,
