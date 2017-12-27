@@ -24,8 +24,18 @@ EOM
 
 export CURW_run_id=WRF_test_run1
 
-python3 ../extract_data_wrf.py
-python3 ../extract_data_wrf.py -wrf_config="$CURW_wrf_config" -run_id="$CURW_run_id" -db_config="$CURW_db_config" -overwrite=True
+encode_base64 () {
+    [ -z "$1" ] && echo "" || echo "-$2=$( echo "$1" | base64  --wrap=0 )"
+}
+
+check_empty () {
+        [ -z "$1" ] && echo "" || echo "-$2=$1"
+}
+
+#python3 ../extract_data_wrf.py
+python3 ../extract_data_wrf.py  $( check_empty "$CURW_run_id" run_id ) \
+                                $( encode_base64 "$CURW_wrf_config" wrf_config ) \
+                                $( encode_base64 "$CURW_db_config" db_config )
 
 
 

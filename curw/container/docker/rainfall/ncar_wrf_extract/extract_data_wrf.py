@@ -185,10 +185,12 @@ if __name__ == "__main__":
     logging.info('Running arguments:\n%s' % json.dumps(args, sort_keys=True, indent=0))
 
     logging.info('Getting wrf_config')
-    wrf_config = docker_rf_utils.get_config_dict(args['wrf_config'])
+    wrf_config = docker_rf_utils.get_config_dict_decoded(args['wrf_config'])
+    logging.debug('Wrf config:\n' + str(wrf_config))
 
     logging.info('Getting db_config')
-    db_config = docker_rf_utils.get_config_dict(args['db_config'])
+    db_config = docker_rf_utils.get_config_dict_decoded(args['db_config'])
+    logging.debug('Db config:\n' + str(db_config))
 
     run(args['run_id'], wrf_config, db_config, ast.literal_eval(args['overwrite']),
         data_type=ext_utils.parse_database_data_type(args['data_type']))
