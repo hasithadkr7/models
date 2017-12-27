@@ -28,6 +28,12 @@ def get_base64_decoded_str(encoded_str):
     return decoded_str
 
 
+def get_base64_encoded_str(s):
+    encoded_s = base64.b64encode(bytes(s, 'utf-8')).decode('utf-8')
+    logging.debug('Base64 encoded str: ' + encoded_s)
+    return encoded_s
+
+
 def get_config_dict_decoded(config_str):
     if os.path.isfile(config_str):
         logging.info('Using config path')
