@@ -70,7 +70,7 @@ if __name__ == "__main__":
     nl_input = args['nl_input']  # env_vars.pop('nl_input', None)
 
     logging.info('Getting wrf_config')
-    wrf_config_dict = docker_rf_utils.get_config_dict(args['wrf_config'])
+    wrf_config_dict = docker_rf_utils.get_config_dict_decoded(args['wrf_config'])
     config = executor.get_wrf_config(**wrf_config_dict)
     config.set('run_id', run_id)
 
@@ -86,7 +86,7 @@ if __name__ == "__main__":
                 shutil.copyfile(nl_wps, nl_wps_path)
             else:
                 logging.info('Using namelist wps content')
-                content = nl_wps.replace('\\n', '\n')
+                content = docker_rf_utils.get_base64_decoded_str(nl_wps)
                 logging.debug('namelist.wps content: \n%s' % content)
                 with open(nl_wps_path, 'w') as f:
                     f.write(content)
@@ -105,7 +105,7 @@ if __name__ == "__main__":
                 shutil.copyfile(nl_input, nl_input_path)
             else:
                 logging.info('Using namelist input content')
-                content = nl_input.replace('\\n', '\n')
+                content = docker_rf_utils.get_base64_decoded_str(nl_input)
                 logging.debug('namelist.input content: \n%s' % content)
                 with open(nl_input_path, 'w') as f:
                     f.write(content)
@@ -133,5 +133,7 @@ if __name__ == "__main__":
         run_wrf(config)
     elif mode == "test":
         logging.info("Running on test mode: Nothing to do!")
+        logging.info('namelist.wps content: \n%s' % docker_rf_utils.get_base64_decoded_str(nl_wps))
+        logging.info('namelist.input content: \n%s' % docker_rf_utils.get_base64_decoded_str(nl_input))
     else:
         raise docker_rf_utils.CurwDockerRainfallException('Unknown mode ' + mode)

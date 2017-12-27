@@ -170,8 +170,20 @@ export CURW_mode=test
 
 export CURW_run_id=test_run1
 
-python3 run_wrf.py
-python3 run_wrf.py -wrf_config="$CURW_wrf_config" -mode="$CURW_mode" -nl_wps="$CURW_nl_wps" -nl_input="$CURW_nl_input"
+encode_base64 () {
+    [ -z "$1" ] && echo "" || echo "-$2=$( echo "$1" | base64  --wrap=0 )"
+}
+
+check_empty () {
+        [ -z "$1" ] && echo "" || echo "-$2=$1"
+}
+
+#python3 ../run_wrf.py
+python3 ../run_wrf.py $( check_empty "$CURW_run_id" run_id ) \
+                      $( encode_base64 "$CURW_wrf_config" wrf_config ) \
+                      $( check_empty "$CURW_mode" mode ) \
+                      $( encode_base64 "$CURW_nl_wps" nl_wps ) \
+                      $( encode_base64 "$CURW_nl_input" nl_input )
 
 #export CURW_wrf_config=$(cat << EOM
 #{

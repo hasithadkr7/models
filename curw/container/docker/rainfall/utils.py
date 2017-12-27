@@ -1,12 +1,10 @@
-import argparse
 import ast
+import base64
+import json
+import logging
 import os
 import random
 import string
-
-import logging
-
-import json
 
 
 def get_env_vars(prefix):
@@ -24,6 +22,29 @@ def id_generator(size=8, chars=string.ascii_uppercase + string.digits):
     return ''.join(random.choice(chars) for _ in range(size))
 
 
+def get_base64_decoded_str(encoded_str):
+    decoded_str = base64.b64decode(bytes(encoded_str, 'utf-8')).decode('utf-8')
+    logging.debug('Base64 decoded str: ' + decoded_str)
+    return decoded_str
+
+
+def get_config_dict_decoded(config_str):
+    if os.path.isfile(config_str):
+        logging.info('Using config path')
+        with open(config_str, 'r') as f:
+            return json.load(f)
+
+    decoded_str = get_base64_decoded_str(config_str)
+    config_eval = ast.literal_eval(decoded_str)
+    if isinstance(config_eval, dict):
+        logging.info('Using config content')
+        return config_eval
+    else:
+        logging.error('Unable to load config from content')
+        raise CurwDockerRainfallException('Unknown config: ' + config_str)
+
+
+# Deprecated method
 def get_config_dict(config_str):
     try:
         wrf_config_eval = ast.literal_eval(config_str)

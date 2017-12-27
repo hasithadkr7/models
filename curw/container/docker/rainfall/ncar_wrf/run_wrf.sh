@@ -33,5 +33,20 @@ cd /wrf/curwsl || exit
 git pull
 cd /wrf || exit
 
+encode_base64 () {
+    [ -z "$1" ] && echo "" || echo "-$2=$( echo "$1" | base64  --wrap=0 )"
+}
+
+check_empty () {
+        [ -z "$1" ] && echo "" || echo "-$2=$1"
+}
+
 echo "#### Running WRF procedures..."
-python3.6 /wrf/curwsl/curw/container/docker/rainfall/ncar_wrf/run_wrf.py -run_id="$ID" -wrf_config="$CONFIG" -mode="$MODE" -nl_wps="$WPS" -nl_input="$INPUT"
+#python3.6 /wrf/curwsl/curw/container/docker/rainfall/ncar_wrf/run_wrf.py -run_id="$ID" -wrf_config="$CONFIG" -mode="$MODE" -nl_wps="$WPS" -nl_input="$INPUT"
+python3.6 /wrf/curwsl/curw/container/docker/rainfall/ncar_wrf/run_wrf.py \
+                                $( check_empty "$ID" run_id ) \
+                                $( encode_base64 "$CONFIG" wrf_config ) \
+                                $( check_empty "$MODE" mode ) \
+                                $( encode_base64 "$WPS" nl_wps ) \
+                                $( encode_base64 "$INPUT" nl_input )
+
