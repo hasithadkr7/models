@@ -859,7 +859,7 @@ def create_rf_plots_wrf(nc_f, plots_output_dir, plots_output_base_dir, lon_min=N
         logging.info('Copying zips to ' + plots_output_dir)
         utils.copy_files_with_prefix(temp_dir, '*.zip', plots_output_dir)
 
-        plots_latest_dir = os.path.join(plots_output_base_dir, 'latest', run_prefix)
+        plots_latest_dir = os.path.join(plots_output_base_dir, 'latest', run_prefix, os.path.basename(plots_output_dir))
         # <nfs>/latest/wrf0 .. 3
         utils.create_dir_if_not_exists(plots_latest_dir)
         # todo: this needs to be adjusted to handle the multiple runs
