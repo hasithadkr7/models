@@ -36,9 +36,12 @@ def extract_time_data(nc_f):
     return times_len, times
 
 
-def _get_two_element_average(prcp):
+def _get_two_element_average(prcp, return_diff=True):
     avg_prcp = (prcp[1:] + prcp[:-1]) * 0.5
-    return avg_prcp - np.insert(avg_prcp[:-1], 0, [0], axis=0)
+    if return_diff:
+        return avg_prcp - np.insert(avg_prcp[:-1], 0, [0], axis=0)
+    else:
+        return avg_prcp
 
 
 def extract_metro_colombo(nc_f, wrf_output, wrf_output_base, curw_db_adapter=None, curw_db_upsert=False,
@@ -766,8 +769,7 @@ def push_wrf_rainfall_to_db(nc_f, curw_db_adapter=None, lon_min=None, lat_min=No
 
 
 def create_rf_plots_wrf(nc_f, plots_output_dir, plots_output_base_dir, lon_min=None, lat_min=None, lon_max=None,
-                        lat_max=None,
-                        filter_threshold=0.05, run_prefix='WRF'):
+                        lat_max=None, filter_threshold=0.05, run_prefix='WRF'):
     if not all([lon_min, lat_min, lon_max, lat_max]):
         lon_min, lat_min, lon_max, lat_max = constants.SRI_LANKA_EXTENT
 
@@ -796,6 +798,9 @@ def create_rf_plots_wrf(nc_f, plots_output_dir, plots_output_base_dir, lon_min=N
         t1 = dt.datetime.strptime(variables['Times'][1], '%Y-%m-%d_%H:%M:%S')
         step = (t1 - t0).total_seconds() / 3600.0
 
+        inst_precip = _get_two_element_average(variables['PRECIP'])
+        cum_precip = _get_two_element_average(variables['PRECIP'], return_diff=False)
+
         for i in range(1, len(variables['Times'])):
             time = variables['Times'][i]
             ts = dt.datetime.strptime(time, '%Y-%m-%d_%H:%M:%S')
@@ -803,17 +808,15 @@ def create_rf_plots_wrf(nc_f, plots_output_dir, plots_output_base_dir, lon_min=N
             logging.info('processing %s', time)
 
             # instantaneous precipitation (hourly)
-            inst_precip = 0.5 * (variables['PRECIP'][i] + variables['PRECIP'][i - 1])
-
             inst_file = os.path.join(temp_dir, 'wrf_inst_' + lk_ts.strftime('%Y-%m-%d_%H:%M:%S'))
 
-            ext_utils.create_asc_file(np.flip(inst_precip, 0), lats, lons, inst_file + '.asc', cell_size=cz)
+            ext_utils.create_asc_file(np.flip(inst_precip[i - 1], 0), lats, lons, inst_file + '.asc', cell_size=cz)
 
             title = {
                 'label': 'Hourly rf for %s LK' % lk_ts.strftime('%Y-%m-%d_%H:%M:%S'),
                 'fontsize': 30
             }
-            ext_utils.create_contour_plot(inst_precip, inst_file + '.png', lat_min, lon_min, lat_max, lon_max,
+            ext_utils.create_contour_plot(inst_precip[i - 1], inst_file + '.png', lat_min, lon_min, lat_max, lon_max,
                                           title, clevs=clevs, cmap=cmap, basemap=basemap)
 
             if (i * step) % 24 == 0:
@@ -823,10 +826,14 @@ def create_rf_plots_wrf(nc_f, plots_output_dir, plots_output_base_dir, lon_min=N
                 logging.info('Creating images for D%d' % d)
                 cum_file = os.path.join(temp_dir, 'wrf_cum_%dd' % d)
 
-                cum_precip = variables['PRECIP'][i] - variables['PRECIP'][i - int(24 / step)]
-                ext_utils.create_asc_file(np.flip(cum_precip, 0), lats, lons, cum_file + '.asc', cell_size=cz)
+                if i * step / 24 > 1:
+                    cum_precip_24h = cum_precip[i - 1] - cum_precip[i - 1 - int(24 / step)]
+                else:
+                    cum_precip_24h = cum_precip[i - 1]
 
-                ext_utils.create_contour_plot(cum_precip, cum_file + '.png', lat_min, lon_min, lat_max, lon_max, t,
+                ext_utils.create_asc_file(np.flip(cum_precip_24h, 0), lats, lons, cum_file + '.asc', cell_size=cz)
+
+                ext_utils.create_contour_plot(cum_precip_24h, cum_file + '.png', lat_min, lon_min, lat_max, lon_max, t,
                                               clevs=clevs, cmap=cmap, basemap=basemap)
 
                 gif_file = os.path.join(temp_dir, 'wrf_inst_%dd' % d)
@@ -952,3 +959,13 @@ class TestExtractor(unittest.TestCase):
         extract_mean_rainfall_from_shp_file(res_mgr.get_resource_path('test/wrfout_d03_2017-10-02_12:00:00'),
                                             tempfile.mkdtemp(prefix='temp_'), 'kub_mean_rf', 'kub_mean', basin_shp_file,
                                             basin_extent, curw_db_adapter=adapter, curw_db_upsert=True)
+
+    def test_create_rf_plots_wrf(self):
+        out_base_dir = tempfile.mkdtemp(prefix='rf_plots_')
+        out_dir = os.path.join(out_base_dir, 'plots_D03')
+        create_rf_plots_wrf(res_mgr.get_resource_path('test/wrfout_d03_2017-12-09_18:00:00_rf'), out_dir, out_base_dir)
+
+        out_dir = os.path.join(out_base_dir, 'plots_D01')
+        lon_min, lat_min, lon_max, lat_max = constants.SRI_LANKA_D01_EXTENT
+        create_rf_plots_wrf(res_mgr.get_resource_path('test/wrfout_d01_2017-12-09_18:00:00_rf'), out_dir, out_base_dir,
+                            lat_min=lat_min, lon_min=lon_min, lat_max=lat_max, lon_max=lon_max)
