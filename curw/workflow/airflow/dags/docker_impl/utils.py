@@ -2,6 +2,7 @@ import json
 import random
 import string
 import logging
+import datetime as dt
 
 from airflow.models import Variable
 
@@ -27,6 +28,15 @@ def get_docker_cmd(run_id, wrf_config, mode, nl_wps, nl_input, gcs_volumes=None)
             cmd = cmd + ' -v %s ' % vol
 
     return cmd
+
+
+def get_start_date_from_context(context, period_hours=24):
+    return context['execution_date'] + dt.timedelta(hours=period_hours)
+
+
+def get_start_date_template(period_hours=24):
+    return "{{ macros.datetime.strftime(execution_date + macros.timedelta(hours=%d), \'%%Y-%%m-%%d_%%H:%%M\') }}" \
+           % period_hours
 
 
 def get_docker_extract_cmd(run_id, wrf_config, db_config, gcs_volumes=None, overwrite=True):

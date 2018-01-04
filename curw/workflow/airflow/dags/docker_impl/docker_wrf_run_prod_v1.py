@@ -68,15 +68,6 @@ dag = DAG(
     schedule_interval=schedule_interval)
 
 
-def _get_start_date_from_context(context, period_hours=24):
-    return context['execution_date'] + dt.timedelta(hours=period_hours)
-
-
-def _get_start_date_template(period_hours=24):
-    return "{{ macros.datetime.strftime(execution_date + macros.timedelta(hours=%d), \'%%Y-%%m-%%d_%%H:%%M\') }" \
-           % period_hours
-
-
 def initialize_config(config_str, configs_prefix='wrf_config_', **context):
     config = json.loads(config_str)
 
@@ -94,7 +85,7 @@ def initialize_config(config_str, configs_prefix='wrf_config_', **context):
 
 def generate_random_run_id(prefix, random_str_len=4, **context):
     run_id = '_'.join(
-        [prefix, _get_start_date_from_context(context).strftime('%Y-%m-%d_%H:%M'),
+        [prefix, airflow_docker_utils.get_start_date_from_context(context).strftime('%Y-%m-%d_%H:%M'),
          airflow_docker_utils.id_generator(size=random_str_len)])
     logging.info('Generated run_id: ' + run_id)
     return run_id
@@ -113,7 +104,7 @@ def clean_up_wrf_run(init_task_id, **context):
 
 
 def check_data_push_callable(task_ids, **context):
-    exec_date = _get_start_date_from_context(context)
+    exec_date = airflow_docker_utils.get_start_date_from_context(context)
     if exec_date.hour == 18 and exec_date.minute == 0:
         return task_ids[0]
     else:
@@ -134,7 +125,7 @@ init_config = PythonOperator(
     provide_context=True,
     op_args=[airflow_vars[wrf_config_key], 'wrf_config_'],
     templates_dict={
-        'wrf_config_start_date': _get_start_date_template(),
+        'wrf_config_start_date': airflow_docker_utils.get_start_date_template(),
         'wrf_config_run_id': '{{ task_instance.xcom_pull(task_ids=\'gen-run-id\') }}',
         'wrf_config_wps_run_id': '{{ task_instance.xcom_pull(task_ids=\'gen-run-id\') }}',
     },
