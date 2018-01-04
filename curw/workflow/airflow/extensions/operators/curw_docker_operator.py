@@ -12,8 +12,9 @@ class CurwDockerOperator(BaseOperator):
     """
     Execute a command inside a docker container.
 
-    Additional functionality added
+    Additional functionality
         - container auto remove
+        - container privileged
 
     A temporary directory is created on the host and mounted into a container to allow storing files
     that together exceed the default disk size of 10GB in a container. The path to the mounted
@@ -91,7 +92,7 @@ class CurwDockerOperator(BaseOperator):
             xcom_push=False,
             xcom_all=False,
             auto_remove=False,
-            priviliedged=False,
+            privileged=False,
             *args,
             **kwargs):
 
@@ -116,7 +117,7 @@ class CurwDockerOperator(BaseOperator):
         self.xcom_push = xcom_push
         self.xcom_all = xcom_all
         self.auto_remove = auto_remove
-        self.priviledged = priviliedged
+        self.priviledged = privileged
 
         self.cli = None
         self.container = None
@@ -127,11 +128,11 @@ class CurwDockerOperator(BaseOperator):
         tls_config = None
         if self.tls_ca_cert and self.tls_client_cert and self.tls_client_key:
             tls_config = tls.TLSConfig(
-                    ca_cert=self.tls_ca_cert,
-                    client_cert=(self.tls_client_cert, self.tls_client_key),
-                    verify=True,
-                    ssl_version=self.tls_ssl_version,
-                    assert_hostname=self.tls_hostname
+                ca_cert=self.tls_ca_cert,
+                client_cert=(self.tls_client_cert, self.tls_client_key),
+                verify=True,
+                ssl_version=self.tls_ssl_version,
+                assert_hostname=self.tls_hostname
             )
             self.docker_url = self.docker_url.replace('tcp://', 'https://')
 
@@ -158,16 +159,16 @@ class CurwDockerOperator(BaseOperator):
             logging.info('Creating container and running cmd:\n' + cmd)
 
             self.container = self.cli.create_container(
-                    command=cmd,
-                    cpu_shares=cpu_shares,
-                    environment=self.environment,
-                    host_config=self.cli.create_host_config(binds=self.volumes,
-                                                            network_mode=self.network_mode,
-                                                            auto_remove=self.auto_remove,
-                                                            privileged=self.priviledged),
-                    image=image,
-                    mem_limit=self.mem_limit,
-                    user=self.user
+                command=cmd,
+                cpu_shares=cpu_shares,
+                environment=self.environment,
+                host_config=self.cli.create_host_config(binds=self.volumes,
+                                                        network_mode=self.network_mode,
+                                                        auto_remove=self.auto_remove,
+                                                        privileged=self.priviledged),
+                image=image,
+                mem_limit=self.mem_limit,
+                user=self.user
             )
             self.cli.start(self.container['Id'])
 

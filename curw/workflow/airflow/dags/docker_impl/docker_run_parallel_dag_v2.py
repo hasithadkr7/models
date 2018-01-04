@@ -158,7 +158,7 @@ wps = CurwDockerOperator(
     cpus=1,
     volumes=docker_volumes,
     auto_remove=True,
-    priviliedged=True,
+    privileged=True,
     dag=dag,
     pool=wrf_pool,
 )
@@ -189,7 +189,7 @@ for i in range(parallel_runs):
         cpus=2,
         volumes=docker_volumes,
         auto_remove=True,
-        priviliedged=True,
+        privileged=True,
         dag=dag,
         pool=wrf_pool,
     )
@@ -206,7 +206,7 @@ for i in range(parallel_runs):
         cpus=2,
         volumes=docker_volumes,
         auto_remove=True,
-        priviliedged=True,
+        privileged=True,
         dag=dag,
         pool=wrf_pool,
     )
@@ -223,7 +223,7 @@ for i in range(parallel_runs):
         cpus=2,
         volumes=docker_volumes,
         auto_remove=True,
-        priviliedged=True,
+        privileged=True,
         dag=dag,
         pool=wrf_pool,
     )
