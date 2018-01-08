@@ -19,7 +19,7 @@ from netCDF4 import Dataset
 from tempfile import TemporaryDirectory
 
 from curw.rainfall.wrf import utils
-from curw.rainfall.wrf.extraction import constants
+from curw.rainfall.wrf.extraction import constants, spatial_utils
 from curw.rainfall.wrf.resources import manager as res_mgr
 from curw.rainfall.wrf.extraction import utils as ext_utils
 from curwmysqladapter import Station
@@ -969,3 +969,36 @@ class TestExtractor(unittest.TestCase):
         lon_min, lat_min, lon_max, lat_max = constants.SRI_LANKA_D01_EXTENT
         create_rf_plots_wrf(res_mgr.get_resource_path('test/wrfout_d01_2017-12-09_18:00:00_rf'), out_dir, out_base_dir,
                             lat_min=lat_min, lon_min=lon_min, lat_max=lat_max, lon_max=lon_max)
+
+    def test_kub_glencourse_flo2d_calibrate(self):
+        out_base_dir = tempfile.mkdtemp(prefix='glencourse_')
+
+        # rain = np.genfromtxt('/home/curw/Desktop/glen/rain.csv', delimiter=',', names=True, dtype=None,
+        #                      converters={0: lambda s: dt.datetime.strptime(s.decode("utf-8"), '%Y-%m-%d %H:%M')})
+
+        rain = np.genfromtxt('/home/curw/Desktop/glen/rain.csv', delimiter=',', names=True, dtype=None)
+
+        coord = np.genfromtxt('/home/curw/Desktop/glen/coordinates.csv', names=True, delimiter=',', dtype=None)
+        stations = {}
+        for i, c in enumerate(coord):
+            n = c[0].decode('utf-8')
+            stations[n] = [c[2], c[1]]
+
+        points = np.genfromtxt(
+            '/home/curw/git/models/curw/rainfall/wrf/resources/extraction/local/klb_glecourse_points_150m.txt',
+            delimiter=',', names=['id', 'lon', 'lat'], dtype=[int, float, float])
+
+        thess_poly = spatial_utils.get_voronoi_polygons(stations,
+                                                        '/home/curw/git/models/curw/rainfall/wrf/resources/extraction'
+                                                        '/shp/klb_glencourse/klb_glencourse.shp',
+                                                        add_total_area=False,
+                                                        output_shape_file=os.path.join(out_base_dir, 'out.shp')
+                                                        )
+
+        region = [spatial_utils.is_inside_geo_df(thess_poly, points['lon'][i], points['lat'][i]) for i in
+                  range(len(points))]
+
+        with open(os.path.join(out_base_dir, 'raincell.dat'), 'w') as out:
+            for r in rain:
+                for i, p in enumerate(points):
+                    out.write('%d %g\n' % (p[0], r[region[i]]))

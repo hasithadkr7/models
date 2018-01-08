@@ -6,7 +6,7 @@ import numpy as np
 import geopandas as gpd
 
 from scipy.spatial import Voronoi
-from shapely.geometry import Polygon
+from shapely.geometry import Polygon, Point
 
 from curw.rainfall.wrf.resources import manager as res_mgr
 
@@ -97,7 +97,7 @@ def _voronoi_finite_polygons_2d(vor, radius=None):
     return new_regions, np.asarray(new_vertices)
 
 
-def get_voronoi_polygons(points_dict, shape_file, shape_attribute, output_shape_file=None, add_total_area=True):
+def get_voronoi_polygons(points_dict, shape_file, shape_attribute=None, output_shape_file=None, add_total_area=True):
     """
     :param points_dict: dict of points {'id' --> [lon, lat]}
     :param shape_file: shape file path of the area
@@ -108,11 +108,14 @@ def get_voronoi_polygons(points_dict, shape_file, shape_attribute, output_shape_
     geo_dataframe with voronoi polygons with columns ['id', 'lon', 'lat','area', 'geometry'] with last row being the area of the 
     shape file 
     """
+    if shape_attribute is None:
+        shape_attribute = ['OBJECTID', 1]
+
     shape_df = gpd.GeoDataFrame.from_file(shape_file)
     shape_polygon_idx = shape_df.index[shape_df[shape_attribute[0]] == shape_attribute[1]][0]
     shape_polygon = shape_df['geometry'][shape_polygon_idx]
 
-    ids = [np.asscalar(p) for p in points_dict.keys()]
+    ids = [p if type(p) == str else np.asscalar(p) for p in points_dict.keys()]
     points = list(points_dict.values())
 
     vor = Voronoi(points)
@@ -138,6 +141,14 @@ def get_voronoi_polygons(points_dict, shape_file, shape_attribute, output_shape_
     return df
 
 
+def is_inside_geo_df(geo_df, lon, lat, polygon_attr='geometry', return_attr='id'):
+    point = Point(lon, lat)
+    for i, poly in enumerate(geo_df[polygon_attr]):
+        if point.within(poly):
+            return geo_df[return_attr][i]
+    return None
+
+
 class TestSpatialUtils(unittest.TestCase):
     def test_get_voronoi_polygons(self):
         points = {
@@ -152,6 +163,23 @@ class TestSpatialUtils(unittest.TestCase):
         out = tempfile.mkdtemp(prefix='voronoi_')
         result = get_voronoi_polygons(points, shp, ['OBJECTID', 1], output_shape_file=os.path.join(out, 'out.shp'))
         print(result)
+
+    def test_is_inside_polygon(self):
+        points = {
+            'Colombo': [79.8653, 6.898158],
+            'IBATTARA3': [79.86, 6.89],
+            'Isurupaya': [79.92, 6.89],
+            'Borella': [79.86, 6.93, ],
+            'Kompannaveediya': [79.85, 6.92],
+        }
+
+        shp = res_mgr.get_resource_path('extraction/shp/klb-wgs84/klb-wgs84.shp')
+        result = get_voronoi_polygons(points, shp, ['OBJECTID', 1])
+        print(result)
+        for k in points.keys():
+            pp = is_inside_geo_df(result, points[k][0], points[k][1])
+            print(points[k], pp)
+            self.assertEqual(pp, k)
 
     def test_get_voronoi_polygons_kub(self):
         points = {
