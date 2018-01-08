@@ -112,7 +112,7 @@ def get_voronoi_polygons(points_dict, shape_file, shape_attribute, output_shape_
     shape_polygon_idx = shape_df.index[shape_df[shape_attribute[0]] == shape_attribute[1]][0]
     shape_polygon = shape_df['geometry'][shape_polygon_idx]
 
-    ids = list(points_dict.keys())
+    ids = [np.asscalar(p) for p in points_dict.keys()]
     points = list(points_dict.values())
 
     vor = Voronoi(points)
@@ -172,6 +172,28 @@ class TestSpatialUtils(unittest.TestCase):
         print(out)
         result = get_voronoi_polygons(points, shp, ['OBJECTID', 1], output_shape_file=os.path.join(out, 'out.shp'))
         print(result)
+
+    def test_compare_voronoi_polygons(self):
+
+        files = ['up_in_3_thie_join.shp', 'up_in_11_thie_join.shp']
+        out = tempfile.mkdtemp(prefix='voronoi_')
+
+        for f in files:
+            voronoi_shp_file = res_mgr.get_resource_path('test/shp/%s' % f)
+            area_shp_file = res_mgr.get_resource_path('extraction/shp/kub-wgs84/kub-wgs84.shp')
+
+            shape_df = gpd.GeoDataFrame.from_file(voronoi_shp_file)
+
+            points = {}
+            for i in range(len(shape_df)):
+                points[shape_df['OBJECTID'][i]] = [shape_df['x'][i], shape_df['y'][i]]
+
+            result = get_voronoi_polygons(points, area_shp_file, ['OBJECTID', 1],
+                                          output_shape_file=os.path.join(out, '%s_out.shp' % f))
+
+            for i in range(len(shape_df)):
+                self.assertAlmostEqual(result['area'][i], shape_df['Shape_Area'][i], places=4)
+
 
 def suite():
     s = unittest.TestSuite()
