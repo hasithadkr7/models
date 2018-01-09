@@ -1,63 +1,47 @@
+from airflow.utils.decorators import apply_defaults
+
 from airflow.models import BaseOperator
+
 
 class CurwSwarmOperator(BaseOperator):
     """
-    Execute a command inside a docker container.
 
-    Additional functionality added
-        - container auto remove
-        - container privileged
+    http://docker-py.readthedocs.io/en/stable/services.html
 
-    A temporary directory is created on the host and mounted into a container to allow storing files
-    that together exceed the default disk size of 10GB in a container. The path to the mounted
-    directory can be accessed via the environment variable ``AIRFLOW_TMP_DIR``.
-
-    :param image: Docker image from which to create the container.
-    :type image: str
-    :param api_version: Remote API version.
-    :type api_version: str
-    :param command: Command to be run in the container.
-    :type command: str or list
-    :param cpus: Number of CPUs to assign to the container.
-        This value gets multiplied with 1024. See
-        https://docs.docker.com/engine/reference/run/#cpu-share-constraint
-    :type cpus: float
-    :param docker_url: URL of the host running the docker daemon.
-    :type docker_url: str
-    :param environment: Environment variables to set in the container.
-    :type environment: dict
-    :param force_pull: Pull the docker image on every run.
-    :type force_pull: bool
-    :param mem_limit: Maximum amount of memory the container can use. Either a float value, which
-        represents the limit in bytes, or a string like ``128m`` or ``1g``.
-    :type mem_limit: float or str
-    :param network_mode: Network mode for the container.
-    :type network_mode: str
-    :param tls_ca_cert: Path to a PEM-encoded certificate authority to secure the docker connection.
-    :type tls_ca_cert: str
-    :param tls_client_cert: Path to the PEM-encoded certificate used to authenticate docker client.
-    :type tls_client_cert: str
-    :param tls_client_key: Path to the PEM-encoded key used to authenticate docker client.
-    :type tls_client_key: str
-    :param tls_hostname: Hostname to match against the docker server certificate or False to
-        disable the check.
-    :type tls_hostname: str or bool
-    :param tls_ssl_version: Version of SSL to use when communicating with docker daemon.
-    :type tls_ssl_version: str
-    :param tmp_dir: Mount point inside the container to a temporary directory created on the host by
-        the operator. The path is also made available via the environment variable
-        ``AIRFLOW_TMP_DIR`` inside the container.
-    :type tmp_dir: str
-    :param user: Default user inside the docker container.
-    :type user: int or str
-    :param volumes: List of volumes to mount into the container, e.g.
-        ``['/host/path:/container/path', '/host/path2:/container/path2:ro']``.
-    :param xcom_push: Does the stdout will be pushed to the next step using XCom.
-           The default is False.
-    :type xcom_push: bool
-    :param xcom_all: Push all the stdout or just the last line. The default is False (last line).
-    :type xcom_all: bool
+    :param image (str) – The image name to use for the containers.
+    :param command (list of str or str) – Command to run.
+    :param args (list of str) – Arguments to the command.
+    :param constraints (list of str) – Placement constraints.
+    :param container_labels (dict) – Labels to apply to the container.
+    :param endpoint_spec (EndpointSpec) – Properties that can be configured to access and load balance a service. Default: None.
+    :param env (list of str) – Environment variables, in the form KEY=val.
+    :param hostname (string) – Hostname to set on the container.
+    :param labels (dict) – Labels to apply to the service.
+    :param log_driver (str) – Log driver to use for containers.
+    :param log_driver_options (dict) – Log driver options.
+    :param mode (ServiceMode) – Scheduling mode for the service. Default:None
+    :param mounts (list of str) – Mounts for the containers, in the form source:target:options, where options is either ro or rw.
+    :param name (str) – Name to give to the service.
+    :param networks (list of str) – List of network names or IDs to attach the service to. Default: None.
+    :param resources (Resources) – Resource limits and reservations.
+    :param restart_policy (RestartPolicy) – Restart policy for containers.
+    :param secrets (list of docker.types.SecretReference) – List of secrets accessible to containers for this service.
+    :param stop_grace_period (int) – Amount of time to wait for containers to terminate before forcefully killing them.
+    :param update_config (UpdateConfig) – Specification for the update strategy of the service. Default: None
+    :param user (str) – User to run commands as.
+    :param workdir (str) – Working directory for commands to run.
+    :param tty (boolean) – Whether a pseudo-TTY should be allocated.
+    :param groups (list) – A list of additional groups that the container process will run as.
+    :param open_stdin (boolean) – Open stdin
+    :param read_only (boolean) – Mount the container’s root filesystem as read only.
+    :param stop_signal (string) – Set signal to stop the service’s containers
+    :param healthcheck (Healthcheck) – Healthcheck configuration for this service.
+    :param hosts (dict) – A set of host to IP mappings to add to the container’s hosts file.
+    :param dns_config (DNSConfig) – Specification for DNS related configurations in resolver configuration file.
+    :param configs (list) – List of ConfigReference that will be exposed to the service.
+    :param privileges (Privileges) – Security options for the service’s containers.
     """
+
     template_fields = ('command',)
     template_ext = ('.sh', '.bash',)
 
@@ -65,54 +49,73 @@ class CurwSwarmOperator(BaseOperator):
     def __init__(
             self,
             image,
-            api_version=None,
-            command=None,
-            cpus=1.0,
-            docker_url='unix://var/run/docker.sock',
-            environment=None,
-            force_pull=False,
-            mem_limit=None,
-            network_mode=None,
-            tls_ca_cert=None,
-            tls_client_cert=None,
-            tls_client_key=None,
-            tls_hostname=None,
-            tls_ssl_version=None,
-            tmp_dir='/tmp/airflow',
-            user=None,
-            volumes=None,
-            xcom_push=False,
-            xcom_all=False,
-            auto_remove=False,
-            privileged=False,
+            command,
+            args_str,
+            constraints,
+            container_labels,
+            endpoint_spec,
+            env,
+            hostname,
+            labels,
+            log_driver,
+            log_driver_options,
+            mode,
+            mounts,
+            name,
+            networks,
+            resources,
+            restart_policy,
+            secrets,
+            stop_grace_period,
+            update_config,
+            user,
+            workdir,
+            tty,
+            groups,
+            open_stdin,
+            read_only,
+            stop_signal,
+            healthcheck,
+            hosts,
+            dns_config,
+            configs,
+            privileges,
             *args,
             **kwargs):
 
-        super(CurwDockerOperator, self).__init__(*args, **kwargs)
-        self.api_version = api_version
-        self.command = command
-        self.cpus = cpus
-        self.docker_url = docker_url
-        self.environment = environment or {}
-        self.force_pull = force_pull
+        super(CurwSwarmOperator, self).__init__(*args, **kwargs)
         self.image = image
-        self.mem_limit = mem_limit
-        self.network_mode = network_mode
-        self.tls_ca_cert = tls_ca_cert
-        self.tls_client_cert = tls_client_cert
-        self.tls_client_key = tls_client_key
-        self.tls_hostname = tls_hostname
-        self.tls_ssl_version = tls_ssl_version
-        self.tmp_dir = tmp_dir
+        self.command = command
+        self.args = args
+        self.constraints = constraints
+        self.container_labels = container_labels
+        self.endpoint_spec = endpoint_spec
+        self.env = env
+        self.hostname = hostname
+        self.labels = labels
+        self.log_driver = log_driver
+        self.log_driver_options = log_driver_options
+        self.mode = mode
+        self.mounts = mounts
+        self.name = name
+        self.networks = networks
+        self.resources = resources
+        self.restart_policy = restart_policy
+        self.secrets = secrets
+        self.stop_grace_period = stop_grace_period
+        self.update_config = update_config
         self.user = user
-        self.volumes = volumes or []
-        self.xcom_push = xcom_push
-        self.xcom_all = xcom_all
-        self.auto_remove = auto_remove
-        self.priviledged = privileged
-
-        self.cli = None
-        self.container = None
+        self.workdir = workdir
+        self.tty = tty
+        self.groups = groups
+        self.open_stdin = open_stdin
+        self.read_only = read_only
+        self.stop_signal = stop_signal
+        self.healthcheck = healthcheck
+        self.hosts = hosts
+        self.dns_config = dns_config
+        self.configs = configs
+        self.privileges = privileges
 
     def execute(self, context):
         logging.info('Starting docker container from image ' + self.image)
