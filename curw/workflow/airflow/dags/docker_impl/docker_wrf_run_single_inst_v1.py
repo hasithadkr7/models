@@ -158,97 +158,43 @@ wps = CurwDockerOperator(
     pool=wrf_pool,
 )
 
-generate_run_id >> init_config >> wps
+wrf = CurwDockerOperator(
+    task_id='wrf',
+    image=wrf_image,
+    docker_url=docker_url,
+    command=airflow_docker_utils.get_docker_cmd('{{ task_instance.xcom_pull(task_ids=\'gen-run-id-wrf\') }}',
+                                                '{{ task_instance.xcom_pull(task_ids=\'init-config\') }}',
+                                                'wrf',
+                                                docker_rf_utils.get_base64_encoded_str(airflow_vars[nl_wps_key]),
+                                                docker_rf_utils.get_base64_encoded_str(
+                                                    airflow_vars[nl_inp_keys[0]]),
+                                                gcs_volumes),
+    cpus=4,
+    volumes=docker_volumes,
+    auto_remove=True,
+    privileged=True,
+    dag=dag,
+    pool=wrf_pool,
+    priority_weight=priorities[0]
+)
 
-select_wrf = DummyOperator(task_id='select-wrf', dag=dag)
+extract_wrf_no_data_push = CurwDockerOperator(
+    task_id='wrf-extract-no-data-push',
+    image=extract_image,
+    docker_url=docker_url,
+    command=airflow_docker_utils.get_docker_extract_cmd(
+        '{{ task_instance.xcom_pull(task_ids=\'gen-run-id-wrf\') }}',
+        '{{ task_instance.xcom_pull(task_ids=\'init-config\') }}',
+        docker_rf_utils.get_base64_encoded_str('{}'),
+        gcs_volumes,
+        overwrite=False),
+    cpus=4,
+    volumes=docker_volumes,
+    auto_remove=True,
+    privileged=True,
+    dag=dag,
+    pool=wrf_pool,
+    priority_weight=priorities[0]
+)
 
-for i in range(parallel_runs):
-    generate_run_id_wrf = PythonOperator(
-        task_id='gen-run-id-wrf%d' % i,
-        python_callable=generate_random_run_id,
-        op_args=[run_id_prefix + str(i)],
-        provide_context=True,
-        dag=dag,
-        priority_weight=priorities[i]
-    )
-
-    wrf = CurwDockerOperator(
-        task_id='wrf%d' % i,
-        image=wrf_image,
-        docker_url=docker_url,
-        command=airflow_docker_utils.get_docker_cmd('{{ task_instance.xcom_pull(task_ids=\'gen-run-id-wrf%d\') }}' % i,
-                                                    '{{ task_instance.xcom_pull(task_ids=\'init-config\') }}',
-                                                    'wrf',
-                                                    docker_rf_utils.get_base64_encoded_str(airflow_vars[nl_wps_key]),
-                                                    docker_rf_utils.get_base64_encoded_str(
-                                                        airflow_vars[nl_inp_keys[i]]),
-                                                    gcs_volumes),
-        cpus=4,
-        volumes=docker_volumes,
-        auto_remove=True,
-        privileged=True,
-        dag=dag,
-        pool=wrf_pool,
-        priority_weight=priorities[i]
-    )
-
-    extract_wrf = CurwDockerOperator(
-        task_id='wrf%d-extract' % i,
-        image=extract_image,
-        docker_url=docker_url,
-        command=airflow_docker_utils.get_docker_extract_cmd(
-            '{{ task_instance.xcom_pull(task_ids=\'gen-run-id-wrf%d\') }}' % i,
-            '{{ task_instance.xcom_pull(task_ids=\'init-config\') }}',
-            docker_rf_utils.get_base64_encoded_str(airflow_vars[curw_db_config_path]),
-            gcs_volumes,
-            overwrite=False),
-        cpus=4,
-        volumes=docker_volumes,
-        auto_remove=True,
-        privileged=True,
-        dag=dag,
-        pool=wrf_pool,
-        priority_weight=priorities[i]
-    )
-
-    extract_wrf_no_data_push = CurwDockerOperator(
-        task_id='wrf%d-extract-no-data-push' % i,
-        image=extract_image,
-        docker_url=docker_url,
-        command=airflow_docker_utils.get_docker_extract_cmd(
-            '{{ task_instance.xcom_pull(task_ids=\'gen-run-id-wrf%d\') }}' % i,
-            '{{ task_instance.xcom_pull(task_ids=\'init-config\') }}',
-            docker_rf_utils.get_base64_encoded_str('{}'),
-            gcs_volumes,
-            overwrite=False),
-        cpus=4,
-        volumes=docker_volumes,
-        auto_remove=True,
-        privileged=True,
-        dag=dag,
-        pool=wrf_pool,
-        priority_weight=priorities[i]
-    )
-
-    check_data_push = BranchPythonOperator(
-        task_id='check-data-push' + str(i),
-        python_callable=check_data_push_callable,
-        provide_context=True,
-        op_args=[['wrf%d-extract' % i, 'wrf%d-extract-no-data-push' % i]],
-        dag=dag,
-        priority_weight=priorities[i]
-    )
-
-    join_branch = DummyOperator(
-        task_id='join-branch' + str(i),
-        trigger_rule='one_success',
-        dag=dag,
-        priority_weight=priorities[i]
-    )
-
-    wps >> generate_run_id_wrf >> wrf >> check_data_push
-    check_data_push >> extract_wrf >> join_branch
-    check_data_push >> extract_wrf_no_data_push >> join_branch
-    join_branch >> select_wrf
-
-select_wrf >> clean_up
+generate_run_id >> init_config >> wps >> wrf >> extract_wrf_no_data_push >> clean_up
