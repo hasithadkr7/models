@@ -133,7 +133,7 @@ def get_voronoi_polygons(points_dict, shape_file, shape_attribute=None, output_s
         data.append({'id': '__total_area__', 'lon': shape_polygon.centroid.x, 'lat': shape_polygon.centroid.y,
                      'area': shape_polygon.area, 'geometry': shape_polygon})
 
-    df = gpd.GeoDataFrame(data, columns=['id', 'lon', 'lat', 'area', 'geometry'])
+    df = gpd.GeoDataFrame(data, columns=['id', 'lon', 'lat', 'area', 'geometry'], crs=shape_df.crs)
 
     if output_shape_file is not None:
         df.to_file(output_shape_file)
