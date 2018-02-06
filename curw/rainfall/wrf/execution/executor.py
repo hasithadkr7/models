@@ -228,7 +228,10 @@ def replace_file_with_values(wrf_config, src, dest, aux_dict, start_date=None, e
         'hh2': end_date.strftime('%H'),
         'mm2': end_date.strftime('%M'),
         'GEOG': wrf_config.get('geog_dir'),
-        'RD0': str(int(period)), 'RH0': str(int(period * 24 % 24)), 'RM0': str(int(period * 60 * 24 % 60))
+        'RD0': str(int(period)), 'RH0': str(int(period * 24 % 24)), 'RM0': str(int(period * 60 * 24 % 60)),
+        'hi1': 180,
+        'hi2': 60,
+        'hi3': 60,
     }
 
     if aux_dict and wrf_config.is_set(aux_dict):
