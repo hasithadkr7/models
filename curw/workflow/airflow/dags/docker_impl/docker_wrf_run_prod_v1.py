@@ -17,7 +17,7 @@ queue = 'docker_prod_queue'
 schedule_interval = '0 18 * * *'
 
 parallel_runs = 6
-priorities = [1000, 1, 1, 1, 1, 1]
+priorities = [1000, 10, 10, 10, 10, 10]
 
 docker_url = 'tcp://10.128.0.5:2375'
 
