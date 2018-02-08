@@ -91,9 +91,9 @@ def generate_random_run_id(prefix, random_str_len=4, **context):
     return run_id
 
 
-def prefix_run_id(run_id, suffix):
-    splits = run_id.split('_')
-    run_id = '_'.join([splits[0] + suffix] + splits[1:])
+def suffix_run_id(**context):
+    splits = context['templates_dict']['run_id'].split('_')
+    run_id = '_'.join([splits[0] + context['templates_dict']['run_id_suffix']] + splits[1:])
     logging.info('Suffixed run_id: ' + run_id)
     return run_id
 
@@ -172,8 +172,9 @@ select_wrf = DummyOperator(task_id='select-wrf', dag=dag)
 for i in range(parallel_runs):
     suffix_run_id_wrf = PythonOperator(
         task_id='sfx-run-id-wrf%d' % i,
-        python_callable=prefix_run_id,
-        op_args=['{{ task_instance.xcom_pull(task_ids=\'gen-run-id\') }}', str(i)],
+        python_callable=suffix_run_id,
+        templates_dict={'run_id': '{{ task_instance.xcom_pull(task_ids=\'gen-run-id\') }}',
+                        'run_id_suffix': str(i)},
         provide_context=True,
         dag=dag,
         priority_weight=priorities[i]
