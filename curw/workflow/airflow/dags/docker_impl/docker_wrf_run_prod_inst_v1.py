@@ -91,6 +91,13 @@ def generate_random_run_id(prefix, random_str_len=4, **context):
     return run_id
 
 
+def prefix_run_id(run_id, suffix):
+    splits = run_id.split('_')
+    run_id = '_'.join([splits[0] + suffix] + splits[1:])
+    logging.info('Suffixed run_id: ' + run_id)
+    return run_id
+
+
 def clean_up_wrf_run(init_task_id, **context):
     config_str = docker_rf_utils.get_base64_decoded_str(context['task_instance'].xcom_pull(task_ids=init_task_id))
     wrf_config = json.loads(config_str)
@@ -163,10 +170,10 @@ generate_run_id >> init_config >> wps
 select_wrf = DummyOperator(task_id='select-wrf', dag=dag)
 
 for i in range(parallel_runs):
-    generate_run_id_wrf = PythonOperator(
-        task_id='gen-run-id-wrf%d' % i,
-        python_callable=generate_random_run_id,
-        op_args=[run_id_prefix + str(i)],
+    suffix_run_id_wrf = PythonOperator(
+        task_id='sfx-run-id-wrf%d' % i,
+        python_callable=prefix_run_id,
+        op_args=['{{ task_instance.xcom_pull(task_ids=\'gen-run-id\') }}', str(i)],
         provide_context=True,
         dag=dag,
         priority_weight=priorities[i]
@@ -176,7 +183,7 @@ for i in range(parallel_runs):
         task_id='wrf%d' % i,
         image=wrf_image,
         docker_url=docker_url,
-        command=airflow_docker_utils.get_docker_cmd('{{ task_instance.xcom_pull(task_ids=\'gen-run-id-wrf%d\') }}' % i,
+        command=airflow_docker_utils.get_docker_cmd('{{ task_instance.xcom_pull(task_ids=\'sfx-run-id-wrf%d\') }}' % i,
                                                     '{{ task_instance.xcom_pull(task_ids=\'init-config\') }}',
                                                     'wrf',
                                                     docker_rf_utils.get_base64_encoded_str(airflow_vars[nl_wps_key]),
@@ -197,7 +204,7 @@ for i in range(parallel_runs):
         image=extract_image,
         docker_url=docker_url,
         command=airflow_docker_utils.get_docker_extract_cmd(
-            '{{ task_instance.xcom_pull(task_ids=\'gen-run-id-wrf%d\') }}' % i,
+            '{{ task_instance.xcom_pull(task_ids=\'sfx-run-id-wrf%d\') }}' % i,
             '{{ task_instance.xcom_pull(task_ids=\'init-config\') }}',
             docker_rf_utils.get_base64_encoded_str(airflow_vars[curw_db_config_path]),
             gcs_volumes,
@@ -216,7 +223,7 @@ for i in range(parallel_runs):
         image=extract_image,
         docker_url=docker_url,
         command=airflow_docker_utils.get_docker_extract_cmd(
-            '{{ task_instance.xcom_pull(task_ids=\'gen-run-id-wrf%d\') }}' % i,
+            '{{ task_instance.xcom_pull(task_ids=\'sfx-run-id-wrf%d\') }}' % i,
             '{{ task_instance.xcom_pull(task_ids=\'init-config\') }}',
             docker_rf_utils.get_base64_encoded_str('{}'),
             gcs_volumes,
@@ -246,7 +253,7 @@ for i in range(parallel_runs):
         priority_weight=priorities[i]
     )
 
-    wps >> generate_run_id_wrf >> wrf >> check_data_push
+    wps >> suffix_run_id_wrf >> wrf >> check_data_push
     check_data_push >> extract_wrf >> join_branch
     check_data_push >> extract_wrf_no_data_push >> join_branch
     join_branch >> select_wrf
