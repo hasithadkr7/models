@@ -2,10 +2,13 @@ import json
 import logging
 import math
 import os
+import unittest
+import datetime as dt
 
 import imageio
 import matplotlib
 import numpy as np
+from numpy.lib.recfunctions import append_fields
 from curwmysqladapter import MySQLAdapter
 from mpl_toolkits.basemap import Basemap
 from netCDF4._netCDF4 import Dataset
@@ -16,6 +19,69 @@ from curw.rainfall.wrf.resources import manager as res_mgr
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from matplotlib import colors
+
+
+def extract_time_data(nc_f):
+    nc_fid = Dataset(nc_f, 'r')
+    times_len = len(nc_fid.dimensions['Time'])
+    try:
+        times = [''.join(x) for x in nc_fid.variables['Times'][0:times_len]]
+    except TypeError:
+        times = np.array([''.join([y.decode() for y in x]) for x in nc_fid.variables['Times'][:]])
+    nc_fid.close()
+    return times_len, times
+
+
+def get_two_element_average(prcp, return_diff=True):
+    avg_prcp = (prcp[1:] + prcp[:-1]) * 0.5
+    if return_diff:
+        return avg_prcp - np.insert(avg_prcp[:-1], 0, [0], axis=0)
+    else:
+        return avg_prcp
+
+
+def extract_points_array_rf_series(nc_f, points_array, boundaries=None, rf_var_list=None, lat_var='XLAT', lon_var='XLONG',
+                                   time_var='Times'):
+    """
+    :param boundaries: list [lat_min, lat_max, lon_min, lon_max]
+    :param nc_f:
+    :param points_array: multi dim array (np structured array)  with a row [name, lon, lat]
+    :param rf_var_list:
+    :param lat_var:
+    :param lon_var:
+    :param time_var:
+    :return: np structured array with [(time, name1, name2, .... )]
+    """
+
+    if rf_var_list is None:
+        rf_var_list = ['RAINC', 'RAINNC']
+
+    if boundaries is None:
+        lat_min = np.min(points_array[points_array.dtype.names[2]])
+        lat_max = np.max(points_array[points_array.dtype.names[2]])
+        lon_min = np.min(points_array[points_array.dtype.names[1]])
+        lon_max = np.max(points_array[points_array.dtype.names[1]])
+    else:
+        lat_min, lat_max, lon_min, lon_max = boundaries
+
+    variables = extract_variables(nc_f, rf_var_list, lat_min, lat_max, lon_min, lon_max, lat_var, lon_var, time_var)
+
+    prcp = variables[rf_var_list[0]]
+    for i in range(1, len(rf_var_list)):
+        prcp = prcp + variables[rf_var_list[i]]
+
+    diff = get_two_element_average(prcp, return_diff=True)
+
+    lk_times = [utils.datetime_utc_to_lk(dt.datetime.strptime(t, '%Y-%m-%d_%H:%M:%S'), shift_mins=30).strftime(
+        '%Y-%m-%d %H:%M:%S') for t in variables[time_var][:-1]]
+
+    result = np.array(lk_times, dtype=[(time_var, 'U20')])
+    for p in points_array:
+        lat_start_idx = np.argmin(abs(variables['XLAT'] - p[2]))
+        lon_start_idx = np.argmin(abs(variables['XLONG'] - p[1]))
+        result = append_fields(result, p[0].decode(), np.round(diff[:, lat_start_idx, lon_start_idx], 6), usemask=False)
+
+    return result
 
 
 def extract_variables(nc_f, var_list, lat_min, lat_max, lon_min, lon_max, lat_var='XLAT', lon_var='XLONG',
@@ -172,39 +238,6 @@ def create_contour_plot(data, out_file_path, lat_min, lon_min, lat_max, lon_max,
         logging.info('%s already exists' % out_file_path)
 
 
-def test_create_contour_plot():
-    nc = '/home/nira/Desktop/temp/wrfout_d03_2017-09-24_00-00-00_SL'
-    out_dir = '/home/nira/Desktop/temp'
-
-    lat_min = 5.722969
-    lon_min = 79.52146
-    lat_max = 10.06425
-    lon_max = 82.18992
-
-    clevs = 10 * np.array([0.1, 0.5, 1, 2, 3, 5, 10, 15, 20, 25, 30])
-    basemap = Basemap(projection='merc', llcrnrlon=lon_min, llcrnrlat=lat_min, urcrnrlon=lon_max,
-                      urcrnrlat=lat_max, resolution='h')
-    norm = colors.BoundaryNorm(boundaries=clevs, ncolors=256)
-    cmap = plt.get_cmap('jet')
-    # cmap = cm.s3pcpn
-
-    rf_vars = ['RAINC', 'RAINNC']
-
-    rf_values = extract_variables(nc, rf_vars, lat_min, lat_max, lon_min, lon_max)
-
-    rf_values['PRECIP'] = rf_values[rf_vars[0]]
-    for i in range(1, len(rf_vars)):
-        rf_values['PRECIP'] = rf_values['PRECIP'] + rf_values[rf_vars[i]]
-
-    os.makedirs(out_dir, exist_ok=True)
-    create_contour_plot(rf_values['PRECIP'][24], out_dir + '/out.png', lat_min, lon_min, lat_max, lon_max, 'Title',
-                        basemap=basemap, clevs=clevs, cmap=cmap, overwrite=True, norm=norm)
-
-    title_opts = {'label': 'Title', 'fontsize': 30}
-    create_contour_plot(rf_values['PRECIP'][24], out_dir + '/out1.png', lat_min, lon_min, lat_max, lon_max, title_opts,
-                        basemap=basemap, clevs=clevs, cmap=cmap, overwrite=True, norm=norm)
-
-
 def shrink_2d_array(data, new_shape, agg_func=np.average):
     """
     shrinks a 2d np array 
@@ -307,6 +340,47 @@ def parse_database_data_type(d_type, adapter_pkg_name='curwmysqladapter', adapte
 #     com = ndimage.measurements.center_of_mass(data)
 #     plt.plot(com[1], com[0], com_dot)
 #     # plt.annotate(str(com), xy=com)
+
+
+class TestExtractorUtils(unittest.TestCase):
+    def test_extract_point_rf_series(self):
+        points = np.genfromtxt(res_mgr.get_resource_path('extraction/local/metro_col_sub_catch_centroids.txt'),
+                               delimiter=',', names=True, dtype=None)
+
+        out = extract_points_array_rf_series(res_mgr.get_resource_path('/test/wrfout_d03_2017-12-09_18:00:00_rf'), points)
+
+    def test_create_contour_plot(self):
+        nc = '/home/nira/Desktop/temp/wrfout_d03_2017-09-24_00-00-00_SL'
+        out_dir = '/home/nira/Desktop/temp'
+
+        lat_min = 5.722969
+        lon_min = 79.52146
+        lat_max = 10.06425
+        lon_max = 82.18992
+
+        clevs = 10 * np.array([0.1, 0.5, 1, 2, 3, 5, 10, 15, 20, 25, 30])
+        basemap = Basemap(projection='merc', llcrnrlon=lon_min, llcrnrlat=lat_min, urcrnrlon=lon_max,
+                          urcrnrlat=lat_max, resolution='h')
+        norm = colors.BoundaryNorm(boundaries=clevs, ncolors=256)
+        cmap = plt.get_cmap('jet')
+        # cmap = cm.s3pcpn
+
+        rf_vars = ['RAINC', 'RAINNC']
+
+        rf_values = extract_variables(nc, rf_vars, lat_min, lat_max, lon_min, lon_max)
+
+        rf_values['PRECIP'] = rf_values[rf_vars[0]]
+        for i in range(1, len(rf_vars)):
+            rf_values['PRECIP'] = rf_values['PRECIP'] + rf_values[rf_vars[i]]
+
+        os.makedirs(out_dir, exist_ok=True)
+        create_contour_plot(rf_values['PRECIP'][24], out_dir + '/out.png', lat_min, lon_min, lat_max, lon_max, 'Title',
+                            basemap=basemap, clevs=clevs, cmap=cmap, overwrite=True, norm=norm)
+
+        title_opts = {'label': 'Title', 'fontsize': 30}
+        create_contour_plot(rf_values['PRECIP'][24], out_dir + '/out1.png', lat_min, lon_min, lat_max, lon_max,
+                            title_opts,
+                            basemap=basemap, clevs=clevs, cmap=cmap, overwrite=True, norm=norm)
 
 
 if __name__ == "__main__":

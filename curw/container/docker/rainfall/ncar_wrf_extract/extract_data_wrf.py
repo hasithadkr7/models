@@ -51,6 +51,7 @@ def run(run_id, wrf_config_dict, db_config_dict, upsert=False, run_name='Cloud-1
     Procedure #7: Extract Kelani lower Basin rainfall for FLO2D
     Procedure #8: Extract Kelani lower Basin rainfall for MIKE21
     Procedure #9: Create plots for D01
+    Procedure #10: Extract rf data from metro col for MIKE21
     """
 
     def _nth_bit(a, n):
@@ -181,6 +182,15 @@ def run(run_id, wrf_config_dict, db_config_dict, upsert=False, run_name='Cloud-1
                 except Exception as e:
                     logging.error('Extract Kelani lower Basin mean rainfall for MIKE21 FAILED: ' + str(
                         e) + '\n' + traceback.format_exc())
+
+            if _nth_bit(procedures, 10):
+                try:
+                    logging.info('Procedure #10: Extract rf data from metro col for MIKE21')
+                    extractor.extract_metro_col_rf_for_mike21(d03_nc_f, os.path.join(output_dir_base, 'met_col_mike21'))
+                except Exception as e:
+                    logging.error('Extract rf data from metro col for MIKE21: ' + str(
+                        e) + '\n' + traceback.format_exc())
+
         except Exception as e:
             logging.error(
                 'Copying wrfout_d03_* to temp_dir %s FAILED: %s\n%s' % (temp_dir, str(e), traceback.format_exc()))

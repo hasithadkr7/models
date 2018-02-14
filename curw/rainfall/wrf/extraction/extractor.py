@@ -25,25 +25,6 @@ from curw.rainfall.wrf.extraction import utils as ext_utils
 from curwmysqladapter import Station
 
 
-def extract_time_data(nc_f):
-    nc_fid = Dataset(nc_f, 'r')
-    times_len = len(nc_fid.dimensions['Time'])
-    try:
-        times = [''.join(x) for x in nc_fid.variables['Times'][0:times_len]]
-    except TypeError:
-        times = np.array([''.join([y.decode() for y in x]) for x in nc_fid.variables['Times'][:]])
-    nc_fid.close()
-    return times_len, times
-
-
-def _get_two_element_average(prcp, return_diff=True):
-    avg_prcp = (prcp[1:] + prcp[:-1]) * 0.5
-    if return_diff:
-        return avg_prcp - np.insert(avg_prcp[:-1], 0, [0], axis=0)
-    else:
-        return avg_prcp
-
-
 def extract_metro_colombo(nc_f, wrf_output, wrf_output_base, curw_db_adapter=None, curw_db_upsert=False,
                           run_prefix='WRF', run_name='Cloud-1'):
     """
@@ -66,7 +47,7 @@ def extract_metro_colombo(nc_f, wrf_output, wrf_output_base, curw_db_adapter=Non
     prcp = nc_vars['RAINC'] + nc_vars['RAINNC']
     times = nc_vars['Times']
 
-    diff = _get_two_element_average(prcp)
+    diff = ext_utils.get_two_element_average(prcp)
 
     width = len(lons)
     height = len(lats)
@@ -141,7 +122,7 @@ def extract_weather_stations(nc_f, wrf_output, weather_stations=None, curw_db_ad
         weather_stations = res_mgr.get_resource_path('extraction/local/kelani_basin_stations.txt')
 
     nc_fid = Dataset(nc_f, 'r')
-    times_len, times = extract_time_data(nc_f)
+    times_len, times = ext_utils.extract_time_data(nc_f)
 
     prefix = 'stations_rf'
     stations_dir = utils.create_dir_if_not_exists(os.path.join(wrf_output, prefix))
@@ -158,7 +139,7 @@ def extract_weather_stations(nc_f, wrf_output, weather_stations=None, curw_db_ad
 
                 station_prcp = nc_fid.variables['RAINC'][:, lat, lon] + nc_fid.variables['RAINNC'][:, lat, lon]
 
-                station_diff = _get_two_element_average(station_prcp)
+                station_diff = ext_utils.get_two_element_average(station_prcp)
 
                 stations_rf[row[0]] = []
 
@@ -292,6 +273,22 @@ def create_rainfall_for_mike21(d0_rf_file, prev_rf_files, output_dir):
             # np.savetxt(out_file, output, fmt='%s', delimiter='\t')
 
 
+def extract_metro_col_rf_for_mike21(nc_f, output_dir, points_file=None):
+    if not points_file:
+        points_file = res_mgr.get_resource_path('extraction/local/metro_col_sub_catch_centroids.txt')
+    points = np.genfromtxt(points_file, delimiter=',', names=True, dtype=None)
+
+    point_prcp = ext_utils.extract_points_array_rf_series(nc_f, points)
+
+    fmt = '%s'
+    for _ in range(len(point_prcp[0]) - 1):
+        fmt = fmt + ',%g'
+
+    header = ','.join(point_prcp.dtype.names)
+    np.savetxt(os.path.join(output_dir, 'met_col_rf_mike21.txt'), point_prcp, fmt=fmt, delimiter=',', header=header,
+               comments='')
+
+
 def extract_mean_rainfall_from_shp_file(nc_f, wrf_output, output_prefix, output_name, basin_shp_file, basin_extent,
                                         curw_db_adapter=None, curw_db_upsert=False, run_prefix='WRF',
                                         run_name='Cloud-1'):
@@ -303,7 +300,7 @@ def extract_mean_rainfall_from_shp_file(nc_f, wrf_output, output_prefix, output_
     prcp = nc_vars['RAINC'] + nc_vars['RAINNC']
     times = nc_vars['Times']
 
-    diff = _get_two_element_average(prcp)
+    diff = ext_utils.get_two_element_average(prcp)
 
     polys = shapefile.Reader(basin_shp_file)
 
@@ -481,7 +478,7 @@ def extract_mean_rainfall_from_shp_file(nc_f, wrf_output, output_prefix, output_
 def extract_point_rf_series(nc_f, lat, lon):
     nc_fid = Dataset(nc_f, 'r')
 
-    times_len, times = extract_time_data(nc_f)
+    times_len, times = ext_utils.extract_time_data(nc_f)
     lats = nc_fid.variables['XLAT'][0, :, 0]
     lons = nc_fid.variables['XLONG'][0, 0, :]
 
@@ -506,7 +503,7 @@ def extract_area_rf_series(nc_f, lat_min, lat_max, lon_min, lon_max):
 
     nc_fid = Dataset(nc_f, 'r')
 
-    times_len, times = extract_time_data(nc_f)
+    times_len, times = ext_utils.extract_time_data(nc_f)
     lats = nc_fid.variables['XLAT'][0, :, 0]
     lons = nc_fid.variables['XLONG'][0, 0, :]
 
@@ -519,7 +516,7 @@ def extract_area_rf_series(nc_f, lat_min, lat_max, lon_min, lon_max):
                                                                                             :, lat_min_idx:lat_max_idx,
                                                                                             lon_min_idx:lon_max_idx]
 
-    diff = _get_two_element_average(prcp)
+    diff = ext_utils.get_two_element_average(prcp)
 
     nc_fid.close()
 
@@ -646,7 +643,7 @@ def _process_zip_file(zip_file_path, out_file_path, lat_min, lon_min, lat_max, l
 #             raise IOError('File %s not found' % nc_f)
 #
 #         logging.info('Extracting time data')
-#         times_len, times = extract_time_data(nc_f)
+#         times_len, times = ext_utils.extract_time_data(nc_f)
 #
 #         logging.info('Extract rainfall data for the metro colombo area')
 #         basin_rf = extract_metro_colombo(nc_f, date, wrf_output)
@@ -725,7 +722,7 @@ def push_wrf_rainfall_to_db(nc_f, curw_db_adapter=None, lon_min=None, lat_min=No
     prcp = nc_vars['RAINC'] + nc_vars['RAINNC']
     times = nc_vars['Times']
 
-    diff = _get_two_element_average(prcp)
+    diff = ext_utils.get_two_element_average(prcp)
 
     width = len(lons)
     height = len(lats)
@@ -798,8 +795,8 @@ def create_rf_plots_wrf(nc_f, plots_output_dir, plots_output_base_dir, lon_min=N
         t1 = dt.datetime.strptime(variables['Times'][1], '%Y-%m-%d_%H:%M:%S')
         step = (t1 - t0).total_seconds() / 3600.0
 
-        inst_precip = _get_two_element_average(variables['PRECIP'])
-        cum_precip = _get_two_element_average(variables['PRECIP'], return_diff=False)
+        inst_precip = ext_utils.get_two_element_average(variables['PRECIP'])
+        cum_precip = ext_utils.get_two_element_average(variables['PRECIP'], return_diff=False)
 
         for i in range(1, len(variables['Times'])):
             time = variables['Times'][i]
@@ -1002,3 +999,7 @@ class TestExtractor(unittest.TestCase):
             for r in rain:
                 for i, p in enumerate(points):
                     out.write('%d %g\n' % (p[0], r[region[i]]))
+
+    def test_extract_metro_col_rf_for_mike21(self):
+        out_dir = tempfile.mkdtemp(prefix='met_col_mike21')
+        extract_metro_col_rf_for_mike21(res_mgr.get_resource_path('test/wrfout_d03_2017-12-09_18:00:00_rf'), out_dir)
