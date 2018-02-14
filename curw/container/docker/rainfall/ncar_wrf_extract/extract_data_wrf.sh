@@ -17,6 +17,7 @@ do
     path=$(echo $OPTARG | cut -d':' -f2)
     echo "#### mounting $bucket to $path"
     gcsfuse ${bucket} ${path} ;;
+ p) PROCS=$OPTARG;;
  esac
 done
 
@@ -46,4 +47,5 @@ python3.6 /wrf/curwsl/curw/container/docker/rainfall/ncar_wrf_extract/extract_da
                                 $( check_empty "$OW" overwrite ) \
                                 $( check_empty "$DT" data_type ) \
                                 $( check_empty "$CONFIG" wrf_config ) \
-                                $( check_empty "$DB" db_config )
+                                $( check_empty "$DB" db_config ) \
+                                $( check_empty "$PROCS" procedures )

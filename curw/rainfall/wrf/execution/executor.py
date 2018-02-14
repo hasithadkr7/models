@@ -3,8 +3,10 @@ import glob
 import json
 import logging
 import os
+import tempfile
 import threading
 import time
+import unittest
 from urllib.error import HTTPError, URLError
 from zipfile import ZipFile, ZIP_DEFLATED
 
@@ -228,11 +230,16 @@ def replace_file_with_values(wrf_config, src, dest, aux_dict, start_date=None, e
         'hh2': end_date.strftime('%H'),
         'mm2': end_date.strftime('%M'),
         'GEOG': wrf_config.get('geog_dir'),
-        'RD0': str(int(period)), 'RH0': str(int(period * 24 % 24)), 'RM0': str(int(period * 60 * 24 % 60))
+        'RD0': str(int(period)),
+        'RH0': str(int(period * 24 % 24)),
+        'RM0': str(int(period * 60 * 24 % 60)),
+        'hi1': '180',
+        'hi2': '60',
+        'hi3': '60',
     }
 
     if aux_dict and wrf_config.is_set(aux_dict):
-        d = d.update(wrf_config.get(aux_dict))
+        d.update(wrf_config.get(aux_dict))
 
     utils.replace_file_with_values(src, dest, d)
 
@@ -441,6 +448,49 @@ def get_default_wrf_config(wrf_home=constants.DEFAULT_WRF_HOME):
                 'gfs_threads': constants.DEFAULT_THREAD_COUNT}
 
     return WrfConfig(defaults)
+
+
+class TestExecutor(unittest.TestCase):
+    def test_replace_file_with_values(self):
+        wrf_output_dir = tempfile.mkdtemp(prefix='test_replace_file_with_values_')
+
+        content = """
+        YYYY1
+        MM1
+        DD1
+        hh1
+        mm1
+        YYYY2
+        MM2
+        DD2
+        hh2
+        mm2
+        GEOG
+        RD0
+        RH0
+        RM0
+        hi1
+        hi2
+        hi3
+        test1"""
+
+        in_txt = os.path.join(wrf_output_dir, 'in.txt')
+        out_txt = os.path.join(wrf_output_dir, 'out.txt')
+        with open(in_txt, 'w') as f:
+            f.write(content)
+
+        wc = WrfConfig(
+            {'start_date': '2017-01-02_12:34',
+             'gfs_step': 3,
+             'period': 3,
+             'geog_dir': 'abcd',
+             'aux': {
+                 'hi3': '10',
+                 'test1': 'xxx'
+             }
+             })
+
+        replace_file_with_values(wc, in_txt, out_txt, 'aux')
 
 
 if __name__ == "__main__":
