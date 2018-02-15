@@ -283,8 +283,9 @@ def extract_metro_col_rf_for_mike21(nc_f, output_dir, points_file=None):
     fmt = '%s'
     for _ in range(len(point_prcp[0]) - 1):
         fmt = fmt + ',%g'
-
     header = ','.join(point_prcp.dtype.names)
+
+    utils.create_dir_if_not_exists(output_dir)
     np.savetxt(os.path.join(output_dir, 'met_col_rf_mike21.txt'), point_prcp, fmt=fmt, delimiter=',', header=header,
                comments='')
 
