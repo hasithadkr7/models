@@ -287,7 +287,7 @@ def extract_metro_col_rf_for_mike21(nc_f, output_dir, points_file=None):
 
     utils.create_dir_if_not_exists(output_dir)
     np.savetxt(os.path.join(output_dir, 'met_col_rf_mike21.txt'), point_prcp, fmt=fmt, delimiter=',', header=header,
-               comments='')
+               comments='', encoding='utf-8')
 
 
 def extract_mean_rainfall_from_shp_file(nc_f, wrf_output, output_prefix, output_name, basin_shp_file, basin_extent,
