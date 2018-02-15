@@ -3,7 +3,7 @@
 export GOOGLE_APPLICATION_CREDENTIALS=/wrf/gcs.json
 
 echo "#### Reading running args..."
-while getopts ":i:c:d:o:k:v:t:" option
+while getopts ":i:c:d:o:k:v:t:p:" option
 do
  case "${option}"
  in

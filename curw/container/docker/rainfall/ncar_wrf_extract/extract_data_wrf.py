@@ -34,7 +34,7 @@ def parse_args():
     parser.add_argument('-wrf_config', default=check_key('wrf_config', docker_rf_utils.get_base64_encoded_str('{}')))
     parser.add_argument('-overwrite', default=check_key('overwrite', 'False'))
     parser.add_argument('-data_type', default=check_key('data_type', 'data'))
-    parser.add_argument('-procedures', default=check_key('to_run', str(sys.maxsize)))
+    parser.add_argument('-procedures', default=check_key('procedures', str(sys.maxsize)))
 
     return parser.parse_args()
 
@@ -66,6 +66,7 @@ def run(run_id, wrf_config_dict, db_config_dict, upsert=False, run_name='Cloud-1
     output_dir_base = os.path.join(config.get('nfs_dir'), 'results')
     run_output_dir = os.path.join(output_dir_base, run_id)
     wrf_output_dir = os.path.join(run_output_dir, 'wrf')
+    logging.info('WRF output dir: ' + wrf_output_dir)
 
     db_adapter = ext_utils.get_curw_adapter(mysql_config=db_config_dict) if db_config_dict else None
 
@@ -218,6 +219,8 @@ def run(run_id, wrf_config_dict, db_config_dict, upsert=False, run_name='Cloud-1
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format='%(asctime)s %(threadName)s %(module)s %(levelname)s %(message)s')
+    logging.info('Received arguments:\n%s' % sys.argv[1:])
+
     args = vars(parse_args())
 
     logging.info('Running arguments:\n%s' % json.dumps(args, sort_keys=True, indent=0))
