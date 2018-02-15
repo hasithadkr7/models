@@ -73,7 +73,7 @@ def extract_points_array_rf_series(nc_f, points_array, boundaries=None, rf_var_l
     diff = get_two_element_average(prcp, return_diff=True)
 
     result = np.array([utils.datetime_utc_to_lk(dt.datetime.strptime(t, '%Y-%m-%d_%H:%M:%S'), shift_mins=30).strftime(
-        '%Y-%m-%d %H:%M:%S').encode() for t in variables[time_var][:-1]], dtype=np.dtype([(time_var, 'U19')]))
+        '%Y-%m-%d %H:%M:%S').encode('utf-8') for t in variables[time_var][:-1]], dtype=np.dtype([(time_var, 'U19')]))
 
     for p in points_array:
         lat_start_idx = np.argmin(abs(variables['XLAT'] - p[2]))
