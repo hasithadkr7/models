@@ -187,7 +187,7 @@ def run(run_id, wrf_config_dict, db_config_dict, upsert=False, run_name='Cloud-1
             if _nth_bit(procedures, 10):
                 try:
                     logging.info('Procedure #10: Extract rf data from metro col for MIKE21')
-                    extractor.extract_metro_col_rf_for_mike21(d03_nc_f, os.path.join(output_dir_base, 'met_col_mike21'))
+                    extractor.extract_metro_col_rf_for_mike21(d03_nc_f, os.path.join(run_output_dir, 'met_col_mike21'))
                 except Exception as e:
                     logging.error('Extract rf data from metro col for MIKE21: ' + str(
                         e) + '\n' + traceback.format_exc())
