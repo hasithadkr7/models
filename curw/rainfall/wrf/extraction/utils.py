@@ -73,7 +73,7 @@ def extract_points_array_rf_series(nc_f, points_array, boundaries=None, rf_var_l
     diff = get_two_element_average(prcp, return_diff=True)
 
     lk_times = [utils.datetime_utc_to_lk(dt.datetime.strptime(t, '%Y-%m-%d_%H:%M:%S'), shift_mins=30).strftime(
-        '%Y-%m-%d %H:%M:%S') for t in variables[time_var][:-1]]
+        '%Y-%m-%d %H:%M:%S').encode() for t in variables[time_var][:-1]]
 
     result = np.array(lk_times, dtype=[(time_var, 'U20')])
     for p in points_array:
