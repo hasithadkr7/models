@@ -1,13 +1,10 @@
 import logging
-
-import sys
-
 import os
+
 from kubernetes import client, config, watch
 
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
-
 # constants
 from curw.rainfall.wrf import utils
 
@@ -167,8 +164,6 @@ class CurwGkeOperator(BaseOperator):
         container.image = self.image
         container.command = self.command
         container.args = self.command_args
-
-        self.kube_client.create_namespaced_secret()
 
         logging.info('Initializing pod')
         self.pod = client.V1Pod()
