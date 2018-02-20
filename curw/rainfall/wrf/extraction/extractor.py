@@ -257,7 +257,7 @@ def create_rainfall_for_mike21(d0_rf_file, prev_rf_files, output_dir):
     prev_days = len(prev_rf_files)
 
     output = None
-    for i in range(len(prev_rf_files)):
+    for i in range(prev_days):
         if output is not None:
             output = np.append(output,
                                np.genfromtxt(prev_rf_files[prev_days - 1 - i], dtype=str, max_rows=lines_per_day),
@@ -273,12 +273,18 @@ def create_rainfall_for_mike21(d0_rf_file, prev_rf_files, output_dir):
             # np.savetxt(out_file, output, fmt='%s', delimiter='\t')
 
 
-def extract_metro_col_rf_for_mike21(nc_f, output_dir, points_file=None):
+def extract_metro_col_rf_for_mike21(nc_f, output_dir, prev_rf_files=None, points_file=None):
+    if not prev_rf_files:
+        prev_rf_files = []
+
     if not points_file:
         points_file = res_mgr.get_resource_path('extraction/local/metro_col_sub_catch_centroids.txt')
     points = np.genfromtxt(points_file, delimiter=',', names=True, dtype=None)
 
     point_prcp = ext_utils.extract_points_array_rf_series(nc_f, points)
+
+    t0 = dt.datetime.strptime(point_prcp['Times'][0], '%Y-%m-%d %H:%M:%S')
+    t1 = dt.datetime.strptime(, '%Y-%m-%d %H:%M:%S')
 
     fmt = '%s'
     for _ in range(len(point_prcp[0]) - 1):
