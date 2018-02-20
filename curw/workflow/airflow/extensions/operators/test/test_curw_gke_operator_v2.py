@@ -1,6 +1,8 @@
+import base64
 import logging
 from datetime import timedelta
 
+import os
 from kubernetes import client
 
 import airflow
@@ -40,11 +42,22 @@ def get_resource_name(resource, context):
                       str(context['ti'].job_id).lower()])
 
 
+def read_file(path):
+    with open(path, 'r') as f:
+        return f.read()
+
+
 image = 'us.gcr.io/uwcc-160712/curw-wrf-391'
 kube_config_path = None
 api_version = None
 command = ['/bin/bash']
-command_args = ['-c', 'echo abcd; echo 1234; ls -r /wrf/geog/wrf_391_geog; echo 4567; sleep 60s']
+command_args = ['-c',
+                'echo abcd; '
+                'echo 1234; '
+                'ls -r /wrf/geog/wrf_391_geog  | head -5; '
+                'cat /wrf/gcs.json ;'
+                'echo 4567; '
+                'sleep 60s']
 cpus = 1.0
 environment = None
 force_pull = False
@@ -64,7 +77,8 @@ container = client.V1Container(name='test-container',
 container.image = image
 container.command = command
 container.args = command_args
-container.volume_mounts = [client.V1VolumeMount(mount_path='/wrf/geog', name='test-vol')]
+container.volume_mounts = [client.V1VolumeMount(mount_path='/wrf/geog', name='test-vol'),
+                           client.V1VolumeMount(mount_path='/wrf/', name='test-sec-vol')]
 
 logging.info('Initializing pod')
 pod = client.V1Pod()
@@ -76,13 +90,21 @@ pod.metadata = pod_metadata
 logging.info('Creating volume list')
 vols = [client.V1Volume(name='test-vol',
                         gce_persistent_disk=client.V1GCEPersistentDiskVolumeSource(pd_name='wrf-geog-disk1',
-                                                                                   read_only=True))]
+                                                                                   read_only=True)),
+        client.V1Volume(name='test-sec-vol',
+                        secret=client.V1SecretVolumeSource(secret_name='google-app-creds'))
+        ]
 
 logging.info('Creating pod spec')
 pod_spec = client.V1PodSpec(containers=[container],
                             restart_policy='OnFailure',
                             volumes=vols)
 pod.spec = pod_spec
+
+google_app_creds = client.V1Secret(kind='Secret', type='Opaque', metadata=client.V1ObjectMeta(name='google-app-creds'),
+                                   data={'gcs.json': base64.b64encode(
+                                       read_file(os.getenv('GOOGLE_APPLICATION_CREDENTIALS')).encode()).decode()})
+secrets = [google_app_creds]
 
 dag = DAG(
     'gke-test2',
@@ -92,7 +114,9 @@ dag = DAG(
 # t1, t2 and t3 are examples of tasks created by instantiating operators
 t1 = CurwGkeOperatorV2(
     pod=pod,
+    secret_list=secrets or [],
     pod_name='test-pod-1',
+    auto_remove=True,
     task_id='wrf',
     dag=dag,
 )
