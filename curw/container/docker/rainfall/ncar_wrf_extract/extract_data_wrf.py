@@ -12,6 +12,7 @@ from tempfile import TemporaryDirectory
 import sys
 
 from curw.container.docker.rainfall import utils as docker_rf_utils
+from curw.rainfall.wrf import utils
 from curw.rainfall.wrf.execution.executor import get_wrf_config
 from curw.rainfall.wrf.extraction import extractor, constants
 from curw.rainfall.wrf.extraction import utils as ext_utils
@@ -171,10 +172,10 @@ def run(run_id, wrf_config_dict, db_config_dict, upsert=False, run_name='Cloud-1
                         os.path.join(temp_dir, 'klb.txt'))
                     prev_1 = '_'.join([run_prefix, (run_date - dt.timedelta(days=1)).strftime('%Y-%m-%d_%H:%M'), '*'])
                     prev_2 = '_'.join([run_prefix, (run_date - dt.timedelta(days=2)).strftime('%Y-%m-%d_%H:%M'), '*'])
-                    klb_prev_1 = shutil.copy2(
+                    klb_prev_1 = utils.copy_if_not_exists(
                         glob.glob(os.path.join(output_dir_base, prev_1, 'klb_mean_rf', 'klb_mean_rf.txt'))[0],
                         os.path.join(temp_dir, 'klb1.txt'))
-                    klb_prev_2 = shutil.copy2(
+                    klb_prev_2 = utils.copy_if_not_exists(
                         glob.glob(os.path.join(output_dir_base, prev_2, 'klb_mean_rf', 'klb_mean_rf.txt'))[0],
                         os.path.join(temp_dir, 'klb2.txt'))
 
@@ -187,7 +188,17 @@ def run(run_id, wrf_config_dict, db_config_dict, upsert=False, run_name='Cloud-1
             if _nth_bit(procedures, 10):
                 try:
                     logging.info('Procedure #10: Extract rf data from metro col for MIKE21')
-                    extractor.extract_metro_col_rf_for_mike21(d03_nc_f, os.path.join(run_output_dir, 'met_col_mike21'))
+                    run_date = dt.datetime.strptime(config.get('start_date'), '%Y-%m-%d_%H:%M')
+                    prev_1 = '_'.join([run_prefix, (run_date - dt.timedelta(days=1)).strftime('%Y-%m-%d_%H:%M'), '*'])
+                    prev_2 = '_'.join([run_prefix, (run_date - dt.timedelta(days=2)).strftime('%Y-%m-%d_%H:%M'), '*'])
+                    d03_nc_f_prev_1 = utils.copy_if_not_exists(
+                        glob.glob(os.path.join(output_dir_base, prev_1, 'wrf', 'wrfout_d03_*'))[0], temp_dir)
+                    d03_nc_f_prev_2 = utils.copy_if_not_exists(
+                        glob.glob(os.path.join(output_dir_base, prev_2, 'wrf', 'wrfout_d03_*'))[0], temp_dir)
+                    prev = [d03_nc_f_prev_1, d03_nc_f_prev_2]
+
+                    extractor.extract_metro_col_rf_for_mike21(d03_nc_f, os.path.join(run_output_dir, 'met_col_mike21'),
+                                                              prev_rf_files=prev)
                 except Exception as e:
                     logging.error('Extract rf data from metro col for MIKE21: ' + str(
                         e) + '\n' + traceback.format_exc())

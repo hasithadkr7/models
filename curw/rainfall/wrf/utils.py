@@ -214,6 +214,13 @@ def copy_files_with_prefix(src_dir, prefix, dest_dir):
         shutil.copy(filename, os.path.join(dest_dir, ntpath.basename(filename)))
 
 
+def copy_if_not_exists(src, dest):
+    if not file_exists_nonempty(dest):
+        return shutil.copy2(src, dest)
+    else:
+        return dest
+
+
 def move_files_with_prefix(src_dir, prefix, dest_dir):
     create_dir_if_not_exists(dest_dir)
     for filename in glob.glob(os.path.join(src_dir, prefix)):

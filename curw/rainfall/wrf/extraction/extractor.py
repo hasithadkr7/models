@@ -284,15 +284,31 @@ def extract_metro_col_rf_for_mike21(nc_f, output_dir, prev_rf_files=None, points
     point_prcp = ext_utils.extract_points_array_rf_series(nc_f, points)
 
     t0 = dt.datetime.strptime(point_prcp['Times'][0], '%Y-%m-%d %H:%M:%S')
-    t1 = dt.datetime.strptime(, '%Y-%m-%d %H:%M:%S')
+    t1 = dt.datetime.strptime(point_prcp['Times'][1], '%Y-%m-%d %H:%M:%S')
+
+    res_min = int((t1 - t0).total_seconds() / 60)
+    lines_per_day = int(24 * 60 / res_min)
+    prev_days = len(prev_rf_files)
+
+    output = None
+    for i in range(prev_days):
+        if output is not None:
+            output = np.append(output,
+                               ext_utils.extract_points_array_rf_series(prev_rf_files[prev_days - 1 - i], points)[
+                                :lines_per_day],
+                               axis=0)
+        else:
+            output = ext_utils.extract_points_array_rf_series(prev_rf_files[prev_days - 1 - i], points)[:lines_per_day]
+
+    output = np.append(output, point_prcp, axis=0)
 
     fmt = '%s'
-    for _ in range(len(point_prcp[0]) - 1):
+    for _ in range(len(output[0]) - 1):
         fmt = fmt + ',%g'
-    header = ','.join(point_prcp.dtype.names)
+    header = ','.join(output.dtype.names)
 
     utils.create_dir_if_not_exists(output_dir)
-    np.savetxt(os.path.join(output_dir, 'met_col_rf_mike21.txt'), point_prcp, fmt=fmt, delimiter=',', header=header,
+    np.savetxt(os.path.join(output_dir, 'met_col_rf_mike21.txt'), output, fmt=fmt, delimiter=',', header=header,
                comments='', encoding='utf-8')
 
 
@@ -1009,4 +1025,7 @@ class TestExtractor(unittest.TestCase):
 
     def test_extract_metro_col_rf_for_mike21(self):
         out_dir = tempfile.mkdtemp(prefix='met_col_mike21')
-        extract_metro_col_rf_for_mike21(res_mgr.get_resource_path('test/wrfout_d03_2017-12-09_18:00:00_rf'), out_dir)
+        prev = [res_mgr.get_resource_path('test/wrfout_d03_2017-12-10_18:00:00_rf'),
+                res_mgr.get_resource_path('test/wrfout_d03_2017-12-09_18:00:00_rf')]
+        extract_metro_col_rf_for_mike21(res_mgr.get_resource_path('test/wrfout_d03_2017-12-11_18:00:00_rf'), out_dir,
+                                        prev_rf_files=prev)
