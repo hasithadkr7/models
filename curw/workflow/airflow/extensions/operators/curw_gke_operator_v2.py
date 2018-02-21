@@ -47,26 +47,37 @@ class CurwGkeOperatorV2(BaseOperator):
 
     def _wait_for_pod_completion(self):
         w = watch.Watch()
+        deletable = True
         for event in w.stream(self.kube_client.list_namespaced_pod, self.namespace):
             logging.debug(event)
             if (event['object'].metadata.namespace, event['object'].metadata.name) == (self.namespace, self.pod_name):
                 if event['object'].status.phase == 'Succeeded':
                     logging.info('Pod completed successfully! %s %s' % (self.namespace, self.pod_name))
-                    w.stop()
                     break
                 elif event['object'].status.phase == 'Failed':
                     logging.error('Pod failed! %s %s' % (self.namespace, self.pod_name))
-                    w.stop()
                     break
                 if event['type'] == 'DELETED':
                     logging.warning('Pod deleted! %s %s' % (self.namespace, self.pod_name))
-                    w.stop()
+                    deletable = False
                     break
+        w.stop()
+
+        if deletable:
+            logging.info(
+                'Pod log:\n' + self.kube_client.read_namespaced_pod_log(name=self.pod_name, namespace=self.namespace,
+                                                                        timestamps=True, pretty='true'))
+        return deletable
 
     def _create_secrets(self):
         if self.kube_client is not None:
+            avail_secrets = [i.metadata.name for i in
+                             self.kube_client.list_namespaced_secret(namespace=self.namespace).items]
             for secret in self.secrets_list:
-                self.kube_client.create_namespaced_secret(namespace=self.namespace, body=secret)
+                if secret.metadata.name not in avail_secrets:
+                    self.kube_client.create_namespaced_secret(namespace=self.namespace, body=secret)
+                else:
+                    logging.info('Secret exists ' + secret.metadata.name)
 
     def execute(self, context):
         logging.info('Initializing kubernetes config from file ' + str(self.kube_config_path))
@@ -86,12 +97,9 @@ class CurwGkeOperatorV2(BaseOperator):
         self.kube_client.create_namespaced_pod(namespace=self.namespace, body=self.pod)
 
         logging.info('Waiting for pod completion')
-        self._wait_for_pod_completion()
+        deletable = self._wait_for_pod_completion()
 
-        logging.info(
-            'Pod log:\n' + self.kube_client.read_namespaced_pod_log(name=self.pod_name, namespace=self.namespace,
-                                                                    timestamps=True, pretty='true'))
-        if self.auto_remove:
+        if self.auto_remove and deletable:
             self.on_kill()
 
     def on_kill(self):
