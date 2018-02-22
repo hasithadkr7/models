@@ -13,6 +13,10 @@ class CurwGkeOperatorV2Exception(Exception):
 K8S_API_VERSION_TAG = 'v1'
 
 
+def _sanitize_resource_name(name):
+    return name.replace('_', '--')
+
+
 class CurwGkeOperatorV2(BaseOperator):
     """
 
@@ -90,10 +94,10 @@ class CurwGkeOperatorV2(BaseOperator):
 
     def execute(self, context):
         logging.info('Updating pod with templated fields')
-        self.pod.metadata.name = self.pod_name
-        self.pod.metadata.namespace = self.namespace
+        self.pod.metadata.name = _sanitize_resource_name(self.pod_name)
+        self.pod.metadata.namespace = _sanitize_resource_name(self.namespace)
         for i in range(len(self.container_names)):
-            self.pod.spec.containers[i].name = self.container_names[i]
+            self.pod.spec.containers[i].name = _sanitize_resource_name(self.container_names[i])
             self.pod.spec.containers[i].command = self.container_commands[i]
             self.pod.spec.containers[i].args = self.container_args_lists[i]
 
