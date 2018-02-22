@@ -17,7 +17,8 @@ class CurwGkeOperatorV2(BaseOperator):
     """
 
     """
-    template_fields = ['kube_config_path', 'pod_name']
+    template_fields = ['kube_config_path', 'pod_name', 'namespace', 'container_names', 'container_commands',
+                       'container_args_lists']
 
     @apply_defaults
     def __init__(
@@ -37,8 +38,16 @@ class CurwGkeOperatorV2(BaseOperator):
         self.kube_config_path = kube_config_path
         self.pod = pod
 
-        self.pod.metadata.name = self.pod_name = pod_name or self.pod.metadata.name
-        self.pod.metadata.namespace = self.namespace = namespace or self.pod.metadata.namespace or 'default'
+        self.pod_name = pod_name or self.pod.metadata.name
+        self.namespace = namespace or self.pod.metadata.namespace or 'default'
+
+        self.container_names = []
+        self.container_commands = []
+        self.container_args_lists = []
+        for c in pod.spec.containers:
+            self.container_names.append(c.name)
+            self.container_commands.append(c.command)
+            self.container_args_lists.append(c.args)
 
         self.auto_remove = auto_remove
         self.secrets_list = secret_list or []
@@ -80,6 +89,14 @@ class CurwGkeOperatorV2(BaseOperator):
                     logging.info('Secret exists ' + secret.metadata.name)
 
     def execute(self, context):
+        logging.info('Updating pod with templated fields')
+        self.pod.metadata.name = self.pod_name
+        self.pod.metadata.namespace = self.namespace
+        for i in range(len(self.container_names)):
+            self.pod.spec.containers[i].name = self.container_names[i]
+            self.pod.spec.containers[i].command = self.container_commands[i]
+            self.pod.spec.containers[i].args = self.container_args_lists[i]
+
         logging.info('Initializing kubernetes config from file ' + str(self.kube_config_path))
         config.load_kube_config(config_file=self.kube_config_path)
 
