@@ -19,7 +19,7 @@ def get_base64_encoded_str(s):
 
 
 def get_resource_name_jinja_template(resource):
-    return '-'.join([resource.lower(), '{{ti.dag_id}}', '{{ti.task_id}}', '{{ti.job_id}}'])
+    return '-'.join([resource.lower(), '{{ti.dag_id}}', '{{ti.task_id}}', '{{ti.job_id}}']).replace('_', '--')
 
 
 def initialize_config(config_str, configs_prefix='wrf_config_', **context):

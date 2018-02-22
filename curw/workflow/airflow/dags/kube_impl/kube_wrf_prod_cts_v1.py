@@ -199,7 +199,7 @@ for i in range(parallel_runs):
     extract_wrf = CurwGkeOperatorV2(
         task_id='wrf%d-extract' % i,
         pod=extract_pod,
-        secret_list=secrets or [],
+        secret_list=secrets,
         auto_remove=True,
         dag=dag,
         priority_weight=priorities[i]
@@ -222,8 +222,8 @@ for i in range(parallel_runs):
 
     extract_wrf_no_data_push = CurwGkeOperatorV2(
         task_id='wrf%d-extract-no-data-push' % i,
-        image=extract_image,
-        secret_list=secrets or [],
+        pod=extract_pod_no_push,
+        secret_list=secrets,
         dag=dag,
         auto_remove=True,
         priority_weight=priorities[i]
