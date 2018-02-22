@@ -11,7 +11,6 @@ from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.python_operator import PythonOperator, BranchPythonOperator
 from curw.workflow.airflow.dags.docker_impl import utils as af_docker_utils
 from curw.workflow.airflow.dags.kube_impl import utils as af_kube_utils
-from curw.workflow.airflow.extensions.operators.curw_docker_operator import CurwDockerOperator
 from curw.workflow.airflow.extensions.operators.curw_gke_operator_v2 import CurwGkeOperatorV2
 
 dag_name = 'kube_wrf_prod_inst_v1'
@@ -173,7 +172,7 @@ for i in range(parallel_runs):
                                        '-v', 'curwsl_archive_1:/wrf/archive',
                                        ]
 
-    wrf = CurwDockerOperator(
+    wrf = CurwGkeOperatorV2(
         task_id='wrf%d' % i,
         pod=wrf_pod,
         secret_list=secrets or [],
@@ -197,7 +196,7 @@ for i in range(parallel_runs):
                                            '-v', 'curwsl_archive_1:/wrf/archive',
                                            ]
 
-    extract_wrf = CurwDockerOperator(
+    extract_wrf = CurwGkeOperatorV2(
         task_id='wrf%d-extract' % i,
         pod=extract_pod,
         secret_list=secrets or [],
@@ -221,11 +220,12 @@ for i in range(parallel_runs):
                                                    '-v', 'curwsl_archive_1:/wrf/archive',
                                                    ]
 
-    extract_wrf_no_data_push = CurwDockerOperator(
+    extract_wrf_no_data_push = CurwGkeOperatorV2(
         task_id='wrf%d-extract-no-data-push' % i,
         image=extract_image,
-
+        secret_list=secrets or [],
         dag=dag,
+        auto_remove=True,
         priority_weight=priorities[i]
     )
 
