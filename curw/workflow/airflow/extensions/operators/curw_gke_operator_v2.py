@@ -1,5 +1,7 @@
 import logging
+import datetime as dt
 
+import asyncio
 from kubernetes import client, config, watch
 
 from airflow.models import BaseOperator
@@ -34,6 +36,7 @@ class CurwGkeOperatorV2(BaseOperator):
             secret_list=None,
             api_version=None,
             auto_remove=False,
+            poll_interval=dt.timedelta(seconds=60),
             *args,
             **kwargs):
 
@@ -58,30 +61,58 @@ class CurwGkeOperatorV2(BaseOperator):
 
         self.kube_client = None
 
-    def _wait_for_pod_completion(self):
-        w = watch.Watch()
-        deletable = True
-        for event in w.stream(self.kube_client.list_namespaced_pod, self.namespace):
-            logging.info("Event: %s %s %s" % (event['type'], event['object'].kind, event['object'].metadata.name))
-            logging.debug(event)
-            if (event['object'].metadata.namespace, event['object'].metadata.name) == (self.namespace, self.pod_name):
-                if event['object'].status.phase == 'Succeeded':
-                    logging.info('Pod completed successfully! %s %s' % (self.namespace, self.pod_name))
-                    break
-                elif event['object'].status.phase == 'Failed':
-                    logging.error('Pod failed! %s %s' % (self.namespace, self.pod_name))
-                    break
-                if event['type'] == 'DELETED':
-                    logging.warning('Pod deleted! %s %s' % (self.namespace, self.pod_name))
-                    deletable = False
-                    break
-        w.stop()
+        self.poll_interval = poll_interval
 
-        if deletable:
-            logging.info(
-                'Pod log:\n' + self.kube_client.read_namespaced_pod_log(name=self.pod_name, namespace=self.namespace,
-                                                                        timestamps=True, pretty='true'))
-        return deletable
+    def _wait_for_pod_completion(self):
+        async def poll_kube(kube_future, kube_client, name, namespace):
+            start_t = dt.datetime.now()
+            while True:
+                try:
+                    pod = kube_client.read_namespaced_pod_status(name=name, namespace=namespace)
+                    logging.info(
+                        "Pod status: %s elapsed time: %s" % (pod.status.phase, str(dt.datetime.now() - start_t)))
+                    status = pod.status.phase
+                    if status == 'Succeeded' or status == 'Failed':
+                        log = 'Pod log:\n' + kube_client.read_namespaced_pod_log(name=name, namespace=namespace,
+                                                                                 timestamps=True, pretty='true')
+                        kube_future.set_result('Pod exited! %s %s %s\n%s' % (namespace, name, status, log))
+                except Exception as e:
+                    logging.error('Error in polling pod %s:%s' % (name, str(e)))
+                    kube_future.set_exception(e)
+                await asyncio.sleep(self.poll_interval.seconds)
+
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        future = asyncio.Future()
+        asyncio.ensure_future(poll_kube(future, self.kube_client, self.pod_name, self.namespace))
+        loop.run_until_complete(future)
+        logging.info(future.result())
+
+        return True
+
+        # w = watch.Watch()
+        # deletable = True
+        # for event in w.stream(self.kube_client.list_namespaced_pod, self.namespace):
+        #     logging.info("Event: %s %s %s" % (event['type'], event['object'].kind, event['object'].metadata.name))
+        #     logging.debug(event)
+        #     if (event['object'].metadata.namespace, event['object'].metadata.name) == (self.namespace, self.pod_name):
+        #         if event['object'].status.phase == 'Succeeded':
+        #             logging.info('Pod completed successfully! %s %s' % (self.namespace, self.pod_name))
+        #             break
+        #         elif event['object'].status.phase == 'Failed':
+        #             logging.error('Pod failed! %s %s' % (self.namespace, self.pod_name))
+        #             break
+        #         if event['type'] == 'DELETED':
+        #             logging.warning('Pod deleted! %s %s' % (self.namespace, self.pod_name))
+        #             deletable = False
+        #             break
+        # w.stop()
+        #
+        # if deletable:
+        #     logging.info(
+        #         'Pod log:\n' + self.kube_client.read_namespaced_pod_log(name=self.pod_name, namespace=self.namespace,
+        #                                                                 timestamps=True, pretty='true'))
+        # return deletable
 
     def _create_secrets(self):
         if self.kube_client is not None:
