@@ -9,15 +9,6 @@ from curw.container.docker.rainfall import utils as docker_rf_utils
 from curw.workflow.airflow.dags.docker_impl import utils as airflow_docker_utils
 
 
-def read_file(path):
-    with open(path, 'r') as f:
-        return f.read()
-
-
-def get_base64_encoded_str(s):
-    return base64.b64encode(s.encode()).decode()
-
-
 def get_resource_name_jinja_template(resource):
     return '-'.join([resource.lower(), '{{ti.dag_id}}', '{{ti.task_id}}', '{{ti.job_id}}'])
 

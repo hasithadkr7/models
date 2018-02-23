@@ -1,11 +1,13 @@
-import logging
-import datetime as dt
-
 import asyncio
-from kubernetes import client, config, watch
+import datetime as dt
+import logging
+
+from kubernetes import client, config
 
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
+
+from curw.workflow.airflow import utils as af_utils
 
 
 class CurwGkeOperatorV2Exception(Exception):
@@ -13,10 +15,6 @@ class CurwGkeOperatorV2Exception(Exception):
 
 
 K8S_API_VERSION_TAG = 'v1'
-
-
-def _sanitize_resource_name(name):
-    return name.replace('_', '--')
 
 
 class CurwGkeOperatorV2(BaseOperator):
@@ -126,10 +124,10 @@ class CurwGkeOperatorV2(BaseOperator):
 
     def execute(self, context):
         logging.info('Updating pod with templated fields')
-        self.pod.metadata.name = _sanitize_resource_name(self.pod_name)
-        self.pod.metadata.namespace = _sanitize_resource_name(self.namespace)
+        self.pod.metadata.name = af_utils.sanitize_name(self.pod_name)
+        self.pod.metadata.namespace = af_utils.sanitize_name(self.namespace)
         for i in range(len(self.container_names)):
-            self.pod.spec.containers[i].name = _sanitize_resource_name(self.container_names[i])
+            self.pod.spec.containers[i].name = af_utils.sanitize_name(self.container_names[i])
             self.pod.spec.containers[i].command = self.container_commands[i]
             self.pod.spec.containers[i].args = self.container_args_lists[i]
 

@@ -9,6 +9,7 @@ from airflow import DAG
 from airflow.models import Variable
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.python_operator import PythonOperator, BranchPythonOperator
+from curw.workflow.airflow import utils as af_utils
 from curw.workflow.airflow.dags.docker_impl import utils as af_docker_utils
 from curw.workflow.airflow.dags.kube_impl import utils as af_kube_utils
 from curw.workflow.airflow.extensions.operators.curw_gke_operator_v2 import CurwGkeOperatorV2
@@ -45,8 +46,8 @@ vol_mounts = [client.V1VolumeMount(mount_path='/wrf/geog', name='geog-vol'),
 secrets = [client.V1Secret(kind='Secret',
                            type='Opaque',
                            metadata=client.V1ObjectMeta(name='google-app-creds'),
-                           data={'gcs.json': af_kube_utils.get_base64_encoded_str(
-                               af_kube_utils.read_file(os.getenv('GOOGLE_APPLICATION_CREDENTIALS')))})]
+                           data={'gcs.json': af_utils.get_base64_encoded_str(
+                               af_utils.read_file(os.getenv('GOOGLE_APPLICATION_CREDENTIALS')))})]
 
 
 def get_base_pod():
@@ -125,8 +126,8 @@ wps_pod.spec.containers[0].resources = client.V1ResourceRequirements(requests={'
 wps_pod.spec.containers[0].args = ['-i', '{{ ti.xcom_pull(task_ids=\'gen-run-id\') }}',
                                    '-c', '{{ ti.xcom_pull(task_ids=\'init-config\') }}',
                                    '-m', 'wps',
-                                   '-x', '%s' % af_kube_utils.get_base64_encoded_str(nl_wps),
-                                   '-y', '%s' % af_kube_utils.get_base64_encoded_str(nl_inputs[0]),
+                                   '-x', '%s' % af_utils.get_base64_encoded_str(nl_wps),
+                                   '-y', '%s' % af_utils.get_base64_encoded_str(nl_inputs[0]),
                                    '-k', '/wrf/config/gcs.json',
                                    '-v', 'curwsl_nfs_1:/wrf/output',
                                    '-v', 'curwsl_archive_1:/wrf/archive',
@@ -165,8 +166,8 @@ for i in range(parallel_runs):
     wrf_pod.spec.containers[0].args = ['-i', '{{ ti.xcom_pull(task_ids=\'gen-run-id\') }}',
                                        '-c', '{{ ti.xcom_pull(task_ids=\'init-config\') }}',
                                        '-m', 'wrf',
-                                       '-x', af_kube_utils.get_base64_encoded_str(nl_wps),
-                                       '-y', af_kube_utils.get_base64_encoded_str(nl_inputs[i]),
+                                       '-x', af_utils.get_base64_encoded_str(nl_wps),
+                                       '-y', af_utils.get_base64_encoded_str(nl_inputs[i]),
                                        '-k', '/wrf/config/gcs.json',
                                        '-v', 'curwsl_nfs_1:/wrf/output',
                                        '-v', 'curwsl_archive_1:/wrf/archive',
@@ -189,7 +190,7 @@ for i in range(parallel_runs):
     extract_pod.spec.containers[0].resources = client.V1ResourceRequirements(requests={'cpu': 1})
     extract_pod.spec.containers[0].args = ['-i', '{{ ti.xcom_pull(task_ids=\'sfx-run-id-wrf%d\') }}',
                                            '-c', '{{ ti.xcom_pull(task_ids=\'init-config\') }}',
-                                           '-d', af_kube_utils.get_base64_encoded_str(curw_db_config),
+                                           '-d', af_utils.get_base64_encoded_str(curw_db_config),
                                            '-o', 'True',
                                            '-k', '/wrf/config/gcs.json',
                                            '-v', 'curwsl_nfs_1:/wrf/output',
@@ -213,7 +214,7 @@ for i in range(parallel_runs):
     extract_pod_no_push.spec.containers[0].resources = client.V1ResourceRequirements(requests={'cpu': 1})
     extract_pod_no_push.spec.containers[0].args = ['-i', '{{ ti.xcom_pull(task_ids=\'sfx-run-id-wrf%d\') }}',
                                                    '-c', '{{ ti.xcom_pull(task_ids=\'init-config\') }}',
-                                                   '-d', af_kube_utils.get_base64_encoded_str(curw_db_config),
+                                                   '-d', af_utils.get_base64_encoded_str(curw_db_config),
                                                    '-o', 'True',
                                                    '-k', '/wrf/config/gcs.json',
                                                    '-v', 'curwsl_nfs_1:/wrf/output',
