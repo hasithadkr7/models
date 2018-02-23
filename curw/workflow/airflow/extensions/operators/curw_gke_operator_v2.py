@@ -64,9 +64,11 @@ class CurwGkeOperatorV2(BaseOperator):
     def _wait_for_pod_completion(self):
         async def poll_kube(kube_future, kube_client, name, namespace):
             start_t = dt.datetime.now()
+            pod_started = False
             while True:
                 try:
                     pod = kube_client.read_namespaced_pod_status(name=name, namespace=namespace)
+                    pod_started = True
                     logging.info(
                         "Pod status: %s elapsed time: %s" % (pod.status.phase, str(dt.datetime.now() - start_t)))
                     status = pod.status.phase
@@ -75,8 +77,11 @@ class CurwGkeOperatorV2(BaseOperator):
                                                                                  timestamps=True, pretty='true')
                         kube_future.set_result('Pod exited! %s %s %s\n%s' % (namespace, name, status, log))
                 except Exception as e:
-                    logging.error('Error in polling pod %s:%s' % (name, str(e)))
-                    kube_future.set_exception(e)
+                    if pod_started:
+                        logging.error('Error in polling pod %s:%s' % (name, str(e)))
+                        kube_future.set_exception(e)
+                    else:
+                        logging.warning('Pod has not started yet %s:%s' % (name, str(e)))
                 await asyncio.sleep(self.poll_interval.seconds)
 
         loop = asyncio.new_event_loop()
