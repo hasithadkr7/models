@@ -87,7 +87,7 @@ class CurwGkeOperatorV2(BaseOperator):
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         future = asyncio.Future()
-        asyncio.ensure_future(poll_kube(future, self.kube_client, self.pod_name, self.namespace))
+        asyncio.ensure_future(poll_kube(future, self.kube_client, self.pod.metadata.name, self.pod.metadata.namespace))
         loop.run_until_complete(future)
         logging.info(future.result())
 
