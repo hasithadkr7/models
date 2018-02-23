@@ -150,7 +150,7 @@ class CurwGkeOperatorV2(BaseOperator):
 
         logging.info('Creating namespaced pod')
         logging.debug('Pod config ' + str(self.pod))
-        self.kube_client.create_namespaced_pod(namespace=self.namespace, body=self.pod)
+        self.kube_client.create_namespaced_pod(namespace=self.pod.metadata.namespace, body=self.pod)
 
         logging.info('Waiting for pod completion')
         deletable = self._wait_for_pod_completion()
@@ -161,5 +161,5 @@ class CurwGkeOperatorV2(BaseOperator):
     def on_kill(self):
         if self.kube_client is not None:
             logging.info('Stopping kubernetes pod')
-            self.kube_client.delete_namespaced_pod(name=self.pod_name, namespace=self.namespace,
+            self.kube_client.delete_namespaced_pod(name=self.pod.metadata.name, namespace=self.pod.metadata.namespace,
                                                    body=client.V1DeleteOptions())
