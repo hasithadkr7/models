@@ -62,6 +62,7 @@ class CurwGkeOperatorV2(BaseOperator):
         w = watch.Watch()
         deletable = True
         for event in w.stream(self.kube_client.list_namespaced_pod, self.namespace):
+            logging.info("Event: %s %s %s" % (event['type'], event['object'].kind, event['object'].metadata.name))
             logging.debug(event)
             if (event['object'].metadata.namespace, event['object'].metadata.name) == (self.namespace, self.pod_name):
                 if event['object'].status.phase == 'Succeeded':
