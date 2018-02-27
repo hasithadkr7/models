@@ -3,6 +3,7 @@ import datetime as dt
 import logging
 
 from kubernetes import client, config
+from kubernetes.client import rest
 
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
@@ -62,7 +63,7 @@ class CurwGkeOperatorV2(BaseOperator):
         self.poll_interval = poll_interval
 
     def _wait_for_pod_completion(self):
-        async def poll_kube(kube_future, kube_client, name, namespace):
+        async def poll_kube(kube_future, kube_client, name, namespace, kube_config_path, api_version):
             start_t = dt.datetime.now()
             pod_started = False
             while True:
@@ -76,6 +77,21 @@ class CurwGkeOperatorV2(BaseOperator):
                         log = 'Pod log:\n' + kube_client.read_namespaced_pod_log(name=name, namespace=namespace,
                                                                                  timestamps=True, pretty='true')
                         kube_future.set_result('Pod exited! %s %s %s\n%s' % (namespace, name, status, log))
+                except rest.ApiException as e:
+                    if e.reason == 'Unauthorized':
+                        logging.warning('API token expired!')
+
+                        logging.info('Initializing kubernetes config from file ' + str(kube_config_path))
+                        config.load_kube_config(config_file=kube_config_path)
+
+                        logging.info('Initializing kubernetes client for API version ' + api_version)
+                        if api_version.lower() == K8S_API_VERSION_TAG:
+                            kube_client = client.CoreV1Api()
+                        else:
+                            raise CurwGkeOperatorV2Exception('Unsupported API version ' + api_version)
+                    else:
+                        logging.error('Error in polling pod %s:%s' % (name, str(e)))
+                        kube_future.set_exception(e)
                 except Exception as e:
                     if pod_started:
                         logging.error('Error in polling pod %s:%s' % (name, str(e)))
@@ -87,7 +103,8 @@ class CurwGkeOperatorV2(BaseOperator):
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         future = asyncio.Future()
-        asyncio.ensure_future(poll_kube(future, self.kube_client, self.pod.metadata.name, self.pod.metadata.namespace))
+        asyncio.ensure_future(poll_kube(future, self.kube_client, self.pod.metadata.name, self.pod.metadata.namespace,
+                                        self.kube_config_path, self.api_version))
         loop.run_until_complete(future)
         logging.info(future.result())
 
@@ -136,14 +153,7 @@ class CurwGkeOperatorV2(BaseOperator):
             self.pod.spec.containers[i].command = self.container_commands[i]
             self.pod.spec.containers[i].args = self.container_args_lists[i]
 
-        logging.info('Initializing kubernetes config from file ' + str(self.kube_config_path))
-        config.load_kube_config(config_file=self.kube_config_path)
-
-        logging.info('Initializing kubernetes client for API version ' + self.api_version)
-        if self.api_version.lower() == K8S_API_VERSION_TAG:
-            self.kube_client = client.CoreV1Api()
-        else:
-            raise CurwGkeOperatorV2Exception('Unsupported API version ' + self.api_version)
+        self._initialize_kube_config()
 
         logging.info('Creating secrets')
         self._create_secrets()
@@ -158,8 +168,29 @@ class CurwGkeOperatorV2(BaseOperator):
         if self.auto_remove and deletable:
             self.on_kill()
 
+    def _initialize_kube_config(self):
+        logging.info('Initializing kubernetes config from file ' + str(self.kube_config_path))
+        config.load_kube_config(config_file=self.kube_config_path)
+
+        logging.info('Initializing kubernetes client for API version ' + self.api_version)
+        if self.api_version.lower() == K8S_API_VERSION_TAG:
+            self.kube_client = client.CoreV1Api()
+        else:
+            raise CurwGkeOperatorV2Exception('Unsupported API version ' + self.api_version)
+
     def on_kill(self):
         if self.kube_client is not None:
             logging.info('Stopping kubernetes pod')
-            self.kube_client.delete_namespaced_pod(name=self.pod.metadata.name, namespace=self.pod.metadata.namespace,
-                                                   body=client.V1DeleteOptions())
+            i = 0
+            while i < 5:
+                try:
+                    self.kube_client.delete_namespaced_pod(name=self.pod.metadata.name,
+                                                           namespace=self.pod.metadata.namespace,
+                                                           body=client.V1DeleteOptions())
+                except rest.ApiException as e:
+                    if e.reason == 'Unauthorized':
+                        logging.warning('API token expired!')
+                        self._initialize_kube_config()
+                    i += 1
+                    continue
+                break
