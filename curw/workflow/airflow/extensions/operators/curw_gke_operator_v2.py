@@ -7,7 +7,6 @@ from kubernetes.client import rest
 
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
-
 from curw.workflow.airflow import utils as af_utils
 
 
@@ -89,6 +88,7 @@ class CurwGkeOperatorV2(BaseOperator):
                             kube_client = client.CoreV1Api()
                         else:
                             raise CurwGkeOperatorV2Exception('Unsupported API version ' + api_version)
+                        continue  # iterate again with the refreshed token
                     else:
                         logging.error('Error in polling pod %s:%s' % (name, str(e)))
                         kube_future.set_exception(e)
@@ -109,30 +109,6 @@ class CurwGkeOperatorV2(BaseOperator):
         logging.info(future.result())
 
         return True
-
-        # w = watch.Watch()
-        # deletable = True
-        # for event in w.stream(self.kube_client.list_namespaced_pod, self.namespace):
-        #     logging.info("Event: %s %s %s" % (event['type'], event['object'].kind, event['object'].metadata.name))
-        #     logging.debug(event)
-        #     if (event['object'].metadata.namespace, event['object'].metadata.name) == (self.namespace, self.pod_name):
-        #         if event['object'].status.phase == 'Succeeded':
-        #             logging.info('Pod completed successfully! %s %s' % (self.namespace, self.pod_name))
-        #             break
-        #         elif event['object'].status.phase == 'Failed':
-        #             logging.error('Pod failed! %s %s' % (self.namespace, self.pod_name))
-        #             break
-        #         if event['type'] == 'DELETED':
-        #             logging.warning('Pod deleted! %s %s' % (self.namespace, self.pod_name))
-        #             deletable = False
-        #             break
-        # w.stop()
-        #
-        # if deletable:
-        #     logging.info(
-        #         'Pod log:\n' + self.kube_client.read_namespaced_pod_log(name=self.pod_name, namespace=self.namespace,
-        #                                                                 timestamps=True, pretty='true'))
-        # return deletable
 
     def _create_secrets(self):
         if self.kube_client is not None:
