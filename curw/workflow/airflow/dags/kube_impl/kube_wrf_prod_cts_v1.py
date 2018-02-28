@@ -179,6 +179,7 @@ for i in range(parallel_runs):
         secret_list=secrets or [],
         auto_remove=True,
         dag=dag,
+        poll_interval=dt.timedelta(minutes=5),
         priority_weight=priorities[i]
     )
 
@@ -188,9 +189,9 @@ for i in range(parallel_runs):
     extract_pod.spec.containers[0].image = extract_image
     extract_pod.spec.containers[0].command = ['/wrf/extract_data_wrf.sh']
     extract_pod.spec.containers[0].resources = client.V1ResourceRequirements(requests={'cpu': 1})
-    extract_pod.spec.containers[0].args = ['-i', '{{ ti.xcom_pull(task_ids=\'sfx-run-id-wrf%d\') }}',
+    extract_pod.spec.containers[0].args = ['-i', '{{ ti.xcom_pull(task_ids=\'sfx-run-id-wrf%d\') }}' % i,
                                            '-c', '{{ ti.xcom_pull(task_ids=\'init-config\') }}',
-                                           '-d', af_utils.get_base64_encoded_str(curw_db_config),
+                                           '-d', af_utils.get_base64_encoded_str('{}'),
                                            '-o', 'True',
                                            '-k', '/wrf/config/gcs.json',
                                            '-v', 'curwsl_nfs_1:/wrf/output',
@@ -212,9 +213,9 @@ for i in range(parallel_runs):
     extract_pod_no_push.spec.containers[0].image = extract_image
     extract_pod_no_push.spec.containers[0].command = ['/wrf/extract_data_wrf.sh']
     extract_pod_no_push.spec.containers[0].resources = client.V1ResourceRequirements(requests={'cpu': 1})
-    extract_pod_no_push.spec.containers[0].args = ['-i', '{{ ti.xcom_pull(task_ids=\'sfx-run-id-wrf%d\') }}',
+    extract_pod_no_push.spec.containers[0].args = ['-i', '{{ ti.xcom_pull(task_ids=\'sfx-run-id-wrf%d\') }}' % i,
                                                    '-c', '{{ ti.xcom_pull(task_ids=\'init-config\') }}',
-                                                   '-d', af_utils.get_base64_encoded_str(curw_db_config),
+                                                   '-d', af_utils.get_base64_encoded_str('{}'),
                                                    '-o', 'True',
                                                    '-k', '/wrf/config/gcs.json',
                                                    '-v', 'curwsl_nfs_1:/wrf/output',
