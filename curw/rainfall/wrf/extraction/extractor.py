@@ -165,9 +165,10 @@ def extract_weather_stations(nc_f, wrf_output, weather_stations=None, curw_db_ad
 
 
 def extract_kelani_basin_rainfall_flo2d(nc_f, nc_f_prev_days, output_dir, avg_basin_rf=1.0, kelani_basin_file=None,
-                                        target_rfs=None):
+                                        target_rfs=None, output_prefix='RAINCELL'):
     """
-    :param nc_f: 
+    :param output_prefix:
+    :param nc_f:
     :param nc_f_prev_days: 
     :param output_dir: 
     :param avg_basin_rf: 
@@ -235,15 +236,15 @@ def extract_kelani_basin_rainfall_flo2d(nc_f, nc_f_prev_days, output_dir, avg_ba
                         output_file.write('%d %.1f\n' % (point[0], diff[t, rf_y, rf_x]))
 
     with TemporaryDirectory(prefix='curw_raincell') as temp_dir:
-        raincell_temp = os.path.join(temp_dir, 'RAINCELL.DAT')
+        raincell_temp = os.path.join(temp_dir, output_prefix + '.DAT')
         write_forecast_to_raincell_file(raincell_temp, 1)
 
         for target_rf in target_rfs:
             write_forecast_to_raincell_file('%s.%d' % (raincell_temp, target_rf), target_rf / avg_basin_rf)
 
-        utils.create_zip_with_prefix(temp_dir, 'RAINCELL.DAT*', os.path.join(temp_dir, 'RAINCELL.zip'),
+        utils.create_zip_with_prefix(temp_dir, output_prefix + '.DAT*', os.path.join(temp_dir, output_prefix + '.zip'),
                                      clean_up=True)
-        utils.move_files_with_prefix(temp_dir, 'RAINCELL.zip', utils.create_dir_if_not_exists(output_dir))
+        utils.move_files_with_prefix(temp_dir, output_prefix + '.zip', utils.create_dir_if_not_exists(output_dir))
 
 
 def create_rainfall_for_mike21(d0_rf_file, prev_rf_files, output_dir):
@@ -295,7 +296,7 @@ def extract_metro_col_rf_for_mike21(nc_f, output_dir, prev_rf_files=None, points
         if output is not None:
             output = np.append(output,
                                ext_utils.extract_points_array_rf_series(prev_rf_files[prev_days - 1 - i], points)[
-                                :lines_per_day],
+                               :lines_per_day],
                                axis=0)
         else:
             output = ext_utils.extract_points_array_rf_series(prev_rf_files[prev_days - 1 - i], points)[:lines_per_day]

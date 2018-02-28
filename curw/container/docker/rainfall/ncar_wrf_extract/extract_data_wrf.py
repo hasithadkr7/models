@@ -155,10 +155,20 @@ def run(run_id, wrf_config_dict, db_config_dict, upsert=False, run_name='Cloud-1
                     d03_nc_f_prev_2 = shutil.copy2(
                         glob.glob(os.path.join(output_dir_base, prev_2, 'wrf', 'wrfout_d03_*'))[0], temp_dir)
 
+                    logging.info('250m model')
                     kelani_basin_flo2d_file = res_mgr.get_resource_path('extraction/local/kelani_basin_points_250m.txt')
                     extractor.extract_kelani_basin_rainfall_flo2d(d03_nc_f, [d03_nc_f_prev_1, d03_nc_f_prev_2],
                                                                   os.path.join(run_output_dir, 'klb_flo2d'),
                                                                   kelani_basin_file=kelani_basin_flo2d_file)
+                    logging.info('150m model')
+                    kelani_basin_flo2d_file = res_mgr.get_resource_path(
+                        'extraction/local/klb_glecourse_points_150m.txt')
+                    extractor.extract_kelani_basin_rainfall_flo2d(d03_nc_f, [d03_nc_f_prev_1, d03_nc_f_prev_2],
+                                                                  os.path.join(run_output_dir, 'klb_flo2d'),
+                                                                  kelani_basin_file=kelani_basin_flo2d_file,
+                                                                  output_prefix='RAINCELL_150m')
+
+
                 except Exception as e:
                     logging.error('Extract Kelani lower Basin mean rainfall for FLO2D FAILED: ' + str(
                         e) + '\n' + traceback.format_exc())
