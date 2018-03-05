@@ -25,7 +25,7 @@ run_id_prefix = 'kube-wrf-prod-inst'
 
 # aiflow variable keys
 curw_db_config = Variable.get('curw_db_config')
-wrf_config = Variable.get('kube_wrf_config_prod_inst')
+wrf_config = Variable.get('kube_wrf_config_sin')
 nl_wps = Variable.get('nl_wps')
 nl_inputs = [Variable.get(k) for k in ["nl_inp_SIDAT", "nl_inp_C", "nl_inp_H", "nl_inp_NW", "nl_inp_SW", "nl_inp_W"]]
 
@@ -163,7 +163,7 @@ for i in range(parallel_runs):
     wrf_pod.spec.containers[0].image = wrf_image
     wrf_pod.spec.containers[0].command = ['/wrf/run_wrf.sh']
     wrf_pod.spec.containers[0].resources = client.V1ResourceRequirements(requests={'cpu': 4})
-    wrf_pod.spec.containers[0].args = ['-i', '{{ ti.xcom_pull(task_ids=\'gen-run-id\') }}',
+    wrf_pod.spec.containers[0].args = ['-i', '{{ ti.xcom_pull(task_ids=\'sfx-run-id-wrf%d\') }}' % i,
                                        '-c', '{{ ti.xcom_pull(task_ids=\'init-config\') }}',
                                        '-m', 'wrf',
                                        '-x', af_utils.get_base64_encoded_str(nl_wps),
