@@ -37,8 +37,9 @@ def generate_random_run_id(prefix, random_str_len=4, **context):
 
 
 def suffix_run_id(**context):
-    splits = context['templates_dict']['run_id'].split('_')
-    run_id = '_'.join([splits[0] + context['templates_dict']['run_id_suffix']] + splits[1:])
+    # splits = context['templates_dict']['run_id'].split('_')
+    # run_id = '_'.join([splits[0] + context['templates_dict']['run_id_suffix']] + splits[1:])
+    run_id = context['templates_dict']['run_id'] + '_' + context['templates_dict']['run_id_suffix']
     logging.info('Suffixed run_id: ' + run_id)
     return run_id
 
