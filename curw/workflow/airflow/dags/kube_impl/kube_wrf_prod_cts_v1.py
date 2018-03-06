@@ -14,9 +14,9 @@ from curw.workflow.airflow.dags.docker_impl import utils as af_docker_utils
 from curw.workflow.airflow.dags.kube_impl import utils as af_kube_utils
 from curw.workflow.airflow.extensions.operators.curw_gke_operator_v2 import CurwGkeOperatorV2
 
-dag_name = 'kube_wrf_prod_inst_v1'
+dag_name = 'kube_wrf_prod_cts_v1'
 queue = 'docker_prod_queue'  # reusing docker queue 
-schedule_interval = None
+schedule_interval = '0 18 * * *'
 
 parallel_runs = 6
 priorities = [1000, 1, 1, 1, 1, 1]
@@ -25,7 +25,7 @@ run_id_prefix = 'kube-wrf-prod-inst'
 
 # aiflow variable keys
 curw_db_config = Variable.get('curw_db_config')
-wrf_config = Variable.get('kube_wrf_config_sin')
+wrf_config = Variable.get('kube_wrf_config_cts')
 nl_wps = Variable.get('nl_wps')
 nl_inputs = [Variable.get(k) for k in ["nl_inp_SIDAT", "nl_inp_C", "nl_inp_H", "nl_inp_NW", "nl_inp_SW", "nl_inp_W"]]
 
@@ -70,7 +70,7 @@ def get_base_pod():
 default_args = {
     'owner': 'curwsl admin',
     'depends_on_past': False,
-    'start_date': airflow.utils.dates.days_ago(1),
+    'start_date': airflow.utils.dates.days_ago(0),
     'email': ['admin@curwsl.com'],
     'email_on_failure': False,
     'email_on_retry': False,
