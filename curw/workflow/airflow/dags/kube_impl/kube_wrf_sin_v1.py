@@ -116,15 +116,15 @@ clean_up = PythonOperator(
 )
 
 logging.info('Initializing wps pod')
-wrf_pod = get_base_pod()
-wrf_pod.metadata.name = af_kube_utils.get_resource_name_jinja_template('pod')
-wrf_pod.spec.containers[0].name = af_kube_utils.get_resource_name_jinja_template('container')
-wrf_pod.spec.containers[0].image = wrf_image
-wrf_pod.spec.containers[0].command = ['/wrf/run_wrf.sh']
-wrf_pod.spec.containers[0].resources = client.V1ResourceRequirements(requests={'cpu': 1})
-wrf_pod.spec.containers[0].args = ['-i', '{{ ti.xcom_pull(task_ids=\'gen-run-id\') }}',
+wps_pod = get_base_pod()
+wps_pod.metadata.name = af_kube_utils.get_resource_name_jinja_template('pod')
+wps_pod.spec.containers[0].name = af_kube_utils.get_resource_name_jinja_template('container')
+wps_pod.spec.containers[0].image = wrf_image
+wps_pod.spec.containers[0].command = ['/wrf/run_wrf.sh']
+wps_pod.spec.containers[0].resources = client.V1ResourceRequirements(requests={'cpu': 1, 'memory': '6G'})
+wps_pod.spec.containers[0].args = ['-i', '{{ ti.xcom_pull(task_ids=\'gen-run-id\') }}',
                                    '-c', '{{ ti.xcom_pull(task_ids=\'init-config\') }}',
-                                   '-m', 'all',
+                                   '-m', 'wps',
                                    '-x', '%s' % af_utils.get_base64_encoded_str(nl_wps),
                                    '-y', '%s' % af_utils.get_base64_encoded_str(nl_inputs[0]),
                                    '-k', '/wrf/config/gcs.json',
@@ -132,16 +132,42 @@ wrf_pod.spec.containers[0].args = ['-i', '{{ ti.xcom_pull(task_ids=\'gen-run-id\
                                    '-v', 'curwsl_archive_1:/wrf/archive',
                                    ]
 
-wrf = CurwGkeOperatorV2(
+wps = CurwGkeOperatorV2(
     task_id='wps',
-    pod=wrf_pod,
+    pod=wps_pod,
     secret_list=secrets or [],
     auto_remove=True,
     dag=dag,
     priority_weight=priorities[0]
 )
 
-generate_run_id >> init_config >> wrf
+generate_run_id >> init_config >> wps
+
+wrf_pod = get_base_pod()
+wrf_pod.metadata.name = af_kube_utils.get_resource_name_jinja_template('pod')
+wrf_pod.spec.containers[0].name = af_kube_utils.get_resource_name_jinja_template('container')
+wrf_pod.spec.containers[0].image = wrf_image
+wrf_pod.spec.containers[0].command = ['/wrf/run_wrf.sh']
+wrf_pod.spec.containers[0].resources = client.V1ResourceRequirements(requests={'cpu': 4, 'memory': '6G'})
+wrf_pod.spec.containers[0].args = ['-i', '{{ ti.xcom_pull(task_ids=\'gen-run-id\') }}',
+                                   '-c', '{{ ti.xcom_pull(task_ids=\'init-config\') }}',
+                                   '-m', 'wrf',
+                                   '-x', af_utils.get_base64_encoded_str(nl_wps),
+                                   '-y', af_utils.get_base64_encoded_str(nl_inputs[0]),
+                                   '-k', '/wrf/config/gcs.json',
+                                   '-v', 'curwsl_nfs_1:/wrf/output',
+                                   '-v', 'curwsl_archive_1:/wrf/archive',
+                                   ]
+
+wrf = CurwGkeOperatorV2(
+    task_id='wrf',
+    pod=wrf_pod,
+    secret_list=secrets or [],
+    auto_remove=True,
+    dag=dag,
+    poll_interval=dt.timedelta(minutes=5),
+    priority_weight=priorities[0]
+)
 
 extract_pod_no_push = get_base_pod()
 extract_pod_no_push.metadata.name = af_kube_utils.get_resource_name_jinja_template('pod')
@@ -167,5 +193,4 @@ extract_wrf_no_data_push = CurwGkeOperatorV2(
     priority_weight=priorities[0]
 )
 
-
-wrf >> extract_wrf_no_data_push >> clean_up
+wps >> wrf >> extract_wrf_no_data_push >> clean_up
