@@ -88,7 +88,7 @@ class CurwGkeOperatorV2(BaseOperator):
                             kube_client = client.CoreV1Api()
                         else:
                             raise CurwGkeOperatorV2Exception('Unsupported API version ' + api_version)
-                        continue  # iterate again with the refreshed token
+                        # iterate again with the refreshed token
                     else:
                         logging.error('Error in polling pod %s:%s' % (name, str(e)))
                         kube_future.set_exception(e)
