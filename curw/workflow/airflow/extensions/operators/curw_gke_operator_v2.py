@@ -67,6 +67,7 @@ class CurwGkeOperatorV2(BaseOperator):
         pod_started = False
         deletable = True
         while True:
+            time.sleep(self.poll_interval.seconds)
             try:
                 pod = self.kube_client.read_namespaced_pod_status(name=self.pod_name, namespace=self.namespace)
                 pod_started = True
@@ -100,7 +101,6 @@ class CurwGkeOperatorV2(BaseOperator):
                     raise CurwGkeOperatorV2Exception('Error in polling pod %s:%s' % (self.pod_name, str(e)))
                 else:
                     logging.warning('Pod has not started yet %s:%s' % (self.pod_name, str(e)))
-            time.sleep(self.poll_interval.seconds)
 
     def _create_secrets(self):
         if self.kube_client is not None:
