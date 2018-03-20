@@ -1,4 +1,5 @@
-import asyncio
+import random
+import time
 import datetime as dt
 import logging
 
@@ -62,53 +63,44 @@ class CurwGkeOperatorV2(BaseOperator):
         self.poll_interval = poll_interval
 
     def _wait_for_pod_completion(self):
-        async def poll_kube(kube_future, kube_client, name, namespace, kube_config_path, api_version):
-            start_t = dt.datetime.now()
-            pod_started = False
-            while True:
-                try:
-                    pod = kube_client.read_namespaced_pod_status(name=name, namespace=namespace)
-                    pod_started = True
-                    logging.info(
-                        "Pod status: %s elapsed time: %s" % (pod.status.phase, str(dt.datetime.now() - start_t)))
-                    status = pod.status.phase
-                    if status == 'Succeeded' or status == 'Failed':
-                        log = 'Pod log:\n' + kube_client.read_namespaced_pod_log(name=name, namespace=namespace,
-                                                                                 timestamps=True, pretty='true')
-                        kube_future.set_result('Pod exited! %s %s %s\n%s' % (namespace, name, status, log))
-                except rest.ApiException as e:
-                    if e.reason == 'Unauthorized':
-                        logging.warning('API token expired!')
+        start_t = dt.datetime.now()
+        pod_started = False
+        deletable = True
+        while True:
+            try:
+                pod = self.kube_client.read_namespaced_pod_status(name=self.pod_name, namespace=self.namespace)
+                pod_started = True
+                logging.info(
+                    "Pod status: %s elapsed time: %s" % (pod.status.phase, str(dt.datetime.now() - start_t)))
+                status = pod.status.phase
+                if status == 'Succeeded' or status == 'Failed':
+                    log = 'Pod log:\n' + self.kube_client.read_namespaced_pod_log(name=self.pod_name,
+                                                                                  namespace=self.namespace,
+                                                                                  timestamps=True, pretty='true')
+                    logging.info('Pod exited! %s %s %s\n%s' % (self.namespace, self.pod_name, status, log))
+                    return deletable
+            except rest.ApiException as e:
+                if e.reason == 'Unauthorized':
+                    random_wait_secs = random.randint(0, self.poll_interval.seconds)
+                    logging.warning('API token expired! waiting for %d sec' % random_wait_secs)
 
-                        logging.info('Initializing kubernetes config from file ' + str(kube_config_path))
-                        config.load_kube_config(config_file=kube_config_path)
+                    logging.info('Initializing kubernetes config from file ' + str(self.kube_config_path))
+                    config.load_kube_config(config_file=self.kube_config_path)
 
-                        logging.info('Initializing kubernetes client for API version ' + api_version)
-                        if api_version.lower() == K8S_API_VERSION_TAG:
-                            kube_client = client.CoreV1Api()
-                        else:
-                            raise CurwGkeOperatorV2Exception('Unsupported API version ' + api_version)
-                        # iterate again with the refreshed token
+                    logging.info('Initializing kubernetes client for API version ' + self.api_version)
+                    if self.api_version.lower() == K8S_API_VERSION_TAG:
+                        self.kube_client = client.CoreV1Api()
                     else:
-                        logging.error('Error in polling pod %s:%s' % (name, str(e)))
-                        kube_future.set_exception(e)
-                except Exception as e:
-                    if pod_started:
-                        logging.error('Error in polling pod %s:%s' % (name, str(e)))
-                        kube_future.set_exception(e)
-                    else:
-                        logging.warning('Pod has not started yet %s:%s' % (name, str(e)))
-                await asyncio.sleep(self.poll_interval.seconds)
-
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        future = asyncio.Future()
-        asyncio.ensure_future(poll_kube(future, self.kube_client, self.pod.metadata.name, self.pod.metadata.namespace,
-                                        self.kube_config_path, self.api_version))
-        loop.run_until_complete(future)
-        logging.info(future.result())
-
-        return True
+                        raise CurwGkeOperatorV2Exception('Unsupported API version ' + self.api_version)
+                    # iterate again with the refreshed token
+                else:
+                    raise CurwGkeOperatorV2Exception('Error in polling pod %s:%s' % (self.pod_name, str(e)))
+            except Exception as e:
+                if pod_started:
+                    raise CurwGkeOperatorV2Exception('Error in polling pod %s:%s' % (self.pod_name, str(e)))
+                else:
+                    logging.warning('Pod has not started yet %s:%s' % (self.pod_name, str(e)))
+            time.sleep(self.poll_interval.seconds)
 
     def _create_secrets(self):
         if self.kube_client is not None:
