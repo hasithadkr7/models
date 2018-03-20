@@ -69,16 +69,16 @@ class CurwGkeOperatorV2(BaseOperator):
         while True:
             time.sleep(self.poll_interval.seconds)
             try:
-                pod = self.kube_client.read_namespaced_pod_status(name=self.pod_name, namespace=self.namespace)
+                pod = self.kube_client.read_namespaced_pod_status(name=self.pod.metadata.name, namespace=self.pod.metadata.namespace)
                 pod_started = True
                 logging.info(
                     "Pod status: %s elapsed time: %s" % (pod.status.phase, str(dt.datetime.now() - start_t)))
                 status = pod.status.phase
                 if status == 'Succeeded' or status == 'Failed':
-                    log = 'Pod log:\n' + self.kube_client.read_namespaced_pod_log(name=self.pod_name,
-                                                                                  namespace=self.namespace,
+                    log = 'Pod log:\n' + self.kube_client.read_namespaced_pod_log(name=self.pod.metadata.name,
+                                                                                  namespace=self.pod.metadata.namespace,
                                                                                   timestamps=True, pretty='true')
-                    logging.info('Pod exited! %s %s %s\n%s' % (self.namespace, self.pod_name, status, log))
+                    logging.info('Pod exited! %s %s %s\n%s' % (self.pod.metadata.namespace, self.pod.metadata.name, status, log))
                     return deletable
             except rest.ApiException as e:
                 if e.reason == 'Unauthorized':
@@ -95,20 +95,20 @@ class CurwGkeOperatorV2(BaseOperator):
                         raise CurwGkeOperatorV2Exception('Unsupported API version ' + self.api_version)
                     # iterate again with the refreshed token
                 else:
-                    raise CurwGkeOperatorV2Exception('Error in polling pod %s:%s' % (self.pod_name, str(e)))
+                    raise CurwGkeOperatorV2Exception('Error in polling pod %s:%s' % (self.pod.metadata.name, str(e)))
             except Exception as e:
                 if pod_started:
-                    raise CurwGkeOperatorV2Exception('Error in polling pod %s:%s' % (self.pod_name, str(e)))
+                    raise CurwGkeOperatorV2Exception('Error in polling pod %s:%s' % (self.pod.metadata.name, str(e)))
                 else:
-                    logging.warning('Pod has not started yet %s:%s' % (self.pod_name, str(e)))
+                    logging.warning('Pod has not started yet %s:%s' % (self.pod.metadata.name, str(e)))
 
     def _create_secrets(self):
         if self.kube_client is not None:
             avail_secrets = [i.metadata.name for i in
-                             self.kube_client.list_namespaced_secret(namespace=self.namespace).items]
+                             self.kube_client.list_namespaced_secret(namespace=self.pod.metadata.namespace).items]
             for secret in self.secrets_list:
                 if secret.metadata.name not in avail_secrets:
-                    self.kube_client.create_namespaced_secret(namespace=self.namespace, body=secret)
+                    self.kube_client.create_namespaced_secret(namespace=self.pod.metadata.namespace, body=secret)
                 else:
                     logging.info('Secret exists ' + secret.metadata.name)
 
