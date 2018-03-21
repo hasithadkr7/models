@@ -69,7 +69,8 @@ class CurwGkeOperatorV2(BaseOperator):
         while True:
             time.sleep(self.poll_interval.seconds)
             try:
-                pod = self.kube_client.read_namespaced_pod_status(name=self.pod.metadata.name, namespace=self.pod.metadata.namespace)
+                pod = self.kube_client.read_namespaced_pod_status(name=self.pod.metadata.name,
+                                                                  namespace=self.pod.metadata.namespace)
                 pod_started = True
                 logging.info(
                     "Pod status: %s elapsed time: %s" % (pod.status.phase, str(dt.datetime.now() - start_t)))
@@ -78,7 +79,8 @@ class CurwGkeOperatorV2(BaseOperator):
                     log = 'Pod log:\n' + self.kube_client.read_namespaced_pod_log(name=self.pod.metadata.name,
                                                                                   namespace=self.pod.metadata.namespace,
                                                                                   timestamps=True, pretty='true')
-                    logging.info('Pod exited! %s %s %s\n%s' % (self.pod.metadata.namespace, self.pod.metadata.name, status, log))
+                    logging.info(
+                        'Pod exited! %s %s %s\n%s' % (self.pod.metadata.namespace, self.pod.metadata.name, status, log))
                     return deletable
             except rest.ApiException as e:
                 if e.reason == 'Unauthorized':
@@ -155,10 +157,12 @@ class CurwGkeOperatorV2(BaseOperator):
                     self.kube_client.delete_namespaced_pod(name=self.pod.metadata.name,
                                                            namespace=self.pod.metadata.namespace,
                                                            body=client.V1DeleteOptions())
+                    return
                 except rest.ApiException as e:
                     if e.reason == 'Unauthorized':
                         logging.warning('API token expired!')
                         self._initialize_kube_config()
+                    if i > 0:
+                        time.sleep(random.randint(0, 10))
                     i += 1
                     continue
-                break

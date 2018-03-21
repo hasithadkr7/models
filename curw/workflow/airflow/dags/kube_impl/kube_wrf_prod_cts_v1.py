@@ -21,7 +21,7 @@ schedule_interval = '0 18 * * *'
 parallel_runs = 6
 priorities = [1000, 1, 1, 1, 1, 1]
 
-run_id_prefix = 'kube-wrf-prod-inst'
+run_id_prefix = 'kube-wrf-prod-cts'
 
 # aiflow variable keys
 curw_db_config = Variable.get('curw_db_config')
@@ -118,8 +118,8 @@ clean_up = PythonOperator(
 
 logging.info('Initializing wps pod')
 wps_pod = get_base_pod()
-wps_pod.metadata.name = af_kube_utils.get_resource_name_jinja_template('pod')
-wps_pod.spec.containers[0].name = af_kube_utils.get_resource_name_jinja_template('container')
+wps_pod.metadata.name = 'wps-pod-{{ ti.xcom_pull(task_ids=\'gen-run-id\') }}'
+wps_pod.spec.containers[0].name = 'wps-cont-{{ ti.xcom_pull(task_ids=\'gen-run-id\') }}'
 wps_pod.spec.containers[0].image = wrf_image
 wps_pod.spec.containers[0].command = ['/wrf/run_wrf.sh']
 wps_pod.spec.containers[0].resources = client.V1ResourceRequirements(requests={'cpu': 1, 'memory': '6G'})
@@ -158,8 +158,8 @@ for i in range(parallel_runs):
     )
 
     wrf_pod = get_base_pod()
-    wrf_pod.metadata.name = af_kube_utils.get_resource_name_jinja_template('pod')
-    wrf_pod.spec.containers[0].name = af_kube_utils.get_resource_name_jinja_template('container')
+    wrf_pod.metadata.name = 'wrf-pod-{{ ti.xcom_pull(task_ids=\'sfx-run-id-wrf%d\') }}' % i
+    wrf_pod.spec.containers[0].name = 'wrf-cont-{{ ti.xcom_pull(task_ids=\'sfx-run-id-wrf%d\') }}' % i
     wrf_pod.spec.containers[0].image = wrf_image
     wrf_pod.spec.containers[0].command = ['/wrf/run_wrf.sh']
     wrf_pod.spec.containers[0].resources = client.V1ResourceRequirements(requests={'cpu': 4, 'memory': '6G'})
@@ -184,8 +184,8 @@ for i in range(parallel_runs):
     )
 
     extract_pod = get_base_pod()
-    extract_pod.metadata.name = af_kube_utils.get_resource_name_jinja_template('pod')
-    extract_pod.spec.containers[0].name = af_kube_utils.get_resource_name_jinja_template('container')
+    extract_pod.metadata.name = 'wrf-ext-pod-{{ ti.xcom_pull(task_ids=\'sfx-run-id-wrf%d\') }}' % i
+    extract_pod.spec.containers[0].name = 'wrf-ext-con-{{ ti.xcom_pull(task_ids=\'sfx-run-id-wrf%d\') }}' % i
     extract_pod.spec.containers[0].image = extract_image
     extract_pod.spec.containers[0].command = ['/wrf/extract_data_wrf.sh']
     extract_pod.spec.containers[0].resources = client.V1ResourceRequirements(requests={'cpu': 1})
@@ -208,8 +208,8 @@ for i in range(parallel_runs):
     )
 
     extract_pod_no_push = get_base_pod()
-    extract_pod_no_push.metadata.name = af_kube_utils.get_resource_name_jinja_template('pod')
-    extract_pod_no_push.spec.containers[0].name = af_kube_utils.get_resource_name_jinja_template('container')
+    extract_pod_no_push.metadata.name = 'wrf-ext-pod-{{ ti.xcom_pull(task_ids=\'sfx-run-id-wrf%d\') }}' % i
+    extract_pod_no_push.spec.containers[0].name = 'wrf-ext-con-{{ ti.xcom_pull(task_ids=\'sfx-run-id-wrf%d\') }}' % i
     extract_pod_no_push.spec.containers[0].image = extract_image
     extract_pod_no_push.spec.containers[0].command = ['/wrf/extract_data_wrf.sh']
     extract_pod_no_push.spec.containers[0].resources = client.V1ResourceRequirements(requests={'cpu': 1})
