@@ -11,4 +11,4 @@ def get_base64_encoded_str(s):
 
 
 def sanitize_name(name):
-    return name.replace('_', '--').replace(':', '-')
+    return name.replace('_', '--').replace(':', '.').lower()
