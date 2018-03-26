@@ -22,8 +22,7 @@ class CurwGkeOperatorV2(BaseOperator):
     """
 
     """
-    template_fields = ['kube_config_path', 'pod_name', 'namespace', 'container_names', 'container_commands',
-                       'container_args_lists']
+    template_fields = ['kube_config_path', 'pod_name', 'namespace']
 
     @apply_defaults
     def __init__(
@@ -36,6 +35,7 @@ class CurwGkeOperatorV2(BaseOperator):
             api_version=None,
             auto_remove=False,
             poll_interval=dt.timedelta(seconds=60),
+            cleanup_on_exec=False,
             *args,
             **kwargs):
 
@@ -61,6 +61,7 @@ class CurwGkeOperatorV2(BaseOperator):
         self.kube_client = None
 
         self.poll_interval = poll_interval
+        self.cleanup_on_exec = cleanup_on_exec
 
     def _wait_for_pod_completion(self):
         start_t = dt.datetime.now()
@@ -118,6 +119,19 @@ class CurwGkeOperatorV2(BaseOperator):
                 else:
                     logging.info('Secret exists ' + secret.metadata.name)
 
+    def _create_pod(self):
+        try:
+            self.kube_client.create_namespaced_pod(namespace=self.pod.metadata.namespace, body=self.pod)
+        except rest.ApiException as e:
+            if e.reason == 'Conflict':
+                logging.warning('Pod already exists ' + self.pod.metadata.name)
+                if self.cleanup_on_exec:
+                    logging.info('Cleaning up pod ' + self.pod.metadata.name)
+                    self.on_kill()
+                    self._create_pod()
+            else:
+                raise CurwGkeOperatorV2Exception('Error in creating pod %s:%s' % (self.pod.metadata.name, str(e)))
+
     def execute(self, context):
         logging.info('Updating pod with templated fields')
         self.pod.metadata.name = af_utils.sanitize_name(self.pod_name)
@@ -132,11 +146,11 @@ class CurwGkeOperatorV2(BaseOperator):
         logging.info('Creating secrets')
         self._create_secrets()
 
-        logging.info('Creating namespaced pod')
+        logging.info('Creating namespaced pod ' + self.pod.metadata.name)
         logging.debug('Pod config ' + str(self.pod))
-        self.kube_client.create_namespaced_pod(namespace=self.pod.metadata.namespace, body=self.pod)
+        self._create_pod()
 
-        logging.info('Waiting for pod completion')
+        logging.info('Waiting for pod ' + self.pod.metadata.name)
         deletable = self._wait_for_pod_completion()
 
         if self.auto_remove and deletable:
