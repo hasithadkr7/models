@@ -147,26 +147,27 @@ def run(run_id, wrf_config_dict, db_config_dict, upsert=False, run_name='Cloud-1
                 try:
                     logging.info('Procedure #7: Extract Kelani lower Basin rainfall for FLO2D')
                     run_date = dt.datetime.strptime(config.get('start_date'), '%Y-%m-%d_%H:%M')
-                    prev_1 = '_'.join([run_prefix, (run_date - dt.timedelta(days=1)).strftime('%Y-%m-%d_%H:%M'), '*'])
-                    prev_2 = '_'.join([run_prefix, (run_date - dt.timedelta(days=2)).strftime('%Y-%m-%d_%H:%M'), '*'])
-                    d03_nc_f_prev_1 = shutil.copy2(
-                        glob.glob(os.path.join(output_dir_base, prev_1, 'wrf', 'wrfout_d03_*'))[0], temp_dir)
 
-                    d03_nc_f_prev_2 = shutil.copy2(
-                        glob.glob(os.path.join(output_dir_base, prev_2, 'wrf', 'wrfout_d03_*'))[0], temp_dir)
+                    prev_days = 5
+                    d03_nc_f_prev = []
+                    for i in range(prev_days):
+                        prev = '_'.join(
+                            [run_prefix, (run_date - dt.timedelta(days=i + 1)).strftime('%Y-%m-%d_%H:%M'), '*'])
+                        d03_nc_f_prev.append(shutil.copy2(
+                            glob.glob(os.path.join(output_dir_base, prev, 'wrf', 'wrfout_d03_*'))[0], temp_dir))
 
                     logging.info('250m model')
                     kelani_basin_flo2d_file = res_mgr.get_resource_path('extraction/local/kelani_basin_points_250m.txt')
-                    extractor.extract_kelani_basin_rainfall_flo2d(d03_nc_f, [d03_nc_f_prev_1, d03_nc_f_prev_2],
+                    extractor.extract_kelani_basin_rainfall_flo2d(d03_nc_f, d03_nc_f_prev[:2],
                                                                   os.path.join(run_output_dir, 'klb_flo2d'),
                                                                   kelani_basin_file=kelani_basin_flo2d_file)
                     logging.info('150m model')
                     kelani_basin_flo2d_file = res_mgr.get_resource_path(
                         'extraction/local/klb_glecourse_points_150m.txt')
-                    extractor.extract_kelani_basin_rainfall_flo2d(d03_nc_f, [d03_nc_f_prev_1, d03_nc_f_prev_2],
+                    extractor.extract_kelani_basin_rainfall_flo2d(d03_nc_f, d03_nc_f_prev,
                                                                   os.path.join(run_output_dir, 'klb_flo2d'),
                                                                   kelani_basin_file=kelani_basin_flo2d_file,
-                                                                  output_prefix='RAINCELL_150m')
+                                                                  output_prefix='RAINCELL_150m', target_rfs=[])
 
 
                 except Exception as e:
