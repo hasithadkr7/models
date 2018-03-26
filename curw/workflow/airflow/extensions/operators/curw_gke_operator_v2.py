@@ -66,8 +66,8 @@ class CurwGkeOperatorV2(BaseOperator):
         start_t = dt.datetime.now()
         pod_started = False
         deletable = True
+        time.sleep(self.poll_interval.seconds)
         while True:
-            time.sleep(self.poll_interval.seconds)
             try:
                 pod = self.kube_client.read_namespaced_pod_status(name=self.pod.metadata.name,
                                                                   namespace=self.pod.metadata.namespace)
@@ -86,6 +86,7 @@ class CurwGkeOperatorV2(BaseOperator):
                 if e.reason == 'Unauthorized':
                     random_wait_secs = random.randint(0, self.poll_interval.seconds)
                     logging.warning('API token expired! waiting for %d sec' % random_wait_secs)
+                    time.sleep(random_wait_secs)
 
                     logging.info('Initializing kubernetes config from file ' + str(self.kube_config_path))
                     config.load_kube_config(config_file=self.kube_config_path)
@@ -96,6 +97,7 @@ class CurwGkeOperatorV2(BaseOperator):
                     else:
                         raise CurwGkeOperatorV2Exception('Unsupported API version ' + self.api_version)
                     # iterate again with the refreshed token
+                    continue
                 else:
                     raise CurwGkeOperatorV2Exception('Error in polling pod %s:%s' % (self.pod.metadata.name, str(e)))
             except Exception as e:
@@ -103,6 +105,8 @@ class CurwGkeOperatorV2(BaseOperator):
                     raise CurwGkeOperatorV2Exception('Error in polling pod %s:%s' % (self.pod.metadata.name, str(e)))
                 else:
                     logging.warning('Pod has not started yet %s:%s' % (self.pod.metadata.name, str(e)))
+
+            time.sleep(self.poll_interval.seconds)
 
     def _create_secrets(self):
         if self.kube_client is not None:
