@@ -22,7 +22,8 @@ class CurwGkeOperatorV2(BaseOperator):
     """
 
     """
-    template_fields = ['kube_config_path', 'pod_name', 'namespace']
+    template_fields = ['kube_config_path', 'pod_name', 'namespace', 'container_names', 'container_commands',
+                       'container_args_lists']
 
     @apply_defaults
     def __init__(
