@@ -1,3 +1,5 @@
+import datetime as dt
+
 from sqlalchemy import select, and_, update
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.schema import MetaData
@@ -11,7 +13,7 @@ from airflow.utils.state import State
 Base = declarative_base()
 
 
-class CurwTriggerDagRunOperator(BaseOperator, SkipMixin):
+class CurwDagLoopOperator(BaseOperator, SkipMixin):
     """
     Triggers a DAG run for a specified ``dag_id`` if a criteria is met
 
@@ -28,26 +30,23 @@ class CurwTriggerDagRunOperator(BaseOperator, SkipMixin):
         should look like ``def foo(context, dag_run_obj):``
     :type python_callable: python callable
     """
-    template_fields = tuple()
+    template_fields = ['loop_id', ]
     template_ext = tuple()
     ui_color = '#ffefeb'
 
     @apply_defaults
     def __init__(
             self,
-            trigger_dag_id,
             python_callable,
-            loop_id,
             skip_downstream=True,
             default_loop_retries=1,
             *args, **kwargs):
-        super(CurwTriggerDagRunOperator, self).__init__(*args, **kwargs)
+        super(CurwDagLoopOperator, self).__init__(*args, **kwargs)
         self.python_callable = python_callable
-        self.trigger_dag_id = trigger_dag_id
-        self.loop_id = loop_id
         self.skip_downstream = skip_downstream
         self.default_loop_retries = default_loop_retries
-        self.loop_count = 1
+        self.loop_count = 0
+        self.loop_id = None
 
     def execute(self, context, **kwargs):
         """
@@ -56,29 +55,27 @@ class CurwTriggerDagRunOperator(BaseOperator, SkipMixin):
         :param kwargs:
         :return:
         """
+        self.loop_id = 'loop_' + context['execution_date'].strftime('%Y_%m_%d_%H_%M_%S')
+        self.log.info('Loop id ' + self.loop_id)
         loop_count = self.get_loop_count()
+
         if loop_count != 0:
-            dro = DagRunOrder(run_id='__'.join(['loop', self.trigger_dag_id, self.loop_id, loop_count]))
+            loop_dag_run_id = '__'.join(['loop', self.dag_id, self.loop_id, str(loop_count)])
+            self.log.info('DagRun Loop id ' + loop_dag_run_id)
+            dro = DagRunOrder(run_id=loop_dag_run_id)
             dro = self.python_callable(context, dro)
             if dro:
-                self.log.info('')
-                session = settings.Session()
-                dbag = DagBag(settings.DAGS_FOLDER)
-                trigger_dag = dbag.get_dag(self.trigger_dag_id)
-                dr = trigger_dag.create_dagrun(
+                self.log.info('Loop criteria met. Loop count %d' % loop_count)
+                self.dag.create_dagrun(
                     run_id=dro.run_id,
                     state=State.RUNNING,
                     conf=dro.payload,
-                    execution_date=context['execution_date'] if context['execution_date'] else None,
+                    execution_date=context['execution_date'] + dt.timedelta(microseconds=1) if context[
+                        'execution_date'] else None,
                     external_trigger=True)
-                self.log.info("Creating DagRun %s", dr)
-                session.add(dr)
-                session.commit()
-                session.close()
 
-                if loop_count > 0:
-                    self.log.info('Decrementing loop from %d' % loop_count)
-                    self.set_loop_count(loop_count - 1)
+                self.log.info('Decrementing loop from %d' % loop_count)
+                self.set_loop_count(loop_count - 1)
 
                 if self.skip_downstream:
                     self.log.info('Skipping the downstream tasks')
@@ -92,13 +89,15 @@ class CurwTriggerDagRunOperator(BaseOperator, SkipMixin):
                 self.delete_loop_count()
         else:
             self.log.info('Loop count is 0. Continuing the downstream tasks ')
+            self.delete_loop_count()
 
     def delete_loop_count(self):
         session = settings.Session()
         meta = MetaData(session.connection(), reflect=True)
         loop_table = meta.tables['loop']
         try:
-            del_st = loop_table.delete().where(and_(loop_table.c.id == self.loop_id, loop_table.c.dag == self.dag_id))
+            del_st = loop_table.delete().where(
+                and_(loop_table.c.id == self.loop_id, loop_table.c.dag == self.dag_id))
             session.execute(del_st)
             session.commit()
         finally:
@@ -123,7 +122,7 @@ class CurwTriggerDagRunOperator(BaseOperator, SkipMixin):
             elif len(result) == 1:
                 return dict(result[0])['count']
             else:
-                raise CurwTriggerDagRunOperatorException(
+                raise CurwDagLoopOperatorException(
                     'Multiple entries %d in the loop table for %s %s' % (len(result), self.dag_id, self.loop_id))
         finally:
             session.close()
@@ -143,8 +142,12 @@ class CurwTriggerDagRunOperator(BaseOperator, SkipMixin):
 
         return count
 
+    def on_kill(self):
+        self.log.info('Cleaning up loop metadata on kill')
+        self.delete_loop_count()
 
-class CurwTriggerDagRunOperatorException(Exception):
+
+class CurwDagLoopOperatorException(Exception):
     pass
 
 #

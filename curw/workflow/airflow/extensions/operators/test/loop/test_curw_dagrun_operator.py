@@ -29,12 +29,11 @@ This example illustrates the following features :
 """
 
 import pprint
+from datetime import datetime
 
 from airflow import DAG
-from curw.workflow.airflow.extensions.operators.curw_dagrun_operator import CurwTriggerDagRunOperator
-
 from airflow.operators.bash_operator import BashOperator
-from datetime import datetime, timedelta
+from curw.workflow.airflow.extensions.operators.curw_dag_loop_operator import CurwDagLoopOperator
 
 pp = pprint.PrettyPrinter(indent=4)
 
@@ -56,13 +55,13 @@ dag = DAG(dag_id='loop_dag',
           schedule_interval='@once')
 
 # Define the single task in this controller example DAG
-trigger = CurwTriggerDagRunOperator(task_id='trigger',
-                                    trigger_dag_id="example_trigger_target_dag",
-                                    loop_id='test1',
-                                    python_callable=conditionally_trigger,
-                                    params={'condition_param': True,
+trigger = CurwDagLoopOperator(task_id='trigger',
+                              # trigger_dag_id="example_trigger_target_dag",
+                              # loop_id='test1',
+                              python_callable=conditionally_trigger,
+                              params={'condition_param': True,
                                             'message': 'Hello World'},
-                                    dag=dag)
+                              dag=dag)
 
 t1 = BashOperator(
     task_id='print_date',
@@ -70,8 +69,8 @@ t1 = BashOperator(
     dag=dag)
 
 t2 = BashOperator(
-    task_id='print_date2',
-    bash_command='date',
+    task_id='sleep',
+    bash_command='sleep 30',
     dag=dag)
 
-trigger >> t1 >> t2
+t2 >> trigger >> t1

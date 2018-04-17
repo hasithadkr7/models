@@ -32,7 +32,8 @@ import pprint
 from datetime import datetime
 
 from airflow import DAG
-from curw.workflow.airflow.extensions.operators.curw_dagrun_operator import CurwTriggerDagRunOperator
+from airflow.operators.bash_operator import BashOperator
+from curw.workflow.airflow.extensions.operators.curw_dag_loop_operator import CurwDagLoopOperator
 
 pp = pprint.PrettyPrinter(indent=4)
 
@@ -45,18 +46,33 @@ def conditionally_trigger(context, dag_run_obj):
         dag_run_obj.payload = {'message': context['params']['message']}
         pp.pprint(dag_run_obj.payload)
         return dag_run_obj
+    # return None
 
 
 # Define the DAG
-dag = DAG(dag_id='example_trigger_controller_dag',
+dag = DAG(dag_id='loop_dag',
           default_args={"owner": "airflow",
                         "start_date": datetime.utcnow()},
-          schedule_interval='@once')
+          schedule_interval=None)
 
 # Define the single task in this controller example DAG
-trigger = CurwTriggerDagRunOperator(task_id='test_trigger_dagrun',
-                                    trigger_dag_id="example_trigger_target_dag",
-                                    python_callable=conditionally_trigger,
-                                    params={'condition_param': True,
+trigger = CurwDagLoopOperator(task_id='trigger',
+                              # trigger_dag_id="example_trigger_target_dag",
+                              # loop_id='test1',
+                              python_callable=conditionally_trigger,
+                              params={'condition_param': True,
                                             'message': 'Hello World'},
-                                    dag=dag)
+                              default_loop_retries=-1,
+                              dag=dag)
+
+t1 = BashOperator(
+    task_id='print_date',
+    bash_command='date',
+    dag=dag)
+
+t2 = BashOperator(
+    task_id='sleep',
+    bash_command='sleep 5',
+    dag=dag)
+
+t2 >> trigger >> t1
