@@ -12,15 +12,24 @@ RUN DEBIAN_FRONTEND=noninteractive apt -y install \
  libxi6:i386 \
  software-properties-common python-software-properties zip unzip wget build-essential net-tools gcc git jq \
  python3 python3-pip python3-psycopg2 \
- xorg openbox
+ xorg openbox \
+ jq \
+ mysql-client \
+ vim
 
-RUN git clone https://github.com/nirandaperera/udp.git /hec-hms \
+RUN git clone https://github.com/hasithadkr7/udp_150.git /hec-hms \
  && pip3 install git+https://github.com/gihankarunarathne/CurwMySQLAdapter.git
+
+RUN pip3 install google-cloud-storage
+
+#RUN git clone https://github.com/hasithadkr7/udp_150.git /hec-hms \
+# && pip3 install git+https://github.com/gihankarunarathne/CurwMySQLAdapter.git
+
 
 COPY run.sh /run.sh
 RUN chmod a+x /run.sh
 
-COPY config.json /hec-hms/CONFIG.json
+#COPY config.json /hec-hms/CONFIG.json
 
 WORKDIR /hec-hms
 
@@ -49,6 +58,12 @@ RUN wget 'https://pypi.python.org/packages/fc/b0/847668a90540ad96d88a8adf48d4894
  && tar -xzf simplejson-2.5.0.tar.gz \
  && rm -f simplejson-2.5.0.tar.gz
 
-RUN mkdir model git input 2008_2_Events_Hack 2008_2_Events
+#RUN mkdir model git input 2008_2_Events_Hack 2008_2_Events
+RUN mkdir Rainfall Raincell Meanref Subref config
+RUN chmod +x FilesFromBucket.py
+RUN chmod +x FilesToBucket.py
+RUN chmod +x BucketConfig.py
+COPY hec-dssvue.sh /hec-hms/hec-dssvue201/hec-dssvue.sh
+COPY uwcc-admin.json /hec-hms/uwcc-admin.json
 
 CMD ["/run.sh"]

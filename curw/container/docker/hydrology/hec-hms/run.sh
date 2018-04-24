@@ -1,16 +1,20 @@
 #!/usr/bin/env bash
 
-err() { 1>&2 echo "$0: error $@"; return 1; }
+err() { 1>&2 echo "$0: error $*"; return 1; }
 
-export GOOGLE_APPLICATION_CREDENTIALS=/hec-hms/gcs.json
+mkdir -pf /hec-hms/config
+export GOOGLE_APPLICATION_CREDENTIALS=/hec-hms/config/gcs.json
 
 echo "#### Reading running args..."
-while getopts ":i:c:k:v:h" option
+while getopts ":i:w:f:k:v:c:p:h" option
 do
  case "${option}"
  in
  i) ID=$OPTARG;;
- c) CMD=$OPTARG;;
+ w) WRF_ID=$OPTARG;;
+ f) FORECAST_CMD=$OPTARG;;
+ c) CONFIG=$OPTARG;;
+ p) CONFIG_PATH=$OPTARG;;
  k) GCS_KEY=$OPTARG
     if [ -f "$GCS_KEY" ]; then
         echo "#### using GCS KEY file location"
@@ -33,29 +37,14 @@ do
 done
 
 echo "#### Pulling curwsl changes..."
-cd /hec-hms || exit & git pull & cd -
+git pull
 
+echo "#### Copying config for HEC-HMS..."
+[ -n "$CONFIG" ] && [ -n "$CONFIG_PATH" ] && echo "$CONFIG" | base64 --decode  > "$CONFIG_PATH"
+
+echo "WRF ID:".$WRF_ID
+echo "HEC-HMS ID:".$ID
 echo "#### Running HEC-HMS..."
-/hec-hms/Forecast.sh $( echo "$CMD" | base64 --decode )
+#/hec-hms/Forecast.sh -u "$ID" -w "$WRF_ID" "$( echo "$FORECAST_CMD" | base64 --decode )"
 
-
-#Xvfb :1 -screen 0 1024x768x24 &> xvfb.log &
-#export DISPLAY=:1.0
-#echo "Xvbf is running..."
-#
-#./hec-hms-421/hec-hms.sh &
-#echo "hec-hms is running..."
-#
-#cd /home/hec-dssvue201
-#./hec-dssvue.sh &
-##echo "hec-dssvue is running..."
-#cd /home
-#
-#export AIRFLOW_HOME=/home/airflow
-#mkdir ./OUTPUT
-#
-##airflow initdb
-##sleep 5
-##echo "Starting Airflow Webserver"
-##airflow webserver -p 8080 &
-#/bin/bash
+/hec-hms/Forecast_150.sh -i -f -u "$ID" -w "$WRF_ID" "$( echo "$FORECAST_CMD" | base64 --decode )"
