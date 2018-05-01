@@ -235,7 +235,7 @@ for i in range(parallel_runs):
         task_id='check-data-push' + str(i),
         python_callable=af_kube_utils.check_data_push_callable,
         provide_context=True,
-        op_args=[['wrf%d-extract' % i, 'wrf%d-extract-no-data-push' % i]],
+        op_args=[['wrf%d-extract-no-data-push' % i, 'wrf%d-extract-no-data-push' % i]],  # todo: change this
         dag=dag,
         priority_weight=priorities[i]
     )
