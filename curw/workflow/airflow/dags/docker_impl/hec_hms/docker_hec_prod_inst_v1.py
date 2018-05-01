@@ -1,4 +1,5 @@
 import datetime as dt
+import json
 import logging
 import os
 
@@ -16,20 +17,19 @@ from curw.workflow.airflow.extensions.operators.curw_gke_operator_v2 import Curw
 
 dag_name = 'docker_hec_prod_inst_v1'
 queue = 'docker_prod_queue'  # reusing docker queue
-schedule_interval = '0 18 * * *'
+schedule_interval = None
 
 parallel_runs = 3
 parallel_runs = 1
 priorities = [1, 1, 1]
 
-run_id_prefix = 'kube-hec-prod-cts'
+run_id_prefix = 'kube-hec-prod-inst'
 
 # aiflow variable keys
-hec_config = Variable.get('hec_config')
-wrf_config = Variable.get('kube_wrf_config_cts')
+hec_config = Variable.get('kube_hec_config_inst')
 
 # kube images
-hec_hms_image = 'us.gcr.io/uwcc-160712/hec-hms-420'
+hec_hms_image = 'us.gcr.io/uwcc-160712/curw-hec-hms-420'
 
 # volumes and mounts
 vols = [client.V1Volume(name='sec-vol', secret=client.V1SecretVolumeSource(secret_name='google-app-creds'))]
@@ -80,29 +80,31 @@ dag = DAG(
     description='Running multiple HEC-HMSs using Google Kubernetes Engine',
     schedule_interval=schedule_interval)
 
+hec_config_var = Variable.get(hec_config, deserialize_json=True)
+
 for i in range(parallel_runs):
     generate_run_id = PythonOperator(
         task_id='gen-run-id',
         python_callable=af_kube_utils.generate_random_run_id,
         op_args=[run_id_prefix],
-        op_kwargs={"suffix": run_id_prefix + '_' + str(i)},
+        op_kwargs={"suffix": str(i)},
         provide_context=True,
         dag=dag
     )
 
     logging.info('Initializing hec-hms pod')
-    wps_pod = get_base_pod()
-    wps_pod.metadata.name = 'wps-pod-{{ ti.xcom_pull(task_ids=\'gen-run-id\') }}'
-    wps_pod.spec.containers[0].name = 'wps-cont-{{ ti.xcom_pull(task_ids=\'gen-run-id\') }}'
-    wps_pod.spec.containers[0].image = wrf_image
-    wps_pod.spec.containers[0].command = ['/wrf/run_wrf.sh']
-    wps_pod.spec.containers[0].resources = client.V1ResourceRequirements(requests={'cpu': 1, 'memory': '6G'})
-    wps_pod.spec.containers[0].args = ['-i', '{{ ti.xcom_pull(task_ids=\'gen-run-id\') }}',
-                                       '-c', '{{ ti.xcom_pull(task_ids=\'init-config\') }}',
-                                       '-m', 'wps',
-                                       '-x', '%s' % af_utils.get_base64_encoded_str(nl_wps),
-                                       '-y', '%s' % af_utils.get_base64_encoded_str(nl_inputs[0]),
-                                       '-k', '/wrf/config/gcs.json',
+    hec_pod = get_base_pod()
+    hec_pod.metadata.name = 'wps-pod-{{ ti.xcom_pull(task_ids=\'gen-run-id\') }}'
+    hec_pod.spec.containers[0].name = 'wps-cont-{{ ti.xcom_pull(task_ids=\'gen-run-id\') }}'
+    hec_pod.spec.containers[0].image = hec_hms_image
+    hec_pod.spec.containers[0].command = ['/run.sh']
+    hec_pod.spec.containers[0].resources = client.V1ResourceRequirements(requests={'cpu': 2, 'memory': '4G'})
+    hec_pod.spec.containers[0].args = ['-i', '{{ ti.xcom_pull(task_ids=\'gen-run-id\') }}',
+                                       '-w', hec_config['WRF_ID'],
+                                       '-f', '%s' % af_utils.get_base64_encoded_str('-e'),
+                                       '-c', '/hec-hms/CONFIG.json',
+                                       '-y', '%s' % af_utils.get_base64_encoded_str(json.dumps(hec_config_var)),
+                                       '-k', '/hec-hms/config/gcs.json',
                                        '-v', 'curwsl_nfs_1:/wrf/output',
                                        '-v', 'curwsl_archive_1:/wrf/archive',
                                        ]
