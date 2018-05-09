@@ -1,1 +1,2 @@
-include curw/rainfall/wrf/resources/extraction/*
+include curw/rainfall/wrf/resources/extraction/shp/kub-wgs84/kub-wgs84.*
+include curw/rainfall/wrf/resources/extraction/shp/klb-wgs84/klb-wgs84.*
