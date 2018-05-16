@@ -76,6 +76,7 @@ default_args = {
     'retries': 1,
     'retry_delay': dt.timedelta(minutes=5),
     'queue': queue,
+    'catchup': False,
 }
 
 # initiate the DAG

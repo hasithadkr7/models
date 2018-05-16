@@ -156,6 +156,8 @@ wps = CurwDockerOperator(
     privileged=True,
     dag=dag,
     pool=wrf_pool,
+    retries=3,
+    retry_delay=dt.timedelta(minutes=10),
 )
 
 generate_run_id >> init_config >> wps

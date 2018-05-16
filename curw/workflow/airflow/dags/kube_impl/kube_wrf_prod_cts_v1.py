@@ -139,7 +139,9 @@ wps = CurwGkeOperatorV2(
     secret_list=secrets or [],
     auto_remove=True,
     dag=dag,
-    priority_weight=priorities[0]
+    priority_weight=priorities[0],
+    retries=3,
+    retry_delay=dt.timedelta(minutes=10)
 )
 
 generate_run_id >> init_config >> wps
