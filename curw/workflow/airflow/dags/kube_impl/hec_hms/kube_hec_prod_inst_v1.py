@@ -8,18 +8,16 @@ from kubernetes import client
 import airflow
 from airflow import DAG
 from airflow.models import Variable
-from airflow.operators.dummy_operator import DummyOperator
-from airflow.operators.python_operator import PythonOperator, BranchPythonOperator
+from airflow.operators.python_operator import PythonOperator
 from curw.workflow.airflow import utils as af_utils
-from curw.workflow.airflow.dags.docker_impl import utils as af_docker_utils
 from curw.workflow.airflow.dags.kube_impl import utils as af_kube_utils
 from curw.workflow.airflow.extensions.operators.curw_gke_operator_v2 import CurwGkeOperatorV2
 
-dag_name = 'docker_hec_prod_inst_v1'
+dag_name = 'kube_hec_prod_inst_v1'
 queue = 'docker_prod_queue'  # reusing docker queue
 schedule_interval = None
 
-parallel_runs = 3
+# parallel_runs = 3
 parallel_runs = 1
 priorities = [1, 1, 1]
 
@@ -87,7 +85,7 @@ for i in range(parallel_runs):
         task_id='gen-run-id',
         python_callable=af_kube_utils.generate_random_run_id,
         op_args=[run_id_prefix],
-        op_kwargs={"suffix": str(i)},
+        op_kwargs={"suffix": "%04d" % i},
         provide_context=True,
         dag=dag
     )
@@ -109,4 +107,15 @@ for i in range(parallel_runs):
                                        '-v', 'curwsl_archive_1:/wrf/archive',
                                        ]
 
-    wps = CurwGkeOperatorV2(
+    hec = CurwGkeOperatorV2(
+        task_id='hec',
+        pod=hec_pod,
+        secret_list=secrets or [],
+        auto_remove=True,
+        dag=dag,
+        priority_weight=priorities[0],
+        retries=3,
+        retry_delay=dt.timedelta(minutes=10)
+    )
+
+    generate_run_id >> hec

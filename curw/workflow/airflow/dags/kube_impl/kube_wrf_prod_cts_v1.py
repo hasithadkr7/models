@@ -90,6 +90,7 @@ generate_run_id = PythonOperator(
     task_id='gen-run-id',
     python_callable=af_kube_utils.generate_random_run_id,
     op_args=[run_id_prefix],
+    op_kwargs={"suffix": "0000"},
     provide_context=True,
     dag=dag
 )
