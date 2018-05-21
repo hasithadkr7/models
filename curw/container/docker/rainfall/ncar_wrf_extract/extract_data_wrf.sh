@@ -3,7 +3,7 @@
 export GOOGLE_APPLICATION_CREDENTIALS=/wrf/gcs.json
 
 echo "#### Reading running args..."
-while getopts ":i:c:d:o:k:v:t:" option
+while getopts ":i:c:d:o:k:v:t:p:" option
 do
  case "${option}"
  in
@@ -12,7 +12,15 @@ do
  d) DB=$OPTARG;;
  o) OW="True";;
  t) DT=$OPTARG;;
- k) echo $OPTARG > /wrf/gcs.json;;
+ k) GCS_KEY=$OPTARG
+    if [ -f "$GCS_KEY" ]; then
+        echo "#### using GCS KEY file location"
+        cat "$GCS_KEY" > ${GOOGLE_APPLICATION_CREDENTIALS}
+    else
+        echo "#### using GCS KEY file content"
+        echo "$GCS_KEY" > ${GOOGLE_APPLICATION_CREDENTIALS}
+    fi
+    ;;
  v) bucket=$(echo $OPTARG | cut -d':' -f1)
     path=$(echo $OPTARG | cut -d':' -f2)
     echo "#### mounting $bucket to $path"

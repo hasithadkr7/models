@@ -12,6 +12,7 @@ from tempfile import TemporaryDirectory
 import sys
 
 from curw.container.docker.rainfall import utils as docker_rf_utils
+from curw.rainfall.wrf import utils
 from curw.rainfall.wrf.execution.executor import get_wrf_config
 from curw.rainfall.wrf.extraction import extractor, constants
 from curw.rainfall.wrf.extraction import utils as ext_utils
@@ -34,7 +35,7 @@ def parse_args():
     parser.add_argument('-wrf_config', default=check_key('wrf_config', docker_rf_utils.get_base64_encoded_str('{}')))
     parser.add_argument('-overwrite', default=check_key('overwrite', 'False'))
     parser.add_argument('-data_type', default=check_key('data_type', 'data'))
-    parser.add_argument('-procedures', default=check_key('to_run', str(sys.maxsize)))
+    parser.add_argument('-procedures', default=check_key('procedures', str(sys.maxsize)))
 
     return parser.parse_args()
 
@@ -51,6 +52,7 @@ def run(run_id, wrf_config_dict, db_config_dict, upsert=False, run_name='Cloud-1
     Procedure #7: Extract Kelani lower Basin rainfall for FLO2D
     Procedure #8: Extract Kelani lower Basin rainfall for MIKE21
     Procedure #9: Create plots for D01
+    Procedure #10: Extract rf data from metro col for MIKE21
     """
 
     def _nth_bit(a, n):
@@ -65,6 +67,7 @@ def run(run_id, wrf_config_dict, db_config_dict, upsert=False, run_name='Cloud-1
     output_dir_base = os.path.join(config.get('nfs_dir'), 'results')
     run_output_dir = os.path.join(output_dir_base, run_id)
     wrf_output_dir = os.path.join(run_output_dir, 'wrf')
+    logging.info('WRF output dir: ' + wrf_output_dir)
 
     db_adapter = ext_utils.get_curw_adapter(mysql_config=db_config_dict) if db_config_dict else None
 
@@ -144,18 +147,29 @@ def run(run_id, wrf_config_dict, db_config_dict, upsert=False, run_name='Cloud-1
                 try:
                     logging.info('Procedure #7: Extract Kelani lower Basin rainfall for FLO2D')
                     run_date = dt.datetime.strptime(config.get('start_date'), '%Y-%m-%d_%H:%M')
-                    prev_1 = '_'.join([run_prefix, (run_date - dt.timedelta(days=1)).strftime('%Y-%m-%d_%H:%M'), '*'])
-                    prev_2 = '_'.join([run_prefix, (run_date - dt.timedelta(days=2)).strftime('%Y-%m-%d_%H:%M'), '*'])
-                    d03_nc_f_prev_1 = shutil.copy2(
-                        glob.glob(os.path.join(output_dir_base, prev_1, 'wrf', 'wrfout_d03_*'))[0], temp_dir)
 
-                    d03_nc_f_prev_2 = shutil.copy2(
-                        glob.glob(os.path.join(output_dir_base, prev_2, 'wrf', 'wrfout_d03_*'))[0], temp_dir)
+                    prev_days = 5
+                    d03_nc_f_prev = []
+                    for i in range(prev_days):
+                        prev = '_'.join(
+                            [run_prefix, (run_date - dt.timedelta(days=i + 1)).strftime('%Y-%m-%d_%H:%M'), '*'])
+                        d03_nc_f_prev.append(shutil.copy2(
+                            glob.glob(os.path.join(output_dir_base, prev, 'wrf', 'wrfout_d03_*'))[0], temp_dir))
 
+                    logging.info('250m model')
                     kelani_basin_flo2d_file = res_mgr.get_resource_path('extraction/local/kelani_basin_points_250m.txt')
-                    extractor.extract_kelani_basin_rainfall_flo2d(d03_nc_f, [d03_nc_f_prev_1, d03_nc_f_prev_2],
+                    extractor.extract_kelani_basin_rainfall_flo2d(d03_nc_f, d03_nc_f_prev[:2],
                                                                   os.path.join(run_output_dir, 'klb_flo2d'),
                                                                   kelani_basin_file=kelani_basin_flo2d_file)
+                    logging.info('150m model')
+                    kelani_basin_flo2d_file = res_mgr.get_resource_path(
+                        'extraction/local/klb_glecourse_points_150m.txt')
+                    extractor.extract_kelani_basin_rainfall_flo2d(d03_nc_f, d03_nc_f_prev,
+                                                                  os.path.join(run_output_dir, 'klb_flo2d'),
+                                                                  kelani_basin_file=kelani_basin_flo2d_file,
+                                                                  output_prefix='RAINCELL_150m', target_rfs=[])
+
+
                 except Exception as e:
                     logging.error('Extract Kelani lower Basin mean rainfall for FLO2D FAILED: ' + str(
                         e) + '\n' + traceback.format_exc())
@@ -169,10 +183,10 @@ def run(run_id, wrf_config_dict, db_config_dict, upsert=False, run_name='Cloud-1
                         os.path.join(temp_dir, 'klb.txt'))
                     prev_1 = '_'.join([run_prefix, (run_date - dt.timedelta(days=1)).strftime('%Y-%m-%d_%H:%M'), '*'])
                     prev_2 = '_'.join([run_prefix, (run_date - dt.timedelta(days=2)).strftime('%Y-%m-%d_%H:%M'), '*'])
-                    klb_prev_1 = shutil.copy2(
+                    klb_prev_1 = utils.copy_if_not_exists(
                         glob.glob(os.path.join(output_dir_base, prev_1, 'klb_mean_rf', 'klb_mean_rf.txt'))[0],
                         os.path.join(temp_dir, 'klb1.txt'))
-                    klb_prev_2 = shutil.copy2(
+                    klb_prev_2 = utils.copy_if_not_exists(
                         glob.glob(os.path.join(output_dir_base, prev_2, 'klb_mean_rf', 'klb_mean_rf.txt'))[0],
                         os.path.join(temp_dir, 'klb2.txt'))
 
@@ -181,6 +195,25 @@ def run(run_id, wrf_config_dict, db_config_dict, upsert=False, run_name='Cloud-1
                 except Exception as e:
                     logging.error('Extract Kelani lower Basin mean rainfall for MIKE21 FAILED: ' + str(
                         e) + '\n' + traceback.format_exc())
+
+            if _nth_bit(procedures, 10):
+                try:
+                    logging.info('Procedure #10: Extract rf data from metro col for MIKE21')
+                    run_date = dt.datetime.strptime(config.get('start_date'), '%Y-%m-%d_%H:%M')
+                    prev_1 = '_'.join([run_prefix, (run_date - dt.timedelta(days=1)).strftime('%Y-%m-%d_%H:%M'), '*'])
+                    prev_2 = '_'.join([run_prefix, (run_date - dt.timedelta(days=2)).strftime('%Y-%m-%d_%H:%M'), '*'])
+                    d03_nc_f_prev_1 = utils.copy_if_not_exists(
+                        glob.glob(os.path.join(output_dir_base, prev_1, 'wrf', 'wrfout_d03_*'))[0], temp_dir)
+                    d03_nc_f_prev_2 = utils.copy_if_not_exists(
+                        glob.glob(os.path.join(output_dir_base, prev_2, 'wrf', 'wrfout_d03_*'))[0], temp_dir)
+                    prev = [d03_nc_f_prev_1, d03_nc_f_prev_2]
+
+                    extractor.extract_metro_col_rf_for_mike21(d03_nc_f, os.path.join(run_output_dir, 'met_col_mike21'),
+                                                              prev_rf_files=prev)
+                except Exception as e:
+                    logging.error('Extract rf data from metro col for MIKE21: ' + str(
+                        e) + '\n' + traceback.format_exc())
+
         except Exception as e:
             logging.error(
                 'Copying wrfout_d03_* to temp_dir %s FAILED: %s\n%s' % (temp_dir, str(e), traceback.format_exc()))
@@ -208,6 +241,8 @@ def run(run_id, wrf_config_dict, db_config_dict, upsert=False, run_name='Cloud-1
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format='%(asctime)s %(threadName)s %(module)s %(levelname)s %(message)s')
+    logging.info('Received arguments:\n%s' % sys.argv[1:])
+
     args = vars(parse_args())
 
     logging.info('Running arguments:\n%s' % json.dumps(args, sort_keys=True, indent=0))
