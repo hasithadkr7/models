@@ -24,7 +24,7 @@ priorities = [1, 1, 1]
 run_id_prefix = 'kube-hec-prod-inst'
 
 # aiflow variable keys
-hec_config = Variable.get('kube_hec_config_inst')
+hec_config_var = 'kube_hec_config_inst'
 
 # kube images
 hec_hms_image = 'us.gcr.io/uwcc-160712/curw-hec-hms-420'
@@ -53,7 +53,7 @@ def get_base_pod():
                     security_context=client.V1SecurityContext(privileged=True),
                     image_pull_policy='IfNotPresent'
                 )],
-            restart_policy='OnFailure',
+            restart_policy='Never',
             volumes=vols
         )
     )
@@ -78,7 +78,7 @@ dag = DAG(
     description='Running multiple HEC-HMSs using Google Kubernetes Engine',
     schedule_interval=schedule_interval)
 
-hec_config_var = Variable.get(hec_config, deserialize_json=True)
+hec_config = Variable.get(hec_config_var, deserialize_json=True)
 
 for i in range(parallel_runs):
     generate_run_id = PythonOperator(
@@ -92,8 +92,8 @@ for i in range(parallel_runs):
 
     logging.info('Initializing hec-hms pod')
     hec_pod = get_base_pod()
-    hec_pod.metadata.name = 'wps-pod-{{ ti.xcom_pull(task_ids=\'gen-run-id\') }}'
-    hec_pod.spec.containers[0].name = 'wps-cont-{{ ti.xcom_pull(task_ids=\'gen-run-id\') }}'
+    hec_pod.metadata.name = 'kube-pod-{{ ti.xcom_pull(task_ids=\'gen-run-id\') }}'
+    hec_pod.spec.containers[0].name = 'kube-cont-{{ ti.xcom_pull(task_ids=\'gen-run-id\') }}'
     hec_pod.spec.containers[0].image = hec_hms_image
     hec_pod.spec.containers[0].command = ['/run.sh']
     hec_pod.spec.containers[0].resources = client.V1ResourceRequirements(requests={'cpu': 2, 'memory': '4G'})
@@ -111,11 +111,11 @@ for i in range(parallel_runs):
         task_id='hec',
         pod=hec_pod,
         secret_list=secrets or [],
-        auto_remove=True,
+        auto_remove=False,
         dag=dag,
         priority_weight=priorities[0],
         retries=3,
-        retry_delay=dt.timedelta(minutes=10)
+        retry_delay=dt.timedelta(minutes=10),
     )
 
     generate_run_id >> hec
