@@ -319,8 +319,8 @@ def datetime_floor(timestamp, floor_sec):
     return epoch_to_datetime(math.floor(datetime_to_epoch(timestamp) / floor_sec) * floor_sec)
 
 
-def datetime_lk_to_utc(timestamp_lk):
-    return timestamp_lk - dt.timedelta(hours=5, minutes=30)
+def datetime_lk_to_utc(timestamp_lk,  shift_mins=0):
+    return timestamp_lk - dt.timedelta(hours=5, minutes=30 + shift_mins)
 
 
 def datetime_utc_to_lk(timestamp_utc, shift_mins=0):
