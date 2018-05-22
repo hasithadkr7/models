@@ -116,7 +116,7 @@ def get_voronoi_polygons(points_dict, shape_file, shape_attribute=None, output_s
     shape_polygon = shape_df['geometry'][shape_polygon_idx]
 
     ids = [p if type(p) == str else np.asscalar(p) for p in points_dict.keys()]
-    points = list(points_dict.values())
+    points = np.array(list(points_dict.values()))[:, :2]
 
     vor = Voronoi(points)
     regions, vertices = _voronoi_finite_polygons_2d(vor)
