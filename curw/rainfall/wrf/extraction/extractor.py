@@ -251,13 +251,13 @@ class CurwExtractorException(Exception):
     pass
 
 
-def extract_kelani_basin_rainfall_flo2d_with_obs(nc_f, adapter, obs_stations, output_dir, start_ts, duration_days=None,
-                                                 output_prefix='RAINCELL', kelani_lower_basin_points=None,
-                                                 kelani_lower_basin_shp=None):
+def extract_kelani_basin_rainfall_flo2d_with_obs(nc_f, adapter, obs_stations, output_dir, start_ts_lk,
+                                                 duration_days=None, output_prefix='RAINCELL',
+                                                 kelani_lower_basin_points=None, kelani_lower_basin_shp=None):
     """
     :param duration_days:
     :param kelani_lower_basin_points:
-    :param start_ts:
+    :param start_ts_lk:
     :param obs_stations:
     :param adapter:
     :param kelani_lower_basin_shp:
@@ -296,9 +296,9 @@ def extract_kelani_basin_rainfall_flo2d_with_obs(nc_f, adapter, obs_stations, ou
 
     utils.create_dir_if_not_exists(output_dir)
 
-    obs_start = dt.datetime.strptime(start_ts, '%Y-%m-%d_%H:%M') - dt.timedelta(days=duration_days[0])
-    obs_end = dt.datetime.strptime(start_ts, '%Y-%m-%d_%H:%M')
-    forecast_end = dt.datetime.strptime(start_ts, '%Y-%m-%d_%H:%M') + dt.timedelta(days=duration_days[1])
+    obs_start = dt.datetime.strptime(start_ts_lk, '%Y-%m-%d_%H:%M') - dt.timedelta(days=duration_days[0])
+    obs_end = dt.datetime.strptime(start_ts_lk, '%Y-%m-%d_%H:%M')
+    forecast_end = dt.datetime.strptime(start_ts_lk, '%Y-%m-%d_%H:%M') + dt.timedelta(days=duration_days[1])
 
     obs = _get_observed_precip(obs_stations, obs_start, obs_end, duration_days, adapter)
 
@@ -315,10 +315,10 @@ def extract_kelani_basin_rainfall_flo2d_with_obs(nc_f, adapter, obs_stations, ou
     with open(output_file_path, 'w') as output_file:
         res_mins = int((t1 - t0).total_seconds() / 60)
         data_hours = int(sum(duration_days) * 24 * 60 / res_mins)
-        start_ts = utils.datetime_utc_to_lk(obs_start, shift_mins=30).strftime('%Y-%m-%d %H:%M:%S')
-        end_ts = utils.datetime_utc_to_lk(forecast_end, shift_mins=30).strftime('%Y-%m-%d %H:%M:%S')
+        start_ts_lk = obs_start.strftime('%Y-%m-%d %H:%M:%S')
+        end_ts = forecast_end.strftime('%Y-%m-%d %H:%M:%S')
 
-        output_file.write("%d %d %s %s\n" % (res_mins, data_hours, start_ts, end_ts))
+        output_file.write("%d %d %s %s\n" % (res_mins, data_hours, start_ts_lk, end_ts))
 
         for t in range(int(24 * 60 * duration_days[0] / res_mins) + 1):
             for i, point in enumerate(points):
@@ -337,20 +337,32 @@ def extract_kelani_basin_rainfall_flo2d_with_obs(nc_f, adapter, obs_stations, ou
                     output_file.write('%d %.1f\n' % (point[0], 0))
 
 
-def _get_observed_precip(obs_stations, start_dt, end_dt, duration_days, adapter):
-    def _validate_ts(_ts_sum):
+def _get_observed_precip(obs_stations, start_dt, end_dt, duration_days, adapter, forecast_source='wrf0', ):
+    def _validate_ts(_s, _ts_sum, _opts):
         if len(_ts_sum) == duration_days[0] * 24 + 1:
             return
 
-        logging.warning('Validation count fails. Trying to fill zeros for missing values')
-        d = start_dt
-        _ts_sum.sort_index()
+        logging.warning('%s Validation count fails. Trying to fill forecast for missing values' % _s)
+        f_station = {'station': obs_stations[_s][3],
+                     'variable': 'Precipitation',
+                     'unit': 'mm',
+                     'type': 'Forecast-0-d',
+                     'source': forecast_source,
+                     }
+        f_ts = np.array(adapter.retrieve_timeseries(f_station, _opts)[0]['timeseries'])
+
+        if len(f_ts) != duration_days[0] * 24 + 1:
+            raise CurwExtractorException('Forecast time-series validation failed')
+
         for j in range(duration_days[0] * 24 + 1):
-            d = d + dt.timedelta(hours=j)
+            d = start_dt + dt.timedelta(hours=j)
             d_str = d.strftime('%Y-%m-%d %H:00')
-            if _ts_sum.index[j] != d_str:
-                _ts_sum.loc[d_str] = 0
-                _ts_sum.sort_index()
+            if j < len(_ts_sum.index.values):
+                if _ts_sum.index[j] != d_str:
+                    _ts_sum.loc[d_str] = f_ts[j, 1]
+                    _ts_sum.sort_index(inplace=True)
+            else:
+                _ts_sum.loc[d_str] = f_ts[j, 1]
 
         if len(_ts_sum) == duration_days[0] * 24 + 1:
             return
@@ -375,7 +387,8 @@ def _get_observed_precip(obs_stations, start_dt, end_dt, duration_days, adapter)
         ts = np.array(adapter.retrieve_timeseries(station, opts)[0]['timeseries'])
         ts_df = pd.DataFrame(data=ts, columns=['ts', 'precip'], index=ts[0:])
         ts_sum = ts_df.groupby(by=[ts_df.ts.map(lambda x: x.strftime('%Y-%m-%d %H:00'))]).sum()
-        _validate_ts(ts_sum)
+
+        _validate_ts(s, ts_sum, opts)
 
         obs[s] = ts_sum
 
@@ -1116,32 +1129,36 @@ class TestExtractor(unittest.TestCase):
         kelani_basin_flo2d_file = res_mgr.get_resource_path('extraction/local/kelani_basin_points_250m.txt')
         extract_kelani_basin_rainfall_flo2d(d03_nc_f, [d03_nc_f_prev_1, d03_nc_f_prev_2],
                                             os.path.join(wrf_output_dir, now, 'klb_flo2d'),
-                                            kelani_basin_file=kelani_basin_flo2d_file)
+                                            kelani_basin_file=kelani_basin_flo2d_file, )
 
     def test_extract_kelani_basin_rainfall_flo2d_obs(self):
         adapter = ext_utils.get_curw_adapter()
         wrf_output_dir = tempfile.mkdtemp(prefix='flo2d_obs_')
-        files = ['wrfout_d03_2018-05-20_18:00:00_rf']
+        files = ['wrfout_d03_2018-05-22_18:00:00_rf']
         run_prefix = 'wrf0'
 
         for f in files:
             out_dir = utils.create_dir_if_not_exists(
                 os.path.join(wrf_output_dir, f.replace('wrfout_d03', run_prefix).replace(':00_rf', '_0000'), 'wrf'))
-            shutil.copy2('/home/curw/Desktop/2018-05/%s' % f, out_dir)
+            shutil.copy2('/home/curw/Desktop/2018-05/2018-05-22_18:00/wrf0/%s' % f, out_dir)
 
-        run_date = dt.datetime.strptime('2018-05-20_18:00', '%Y-%m-%d_%H:%M')
+        run_date = dt.datetime.strptime('2018-05-22_18:00', '%Y-%m-%d_%H:%M')
+        start_ts_lk = '2018-05-23_12:00'
         now = '_'.join([run_prefix, run_date.strftime('%Y-%m-%d_%H:%M'), '*'])
 
         d03_nc_f = glob.glob(os.path.join(wrf_output_dir, now, 'wrf', 'wrfout_d03_*'))[0]
 
-        obs_stations = {'Kottawa North Dharmapala School': [79.95818, 6.865576, 'A&T Labs'],
-                        'IBATTARA2': [79.919, 6.908, 'CUrW IoT'],
-                        'Malabe': [79.95738, 6.90396, 'A&T Labs'],
-                        'Mutwal': [79.8609, 6.95871, 'A&T Labs']}
+        obs_stations = {'Kottawa North Dharmapala School': [79.95818, 6.865576, 'A&T Labs', 'wrf_79.957123_6.859688'],
+                        'IBATTARA2': [79.919, 6.908, 'CUrW IoT', 'wrf_79.902664_6.913757'],
+                        'Malabe': [79.95738, 6.90396, 'A&T Labs', 'wrf_79.957123_6.913757'],
+                        'Mutwal': [79.8609, 6.95871, 'A&T Labs', 'wrf_79.875435_6.967812'],
+                        'Mulleriyawa': [79.941176, 6.923571, 'A&T Labs', 'wrf_79.929893_6.913757'],
+                        'Orugodawatta': [79.87887, 6.943741, 'CUrW IoT', 'wrf_79.875435_6.940788']}
 
-        start_ts = '2018-05-20_18:00'
+        duration_days = (4, 3)
         extract_kelani_basin_rainfall_flo2d_with_obs(d03_nc_f, adapter, obs_stations,
-                                                     os.path.join(wrf_output_dir, now, 'klb_flo2d'), start_ts, )
+                                                     os.path.join(wrf_output_dir, now, 'klb_flo2d'), start_ts_lk,
+                                                     duration_days=duration_days)
 
     def test_extract_kelani_basin_rainfall_flo2d_obs_150m(self):
         adapter = ext_utils.get_curw_adapter()
@@ -1159,11 +1176,11 @@ class TestExtractor(unittest.TestCase):
 
         d03_nc_f = glob.glob(os.path.join(wrf_output_dir, now, 'wrf', 'wrfout_d03_*'))[0]
 
-        obs_stations = {'Kottawa North Dharmapala School': [79.95818, 6.865576, 'A&T Labs'],
-                        'IBATTARA2': [79.919, 6.908, 'CUrW IoT'],
-                        'Malabe': [79.95738, 6.90396, 'A&T Labs'],
-                        'Mutwal': [79.8609, 6.95871, 'A&T Labs'],
-                        'Glencourse': [80.20305, 6.97805, 'Irrigation Department'],
+        obs_stations = {'Kottawa North Dharmapala School': [79.95818, 6.865576, 'A&T Labs', 'wrf_79.957123_6.859688'],
+                        'IBATTARA2': [79.919, 6.908, 'CUrW IoT', 'wrf_79.902664_6.913757'],
+                        'Malabe': [79.95738, 6.90396, 'A&T Labs', 'wrf_79.957123_6.913757'],
+                        'Mutwal': [79.8609, 6.95871, 'A&T Labs', 'wrf_79.875435_6.967812'],
+                        'Glencourse': [80.20305, 6.97805, 'Irrigation Department', ''],
                         }
 
         start_ts = '2018-05-20_18:00'
