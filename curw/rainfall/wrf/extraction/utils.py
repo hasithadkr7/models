@@ -40,8 +40,8 @@ def get_two_element_average(prcp, return_diff=True):
         return avg_prcp
 
 
-def extract_points_array_rf_series(nc_f, points_array, boundaries=None, rf_var_list=None, lat_var='XLAT', lon_var='XLONG',
-                                   time_var='Times'):
+def extract_points_array_rf_series(nc_f, points_array, boundaries=None, rf_var_list=None, lat_var='XLAT',
+                                   lon_var='XLONG', time_var='Times'):
     """
     :param boundaries: list [lat_min, lat_max, lon_min, lon_max]
     :param nc_f:
@@ -78,7 +78,11 @@ def extract_points_array_rf_series(nc_f, points_array, boundaries=None, rf_var_l
     for p in points_array:
         lat_start_idx = np.argmin(abs(variables['XLAT'] - p[2]))
         lon_start_idx = np.argmin(abs(variables['XLONG'] - p[1]))
-        result = append_fields(result, p[0].decode(), np.round(diff[:, lat_start_idx, lon_start_idx], 6), usemask=False)
+        rf = np.round(diff[:, lat_start_idx, lon_start_idx], 6)
+        # use this for 4 point average
+        # rf = np.round(np.mean(diff[:, lat_start_idx:lat_start_idx + 2, lon_start_idx:lon_start_idx + 2], axis=(1, 2)),
+        #               6)
+        result = append_fields(result, p[0].decode(), rf, usemask=False)
 
     return result
 
@@ -176,7 +180,6 @@ def create_contour_plot(data, out_file_path, lat_min, lon_min, lat_max, lon_max,
     create a contour plot using basemap
     :param additional_changes:
     :param norm:
-    :param title_ops:
     :param cmap: color map
     :param clevs: color levels
     :param basemap: creating basemap takes time, hence you can create it outside and pass it over
@@ -335,10 +338,30 @@ def parse_database_data_type(d_type, adapter_pkg_name='curwmysqladapter', adapte
     return getattr(c, d_type)
 
 
-# def draw_center_of_mass(data, com_dot='ro'):
-#     com = ndimage.measurements.center_of_mass(data)
-#     plt.plot(com[1], com[0], com_dot)
-#     # plt.annotate(str(com), xy=com)
+def extract_area_rf_series(nc_f, lat_min, lat_max, lon_min, lon_max):
+    if not os.path.exists(nc_f):
+        raise IOError('File %s not found' % nc_f)
+
+    nc_fid = Dataset(nc_f, 'r')
+
+    times_len, times = extract_time_data(nc_f)
+    lats = nc_fid.variables['XLAT'][0, :, 0]
+    lons = nc_fid.variables['XLONG'][0, 0, :]
+
+    lon_min_idx = np.argmax(lons >= lon_min) - 1
+    lat_min_idx = np.argmax(lats >= lat_min) - 1
+    lon_max_idx = np.argmax(lons >= lon_max)
+    lat_max_idx = np.argmax(lats >= lat_max)
+
+    prcp = nc_fid.variables['RAINC'][:, lat_min_idx:lat_max_idx, lon_min_idx:lon_max_idx] + nc_fid.variables['RAINNC'][
+                                                                                            :, lat_min_idx:lat_max_idx,
+                                                                                            lon_min_idx:lon_max_idx]
+
+    diff = get_two_element_average(prcp)
+
+    nc_fid.close()
+
+    return diff, lats[lat_min_idx:lat_max_idx], lons[lon_min_idx:lon_max_idx], np.array(times[0:times_len - 1])
 
 
 class TestExtractorUtils(unittest.TestCase):
@@ -346,7 +369,8 @@ class TestExtractorUtils(unittest.TestCase):
         points = np.genfromtxt(res_mgr.get_resource_path('extraction/local/metro_col_sub_catch_centroids.txt'),
                                delimiter=',', names=True, dtype=None)
 
-        out = extract_points_array_rf_series(res_mgr.get_resource_path('/test/wrfout_d03_2017-12-09_18:00:00_rf'), points)
+        extract_points_array_rf_series(res_mgr.get_resource_path('/test/wrfout_d03_2017-12-09_18:00:00_rf'),
+                                             points)
 
     def test_create_contour_plot(self):
         nc = '/home/nira/Desktop/temp/wrfout_d03_2017-09-24_00-00-00_SL'
@@ -383,14 +407,4 @@ class TestExtractorUtils(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    # logging.basicConfig(level=logging.INFO, format='%(asctime)s %(threadName)s %(module)s %(levelname)s %(message)s')
-    # lat_min = 5.722969
-    # lon_min = 79.52146
-    # lat_max = 10.06425
-    # lon_max = 82.18992
-    #
-    # # f = '/home/curw/Desktop/wrfout_d03_2017-07-31_00:00:00'
-    # f = '/home/curw/Desktop/wrfout_d03_2017-08-13_00:00:00_SL'
-    # a = extract_variables(f, 'RAINC RAINNC', lat_min, lat_max, lon_min, lon_max)
-
     pass
