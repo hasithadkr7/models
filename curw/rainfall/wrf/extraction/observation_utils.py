@@ -223,7 +223,8 @@ def suite():
 
 class TestExtractor(unittest.TestCase):
     def test_extract_kelani_basin_rainfall_flo2d_obs(self):
-        adapter = ext_utils.get_curw_adapter()
+        mysql_conf_path='/home/curw/Desktop/2018-05/mysql.json'
+        adapter = ext_utils.get_curw_adapter(mysql_config_path=mysql_conf_path)
         wrf_output_dir = tempfile.mkdtemp(prefix='flo2d_obs_')
         files = ['wrfout_d03_2018-05-23_18:00:00_rf']
         run_prefix = 'wrf0'
