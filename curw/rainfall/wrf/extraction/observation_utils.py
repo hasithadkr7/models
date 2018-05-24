@@ -248,8 +248,13 @@ class TestExtractor(unittest.TestCase):
                         'Orugodawatta': [79.87887, 6.943741, 'CUrW IoT', 'wrf_79.875435_6.940788']}
 
         duration_days = (4, 3)
+
+        # kelani_lower_basin_points = res_mgr.get_resource_path('extraction/local/kelani_basin_points_30m.txt')
+        kelani_lower_basin_points = None
+
         extract_kelani_basin_rainfall_flo2d_with_obs(d03_nc_f, adapter, obs_stations,
                                                      os.path.join(wrf_output_dir, now, 'klb_flo2d'), start_ts_lk,
+                                                     kelani_lower_basin_points=kelani_lower_basin_points,
                                                      duration_days=duration_days)
 
     def test_extract_kelani_basin_rainfall_flo2d_obs_150m(self):
