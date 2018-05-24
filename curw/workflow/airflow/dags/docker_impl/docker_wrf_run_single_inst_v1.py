@@ -5,10 +5,9 @@ import os
 
 import airflow
 from airflow import DAG
-from airflow.operators.dummy_operator import DummyOperator
-from airflow.operators.python_operator import PythonOperator, BranchPythonOperator
-from curw.rainfall.wrf import utils
+from airflow.operators.python_operator import PythonOperator
 from curw.container.docker.rainfall import utils as docker_rf_utils
+from curw.rainfall.wrf import utils
 from curw.workflow.airflow.dags.docker_impl import utils as airflow_docker_utils
 from curw.workflow.airflow.extensions.operators.curw_docker_operator import CurwDockerOperator
 
@@ -58,6 +57,7 @@ default_args = {
     'retries': 1,
     'retry_delay': dt.timedelta(minutes=5),
     'queue': queue,
+    'catchup': False,
 }
 
 # initiate the DAG
