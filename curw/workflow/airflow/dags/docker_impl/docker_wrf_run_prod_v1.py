@@ -83,10 +83,10 @@ def initialize_config(config_str, configs_prefix='wrf_config_', **context):
     return b64_config
 
 
-def generate_random_run_id(prefix, random_str_len=4, **context):
+def generate_random_run_id(prefix, random_str_len=4, suffix=None, **context):
     run_id = '_'.join(
         [prefix, airflow_docker_utils.get_start_date_from_context(context).strftime('%Y-%m-%d_%H:%M'),
-         airflow_docker_utils.id_generator(size=random_str_len)])
+         suffix if suffix else airflow_docker_utils.id_generator(size=random_str_len)])
     logging.info('Generated run_id: ' + run_id)
     return run_id
 
@@ -115,6 +115,7 @@ generate_run_id = PythonOperator(
     task_id='gen-run-id',
     python_callable=generate_random_run_id,
     op_args=[run_id_prefix],
+    op_kwargs={"suffix": "0000"},
     provide_context=True,
     dag=dag
 )
@@ -169,6 +170,7 @@ for i in range(parallel_runs):
         task_id='gen-run-id-wrf%d' % i,
         python_callable=generate_random_run_id,
         op_args=[run_id_prefix + str(i)],
+        op_kwargs={"suffix": "0000"},
         provide_context=True,
         dag=dag,
         priority_weight=priorities[i]
