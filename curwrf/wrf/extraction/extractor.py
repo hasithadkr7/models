@@ -102,7 +102,8 @@ def extract_weather_stations(nc_f, date, times, weather_stations, wrf_output):
         if not os.path.exists(stations_dir):
             os.makedirs(stations_dir)
         for row in stations:
-            print ' '.join(row)
+            print
+            ' '.join(row)
             lon = row[1]
             lat = row[2]
 
@@ -144,8 +145,10 @@ def extract_kelani_basin_rainfall(nc_f, date, kelani_basin_file, wrf_output, bas
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
-    prev_day_1_file = glob.glob(wrf_output + '/wrfout_d03_' + (date - dt.timedelta(days=1)).strftime('%Y-%m-%d') + '_*')[0]
-    prev_day_2_file = glob.glob(wrf_output + '/wrfout_d03_' + (date - dt.timedelta(days=2)).strftime('%Y-%m-%d') + '_*')[0]
+    prev_day_1_file = \
+    glob.glob(wrf_output + '/wrfout_d03_' + (date - dt.timedelta(days=1)).strftime('%Y-%m-%d') + '_*')[0]
+    prev_day_2_file = \
+    glob.glob(wrf_output + '/wrfout_d03_' + (date - dt.timedelta(days=2)).strftime('%Y-%m-%d') + '_*')[0]
 
     diff1, _, _, times1 = extract_area_rf_series(prev_day_1_file, kel_lat_min, kel_lat_max, kel_lon_min, kel_lon_max)
     diff2, _, _, times2 = extract_area_rf_series(prev_day_2_file, kel_lat_min, kel_lat_max, kel_lon_min, kel_lon_max)
@@ -155,8 +158,12 @@ def extract_kelani_basin_rainfall(nc_f, date, kelani_basin_file, wrf_output, bas
 
         res = 60
         data_hours = len(times) + 48
-        start_ts = (date - dt.timedelta(days=2)).strftime('%Y-%m-%d %H:%M:%S')
-        end_ts = (date + dt.timedelta(hours=len(times) - 1)).strftime('%Y-%m-%d %H:%M:%S')
+        # start_ts = (date - dt.timedelta(days=2)).strftime('%Y-%m-%d %H:%M:%S')
+        # end_ts = (date + dt.timedelta(hours=len(times) - 1)).strftime('%Y-%m-%d %H:%M:%S')
+
+        # todo: remove this! hack to support 1800 runs in SL time
+        start_ts = (date - dt.timedelta(days=1)).strftime('%Y-%m-%d %H:%M:%S')
+        end_ts = (date + dt.timedelta(hours=len(times) - 1) + dt.timedelta(days=1)).strftime('%Y-%m-%d %H:%M:%S')
         output_file.write("%d %d %s %s\n" % (res, data_hours, start_ts, end_ts))
 
         for h in range(0, data_hours):
@@ -260,7 +267,7 @@ def extract_kelani_upper_basin_mean_rainfall_sat(sat_dir, date, kelani_basin_shp
         sat = np.genfromtxt(sat_zip.open('gsmap_nrt.%s%s%s.%s00.05_AsiaSS.csv' % (y, m, d, sh)), delimiter=',',
                             names=True)
         sat_filt = sat[(sat['Lat'] <= kel_lat_max) & (sat['Lat'] >= kel_lat_min) & (sat['Lon'] <= kel_lon_max) & (
-            sat['Lon'] >= kel_lon_min)]
+                sat['Lon'] >= kel_lon_min)]
 
         for p in sat_filt:
             if utils.is_inside_polygon(polys, p[0], p[1]):
