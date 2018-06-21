@@ -14,14 +14,15 @@ from tempfile import TemporaryDirectory
 import numpy as np
 import pandas as pd
 import shapefile
-from curw.rainfall.wrf import utils
-from curw.rainfall.wrf.extraction import constants, spatial_utils
-from curw.rainfall.wrf.extraction import utils as ext_utils, observation_utils as obs_utils
-from curw.rainfall.wrf.resources import manager as res_mgr
-from curwmysqladapter import Station
 from joblib import Parallel, delayed
 from mpl_toolkits.basemap import Basemap, cm
 from netCDF4 import Dataset
+
+from curw.rainfall.wrf import utils
+from curw.rainfall.wrf.extraction import constants, spatial_utils
+from curw.rainfall.wrf.extraction import utils as ext_utils
+from curw.rainfall.wrf.resources import manager as res_mgr
+from curwmysqladapter import Station
 
 
 def extract_metro_colombo(nc_f, wrf_output, wrf_output_base, curw_db_adapter=None, curw_db_upsert=False,
@@ -226,7 +227,8 @@ def extract_kelani_basin_rainfall_flo2d(nc_f, nc_f_prev_days, output_dir, avg_ba
     kel_lon_max = np.max(points, 0)[1]
     kel_lat_max = np.max(points, 0)[2]
 
-    diff, kel_lats, kel_lons, times = ext_utils.extract_area_rf_series(nc_f, kel_lat_min, kel_lat_max, kel_lon_min, kel_lon_max)
+    diff, kel_lats, kel_lons, times = ext_utils.extract_area_rf_series(nc_f, kel_lat_min, kel_lat_max, kel_lon_min,
+                                                                       kel_lon_max)
 
     def get_bins(arr):
         sz = len(arr)
@@ -244,8 +246,12 @@ def extract_kelani_basin_rainfall_flo2d(nc_f, nc_f_prev_days, output_dir, avg_ba
     prev_diff = []
     prev_days = len(nc_f_prev_days)
     for i in range(prev_days):
-        p_diff, _, _, _ = ext_utils.extract_area_rf_series(nc_f_prev_days[i], kel_lat_min, kel_lat_max, kel_lon_min, kel_lon_max)
-        prev_diff.append(p_diff)
+        if nc_f_prev_days[i]:
+            p_diff, _, _, _ = ext_utils.extract_area_rf_series(nc_f_prev_days[i], kel_lat_min, kel_lat_max, kel_lon_min,
+                                                               kel_lon_max)
+            prev_diff.append(p_diff)
+        else:
+            prev_diff.append(None)
 
     def write_forecast_to_raincell_file(output_file_path, alpha):
         with open(output_file_path, 'w') as output_file:
@@ -262,7 +268,10 @@ def extract_kelani_basin_rainfall_flo2d(nc_f, nc_f_prev_days, output_dir, avg_ba
                     for point in points:
                         rf_x = np.digitize(point[1], lon_bins)
                         rf_y = np.digitize(point[2], lat_bins)
-                        output_file.write('%d %.1f\n' % (point[0], prev_diff[prev_days - 1 - d][t, rf_y, rf_x]))
+                        if prev_diff[prev_days - 1 - d]:
+                            output_file.write('%d %.1f\n' % (point[0], prev_diff[prev_days - 1 - d][t, rf_y, rf_x]))
+                        else:
+                            output_file.write('%d %.1f\n' % (point[0], 0))
 
             for t in range(len(times)):
                 for point in points:
@@ -301,15 +310,23 @@ def create_rainfall_for_mike21(d0_rf_file, prev_rf_files, output_dir):
 
     output = None
     for i in range(prev_days):
-        if output is not None:
-            output = np.append(output,
-                               np.genfromtxt(prev_rf_files[prev_days - 1 - i], dtype=str, max_rows=lines_per_day),
-                               axis=0)
+        if prev_rf_files[prev_days - 1 - i]:
+            if output:
+                output = np.append(output,
+                                   np.genfromtxt(prev_rf_files[prev_days - 1 - i], dtype=str, max_rows=lines_per_day),
+                                   axis=0)
+            else:
+                output = np.genfromtxt(prev_rf_files[prev_days - 1 - i], dtype=str, max_rows=lines_per_day)
         else:
-            output = np.genfromtxt(prev_rf_files[prev_days - 1 - i], dtype=str, max_rows=lines_per_day)
-    output = np.append(output, d0, axis=0)
-    out_file = os.path.join(utils.create_dir_if_not_exists(output_dir), 'rf_mike21.txt')
+            output = None  # if any of the previous files are missing, skip prepending past data to the forecast
+            break
 
+    if output:
+        output = np.append(output, d0, axis=0)
+    else:
+        output = d0
+
+    out_file = os.path.join(utils.create_dir_if_not_exists(output_dir), 'rf_mike21.txt')
     with open(out_file, 'w') as out_f:
         for line in output:
             out_f.write('%s %s\t%s\n' % (line[0], line[1], line[2]))
@@ -334,15 +351,22 @@ def extract_metro_col_rf_for_mike21(nc_f, output_dir, prev_rf_files=None, points
 
     output = None
     for i in range(prev_days):
-        if output is not None:
-            output = np.append(output,
-                               ext_utils.extract_points_array_rf_series(prev_rf_files[prev_days - 1 - i], points)[
-                               :lines_per_day],
-                               axis=0)
+        if prev_rf_files[prev_days - 1 - i]:
+            if output:
+                output = np.append(output,
+                                   ext_utils.extract_points_array_rf_series(prev_rf_files[prev_days - 1 - i], points)[
+                                   :lines_per_day], axis=0)
+            else:
+                output = ext_utils.extract_points_array_rf_series(prev_rf_files[prev_days - 1 - i], points)[
+                         :lines_per_day]
         else:
-            output = ext_utils.extract_points_array_rf_series(prev_rf_files[prev_days - 1 - i], points)[:lines_per_day]
+            output = None  # if any of the previous files are missing, skip prepending past data to the forecast
+            break
 
-    output = np.append(output, point_prcp, axis=0)
+    if output:
+        output = np.append(output, point_prcp, axis=0)
+    else:
+        output = point_prcp
 
     fmt = '%s'
     for _ in range(len(output[0]) - 1):

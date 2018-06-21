@@ -153,8 +153,12 @@ def run(run_id, wrf_config_dict, db_config_dict, upsert=False, run_name='Cloud-1
                     for i in range(prev_days):
                         prev = '_'.join(
                             [run_prefix, (run_date - dt.timedelta(days=i + 1)).strftime('%Y-%m-%d_%H:%M'), '*'])
-                        d03_nc_f_prev.append(shutil.copy2(
-                            glob.glob(os.path.join(output_dir_base, prev, 'wrf', 'wrfout_d03_*'))[0], temp_dir))
+                        try:
+                            d03_nc_f_prev.append(shutil.copy2(
+                                glob.glob(os.path.join(output_dir_base, prev, 'wrf', 'wrfout_d03_*'))[0], temp_dir))
+                        except IndexError as e:
+                            logging.warning('File for %s not found. Filling with 0s: %s' % (prev, str(e)))
+                            d03_nc_f_prev.append(None)
 
                     logging.info('250m model')
                     kelani_basin_flo2d_file = res_mgr.get_resource_path('extraction/local/kelani_basin_points_250m.txt')
@@ -169,7 +173,6 @@ def run(run_id, wrf_config_dict, db_config_dict, upsert=False, run_name='Cloud-1
                                                                   kelani_basin_file=kelani_basin_flo2d_file,
                                                                   output_prefix='RAINCELL_150m', target_rfs=[])
 
-
                 except Exception as e:
                     logging.error('Extract Kelani lower Basin mean rainfall for FLO2D FAILED: ' + str(
                         e) + '\n' + traceback.format_exc())
@@ -183,12 +186,22 @@ def run(run_id, wrf_config_dict, db_config_dict, upsert=False, run_name='Cloud-1
                         os.path.join(temp_dir, 'klb.txt'))
                     prev_1 = '_'.join([run_prefix, (run_date - dt.timedelta(days=1)).strftime('%Y-%m-%d_%H:%M'), '*'])
                     prev_2 = '_'.join([run_prefix, (run_date - dt.timedelta(days=2)).strftime('%Y-%m-%d_%H:%M'), '*'])
-                    klb_prev_1 = utils.copy_if_not_exists(
-                        glob.glob(os.path.join(output_dir_base, prev_1, 'klb_mean_rf', 'klb_mean_rf.txt'))[0],
-                        os.path.join(temp_dir, 'klb1.txt'))
-                    klb_prev_2 = utils.copy_if_not_exists(
-                        glob.glob(os.path.join(output_dir_base, prev_2, 'klb_mean_rf', 'klb_mean_rf.txt'))[0],
-                        os.path.join(temp_dir, 'klb2.txt'))
+
+                    try:
+                        klb_prev_1 = utils.copy_if_not_exists(
+                            glob.glob(os.path.join(output_dir_base, prev_1, 'klb_mean_rf', 'klb_mean_rf.txt'))[0],
+                            os.path.join(temp_dir, 'klb1.txt'))
+                    except IndexError as e:
+                        logging.warning('File for %s not found. Filling with 0s: %s' % (prev_1, str(e)))
+                        klb_prev_1 = None
+
+                    try:
+                        klb_prev_2 = utils.copy_if_not_exists(
+                            glob.glob(os.path.join(output_dir_base, prev_2, 'klb_mean_rf', 'klb_mean_rf.txt'))[0],
+                            os.path.join(temp_dir, 'klb2.txt'))
+                    except IndexError as e:
+                        logging.warning('File for %s not found. Filling with 0s: %s' % (prev_2, str(e)))
+                        klb_prev_2 = None
 
                     extractor.create_rainfall_for_mike21(now, [klb_prev_1, klb_prev_2],
                                                          os.path.join(run_output_dir, 'klb_mike21'))
@@ -202,10 +215,21 @@ def run(run_id, wrf_config_dict, db_config_dict, upsert=False, run_name='Cloud-1
                     run_date = dt.datetime.strptime(config.get('start_date'), '%Y-%m-%d_%H:%M')
                     prev_1 = '_'.join([run_prefix, (run_date - dt.timedelta(days=1)).strftime('%Y-%m-%d_%H:%M'), '*'])
                     prev_2 = '_'.join([run_prefix, (run_date - dt.timedelta(days=2)).strftime('%Y-%m-%d_%H:%M'), '*'])
-                    d03_nc_f_prev_1 = utils.copy_if_not_exists(
-                        glob.glob(os.path.join(output_dir_base, prev_1, 'wrf', 'wrfout_d03_*'))[0], temp_dir)
-                    d03_nc_f_prev_2 = utils.copy_if_not_exists(
-                        glob.glob(os.path.join(output_dir_base, prev_2, 'wrf', 'wrfout_d03_*'))[0], temp_dir)
+
+                    try:
+                        d03_nc_f_prev_1 = utils.copy_if_not_exists(
+                            glob.glob(os.path.join(output_dir_base, prev_1, 'wrf', 'wrfout_d03_*'))[0], temp_dir)
+                    except IndexError as e:
+                        logging.warning('File for %s not found. Filling with 0s: %s' % (prev_1, str(e)))
+                        d03_nc_f_prev_1 = None
+
+                    try:
+                        d03_nc_f_prev_2 = utils.copy_if_not_exists(
+                            glob.glob(os.path.join(output_dir_base, prev_2, 'wrf', 'wrfout_d03_*'))[0], temp_dir)
+                    except IndexError as e:
+                        logging.warning('File for %s not found. Filling with 0s: %s' % (prev_2, str(e)))
+                        d03_nc_f_prev_2 = None
+
                     prev = [d03_nc_f_prev_1, d03_nc_f_prev_2]
 
                     extractor.extract_metro_col_rf_for_mike21(d03_nc_f, os.path.join(run_output_dir, 'met_col_mike21'),
