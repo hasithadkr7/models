@@ -170,7 +170,7 @@ def _get_observed_precip(obs_stations, start_dt, end_dt, duration_days, adapter,
         f_ts = np.array(adapter.retrieve_timeseries(f_station, _opts)[0]['timeseries'])
 
         if len(f_ts) != duration_days[0] * 24 + 1:
-            raise CurwObservationException('Forecast time-series validation failed')
+            raise CurwObservationException('%s Forecast time-series validation failed' % _s)
 
         for j in range(duration_days[0] * 24 + 1):
             d = start_dt + dt.timedelta(hours=j)
@@ -223,7 +223,7 @@ def suite():
 
 class TestExtractor(unittest.TestCase):
     def test_extract_kelani_basin_rainfall_flo2d_obs(self):
-        mysql_conf_path='/home/curw/Desktop/2018-05/mysql.json'
+        mysql_conf_path = '/home/curw/Desktop/2018-05/mysql.json'
         adapter = ext_utils.get_curw_adapter(mysql_config_path=mysql_conf_path)
         wrf_output_dir = tempfile.mkdtemp(prefix='flo2d_obs_')
         files = ['wrfout_d03_2018-05-23_18:00:00_rf']
@@ -235,19 +235,21 @@ class TestExtractor(unittest.TestCase):
             shutil.copy2('/home/curw/Desktop/2018-05/2018-05-23_18:00/wrf0/%s' % f, out_dir)
 
         run_date = dt.datetime.strptime('2018-05-23_18:00', '%Y-%m-%d_%H:%M')
-        start_ts_lk = '2018-05-24_08:00'
+        start_ts_lk = '2018-05-26_00:00'
         now = '_'.join([run_prefix, run_date.strftime('%Y-%m-%d_%H:%M'), '*'])
 
         d03_nc_f = glob.glob(os.path.join(wrf_output_dir, now, 'wrf', 'wrfout_d03_*'))[0]
 
-        obs_stations = {'Kottawa North Dharmapala School': [79.95818, 6.865576, 'A&T Labs', 'wrf_79.957123_6.859688'],
-                        'IBATTARA2': [79.919, 6.908, 'CUrW IoT', 'wrf_79.902664_6.913757'],
-                        'Malabe': [79.95738, 6.90396, 'A&T Labs', 'wrf_79.957123_6.913757'],
-                        'Mutwal': [79.8609, 6.95871, 'A&T Labs', 'wrf_79.875435_6.967812'],
-                        'Mulleriyawa': [79.941176, 6.923571, 'A&T Labs', 'wrf_79.929893_6.913757'],
-                        'Orugodawatta': [79.87887, 6.943741, 'CUrW IoT', 'wrf_79.875435_6.940788']}
+        obs_stations = {
+            'Kottawa North Dharmapala School': [79.95818, 6.865576, 'A&T Labs', 'wrf_79.957123_6.859688'],
+            'IBATTARA2': [79.919, 6.908, 'CUrW IoT', 'wrf_79.902664_6.913757'],
+            'Malabe': [79.95738, 6.90396, 'A&T Labs', 'wrf_79.957123_6.913757'],
+            # 'Mutwal': [79.8609, 6.95871, 'A&T Labs', 'wrf_79.875435_6.967812'],
+            # 'Mulleriyawa': [79.941176, 6.923571, 'A&T Labs', 'wrf_79.929893_6.913757'],
+            'Orugodawatta': [79.87887, 6.943741, 'CUrW IoT', 'wrf_79.875435_6.940788'],
+        }
 
-        duration_days = (4, 3)
+        duration_days = (8, 0)
 
         # kelani_lower_basin_points = res_mgr.get_resource_path('extraction/local/kelani_basin_points_30m.txt')
         kelani_lower_basin_points = None
@@ -258,7 +260,7 @@ class TestExtractor(unittest.TestCase):
                                                      duration_days=duration_days)
 
     def test_extract_kelani_basin_rainfall_flo2d_obs_150m(self):
-        adapter = ext_utils.get_curw_adapter()
+        adapter = ext_utils.get_curw_adapter(mysql_config_path='/home/curw/Desktop/2018-05/mysql.json')
         wrf_output_dir = tempfile.mkdtemp(prefix='flo2d_obs_')
         files = ['wrfout_d03_2018-05-23_18:00:00_rf']
         run_prefix = 'wrf0'
@@ -276,15 +278,15 @@ class TestExtractor(unittest.TestCase):
         obs_stations = {'Kottawa North Dharmapala School': [79.95818, 6.865576, 'A&T Labs', 'wrf_79.957123_6.859688'],
                         'IBATTARA2': [79.919, 6.908, 'CUrW IoT', 'wrf_79.902664_6.913757'],
                         'Malabe': [79.95738, 6.90396, 'A&T Labs', 'wrf_79.957123_6.913757'],
-                        'Mutwal': [79.8609, 6.95871, 'A&T Labs', 'wrf_79.875435_6.967812'],
+                        # 'Mutwal': [79.8609, 6.95871, 'A&T Labs', 'wrf_79.875435_6.967812'],
                         'Glencourse': [80.20305, 6.97805, 'Irrigation Department', 'wrf_80.202187_6.967812'],
-                        'Waga': [80.11828, 6.90678, 'A&T Labs', 'wrf_80.120499_6.913757'],
+                        # 'Waga': [80.11828, 6.90678, 'A&T Labs', 'wrf_80.120499_6.913757'],
                         }
 
-        start_ts = '2018-05-24_08:00'
+        start_ts = '2018-05-26_00:00'
         kelani_lower_basin_points = res_mgr.get_resource_path('extraction/local/klb_glecourse_points_150m.txt')
         kelani_lower_basin_shp = res_mgr.get_resource_path('extraction/shp/klb_glencourse/klb_glencourse.shp')
-        duration_days = (5, 3)
+        duration_days = (8, 0)
         extract_kelani_basin_rainfall_flo2d_with_obs(d03_nc_f, adapter, obs_stations,
                                                      os.path.join(wrf_output_dir, now, 'klb_flo2d'), start_ts,
                                                      duration_days=duration_days,
