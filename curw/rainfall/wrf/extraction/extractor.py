@@ -268,7 +268,7 @@ def extract_kelani_basin_rainfall_flo2d(nc_f, nc_f_prev_days, output_dir, avg_ba
                     for point in points:
                         rf_x = np.digitize(point[1], lon_bins)
                         rf_y = np.digitize(point[2], lat_bins)
-                        if prev_diff[prev_days - 1 - d]:
+                        if prev_diff[prev_days - 1 - d] is not None:
                             output_file.write('%d %.1f\n' % (point[0], prev_diff[prev_days - 1 - d][t, rf_y, rf_x]))
                         else:
                             output_file.write('%d %.1f\n' % (point[0], 0))
@@ -310,7 +310,7 @@ def create_rainfall_for_mike21(d0_rf_file, prev_rf_files, output_dir):
 
     output = None
     for i in range(prev_days):
-        if prev_rf_files[prev_days - 1 - i]:
+        if prev_rf_files[prev_days - 1 - i] is not None:
             if output:
                 output = np.append(output,
                                    np.genfromtxt(prev_rf_files[prev_days - 1 - i], dtype=str, max_rows=lines_per_day),
@@ -321,7 +321,7 @@ def create_rainfall_for_mike21(d0_rf_file, prev_rf_files, output_dir):
             output = None  # if any of the previous files are missing, skip prepending past data to the forecast
             break
 
-    if output:
+    if output is not None:
         output = np.append(output, d0, axis=0)
     else:
         output = d0
@@ -351,7 +351,7 @@ def extract_metro_col_rf_for_mike21(nc_f, output_dir, prev_rf_files=None, points
 
     output = None
     for i in range(prev_days):
-        if prev_rf_files[prev_days - 1 - i]:
+        if prev_rf_files[prev_days - 1 - i] is not None:
             if output:
                 output = np.append(output,
                                    ext_utils.extract_points_array_rf_series(prev_rf_files[prev_days - 1 - i], points)[
@@ -363,7 +363,7 @@ def extract_metro_col_rf_for_mike21(nc_f, output_dir, prev_rf_files=None, points
             output = None  # if any of the previous files are missing, skip prepending past data to the forecast
             break
 
-    if output:
+    if output is not None:
         output = np.append(output, point_prcp, axis=0)
     else:
         output = point_prcp
