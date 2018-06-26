@@ -311,7 +311,7 @@ def create_rainfall_for_mike21(d0_rf_file, prev_rf_files, output_dir):
     output = None
     for i in range(prev_days):
         if prev_rf_files[prev_days - 1 - i] is not None:
-            if output:
+            if output is not None:
                 output = np.append(output,
                                    np.genfromtxt(prev_rf_files[prev_days - 1 - i], dtype=str, max_rows=lines_per_day),
                                    axis=0)
@@ -352,7 +352,7 @@ def extract_metro_col_rf_for_mike21(nc_f, output_dir, prev_rf_files=None, points
     output = None
     for i in range(prev_days):
         if prev_rf_files[prev_days - 1 - i] is not None:
-            if output:
+            if output is not None:
                 output = np.append(output,
                                    ext_utils.extract_points_array_rf_series(prev_rf_files[prev_days - 1 - i], points)[
                                    :lines_per_day], axis=0)
