@@ -241,3 +241,5 @@ extract_water_levels = BashOperator(
     pool=dag_pool,
     priority_weight=priorities[i]
 )
+
+clean_up >> run_hec_flo2d >> extract_water_levels
