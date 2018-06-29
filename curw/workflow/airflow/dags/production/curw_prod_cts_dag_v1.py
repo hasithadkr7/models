@@ -3,14 +3,13 @@ import json
 import logging
 import os
 
-from airflow.operators.bash_operator import BashOperator
-
 import airflow
 from airflow import DAG
+from airflow.operators.bash_operator import BashOperator
 from airflow.operators.dummy_operator import DummyOperator
-from airflow.operators.python_operator import PythonOperator, BranchPythonOperator
-from curw.rainfall.wrf import utils
+from airflow.operators.python_operator import PythonOperator
 from curw.container.docker.rainfall import utils as docker_rf_utils
+from curw.rainfall.wrf import utils
 from curw.workflow.airflow.dags.docker_impl import utils as airflow_docker_utils
 from curw.workflow.airflow.extensions.operators.curw_docker_operator import CurwDockerOperator
 
@@ -170,21 +169,12 @@ generate_run_id >> init_config >> wps
 select_wrf = DummyOperator(task_id='select-wrf', dag=dag)
 
 i = 0
-generate_run_id_wrf = PythonOperator(
-    task_id='gen-run-id-wrf%d' % i,
-    python_callable=generate_random_run_id,
-    op_args=[wrf_run_id_prefix + str(i)],
-    op_kwargs={"suffix": "0000"},
-    provide_context=True,
-    dag=dag,
-    priority_weight=priorities[i]
-)
 
 wrf = CurwDockerOperator(
     task_id='wrf%d' % i,
     image=wrf_image,
     docker_url=docker_url,
-    command=airflow_docker_utils.get_docker_cmd('{{ task_instance.xcom_pull(task_ids=\'gen-run-id-wrf%d\') }}' % i,
+    command=airflow_docker_utils.get_docker_cmd('{{ task_instance.xcom_pull(task_ids=\'gen-run-id\') }}',
                                                 '{{ task_instance.xcom_pull(task_ids=\'init-config\') }}',
                                                 'wrf',
                                                 docker_rf_utils.get_base64_encoded_str(airflow_vars[nl_wps_key]),
@@ -205,7 +195,7 @@ extract_wrf = CurwDockerOperator(
     image=extract_image,
     docker_url=docker_url,
     command=airflow_docker_utils.get_docker_extract_cmd(
-        '{{ task_instance.xcom_pull(task_ids=\'gen-run-id-wrf%d\') }}' % i,
+        '{{ task_instance.xcom_pull(task_ids=\'gen-run-id\') }}',
         '{{ task_instance.xcom_pull(task_ids=\'init-config\') }}',
         docker_rf_utils.get_base64_encoded_str(airflow_vars[curw_db_config_path]),
         gcs_volumes,
@@ -219,7 +209,7 @@ extract_wrf = CurwDockerOperator(
     priority_weight=priorities[i]
 )
 
-wps >> generate_run_id_wrf >> wrf >> extract_wrf >> select_wrf >> clean_up
+wps >> wrf >> extract_wrf >> select_wrf >> clean_up
 
 # ---------------- HEC-HMS & FLO2D----------------
 run_hec_flo2d_cmd = "ssh -i /home/uwcc-admin/uwcc-admin -o \"StrictHostKeyChecking no\" uwcc-admin@10.138.0.3 " \
