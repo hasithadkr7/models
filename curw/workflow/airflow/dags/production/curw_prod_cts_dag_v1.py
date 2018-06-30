@@ -42,7 +42,7 @@ nl_inp_keys = ["nl_inp_SIDAT", "nl_inp_C", "nl_inp_H", "nl_inp_NW", "nl_inp_SW",
 curw_db_config_path = 'curw_db_config'
 
 wrf_config_key = 'docker_wrf_config_prod_cts'
-wrf_run_id_prefix = 'wrf'
+wrf_run_id_prefix = 'wrf0'
 
 airflow_vars = airflow_docker_utils.check_airflow_variables(
     nl_inp_keys + [nl_wps_key, curw_db_config_path, wrf_config_key],
@@ -212,7 +212,7 @@ extract_wrf = CurwDockerOperator(
 wps >> wrf >> extract_wrf >> select_wrf >> clean_up
 
 # ---------------- HEC-HMS & FLO2D----------------
-run_hec_flo2d_cmd = "ssh -i /home/uwcc-admin/uwcc-admin -o \"StrictHostKeyChecking no\" uwcc-admin@10.138.0.3 " \
+run_hec_flo2d_cmd = "ssh -i /home/uwcc-admin/.ssh/uwcc-admin -o \"StrictHostKeyChecking no\" uwcc-admin@10.138.0.3 " \
                     "\'bash -c \"/home/uwcc-admin/udp/Forecast.sh -B 2\" \'"
 run_hec_flo2d = BashOperator(
     task_id='run-hec-flo2d-local',
@@ -222,8 +222,8 @@ run_hec_flo2d = BashOperator(
     priority_weight=priorities[i]
 )
 
-extract_water_levels_cmd = "ssh -i /home/uwcc-admin/uwcc-admin -o \"StrictHostKeyChecking no\" uwcc-admin@10.138.0.3 " \
-                           "\'bash -c \"/home/uwcc-admin/udp/Trigger_Extract_WaterLevel.sh\" \'"
+extract_water_levels_cmd = "ssh -i /home/uwcc-admin/.ssh/uwcc-admin -o \"StrictHostKeyChecking no\" " \
+                           "uwcc-admin@10.138.0.3 'bash -c \"/home/uwcc-admin/udp/Trigger_Extract_WaterLevel.sh\" \'"
 extract_water_levels = BashOperator(
     task_id='extract-water-levels',
     bash_command=extract_water_levels_cmd,
