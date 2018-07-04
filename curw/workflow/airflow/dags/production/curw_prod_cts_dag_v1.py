@@ -213,7 +213,8 @@ wps >> wrf >> extract_wrf >> select_wrf >> clean_up
 
 # ---------------- HEC-HMS & FLO2D----------------
 run_hec_flo2d_cmd = "ssh -i /home/uwcc-admin/.ssh/uwcc-admin -o \"StrictHostKeyChecking no\" uwcc-admin@10.138.0.3 " \
-                    "\'bash -c \"/home/uwcc-admin/udp/Forecast.sh -f -B 2\" \'"
+                    "\'bash -c \"/home/uwcc-admin/udp/Forecast.sh -f -B 2 " \
+                    "-d {{ macros.datetime.strftime(execution_date + macros.timedelta(days=1), \'%Y-%m-%d\') }}\" \'"
 run_hec_flo2d = BashOperator(
     task_id='run-hec-flo2d-local',
     bash_command=run_hec_flo2d_cmd,
@@ -230,11 +231,12 @@ wait_for_30m = BashOperator(
     priority_weight=priorities[i]
 )
 
-extract_water_levels_cmd = "ssh -i /home/uwcc-admin/.ssh/uwcc-admin -o \"StrictHostKeyChecking no\" " \
-                           "uwcc-admin@10.138.0.3 'bash -c \"/home/uwcc-admin/udp/Trigger_Extract_WaterLevel.sh\" \'"
+extract_wl_cmd = "ssh -i /home/uwcc-admin/.ssh/uwcc-admin -o \"StrictHostKeyChecking no\" " \
+                 "uwcc-admin@10.138.0.3 'bash -c \"/home/uwcc-admin/udp/Trigger_Extract_WaterLevel.sh " \
+                 "-d {{ macros.datetime.strftime(execution_date + macros.timedelta(days=1), \'%Y-%m-%d\') }}\" \'"
 extract_water_levels = BashOperator(
     task_id='extract-water-levels',
-    bash_command=extract_water_levels_cmd,
+    bash_command=extract_wl_cmd,
     dag=dag,
     pool=dag_pool,
     priority_weight=priorities[i]
