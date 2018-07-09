@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import datetime as dt
+import json
 import time
 from datetime import datetime
 
@@ -22,15 +23,19 @@ from airflow.utils.decorators import apply_defaults
 from airflow.utils.state import State
 
 
-class DagRunOrder(object):
-    def __init__(self, run_id=None, payload=None):
-        self.run_id = run_id
-        self.payload = payload
-
-
 class CurwDagRunOperator(BaseOperator):
     """
 
+    :param trigger_dag_id:
+    :type str
+    :param run_id:
+    :type str
+    :param dag_run_conf:
+    :type typing.Union[str, dict]
+    :param poll_interval:
+    :type timedelta
+    :param wait_for_completion::
+    :type bool
     """
     template_fields = ('dag_run_conf', 'run_id', 'trigger_dag_id')
     template_ext = tuple()
@@ -47,7 +52,16 @@ class CurwDagRunOperator(BaseOperator):
             *args, **kwargs):
         super(CurwDagRunOperator, self).__init__(*args, **kwargs)
         self.trigger_dag_id = trigger_dag_id
-        self.dag_run_conf = dag_run_conf
+
+        self.dag_run_conf = None
+        if dag_run_conf:
+            if isinstance(dag_run_conf, str):
+                self.dag_run_conf = json.loads(dag_run_conf)
+            elif isinstance(dag_run_conf, dict):
+                self.dag_run_conf = dag_run_conf
+            else:
+                raise CurwDagRunOperatorException('Unsupported dag_run_conf type %s' % type(dag_run_conf))
+
         self.poll_interval = poll_interval
         self.wait_for_completion = wait_for_completion
         self.run_id = run_id
@@ -57,29 +71,32 @@ class CurwDagRunOperator(BaseOperator):
         self.log.info("Execution time %s", execution_time.isoformat())
 
         if not self.run_id:
+            self.log.warning('Run ID not set. Auto-generating...')
             self.run_id = 'curw_trig__' + execution_time.isoformat()
         self.log.info("DagRun Run ID %s", self.run_id)
 
         dbag = DagBag(settings.DAGS_FOLDER)
         trigger_dag = dbag.get_dag(self.trigger_dag_id)
 
-        dagrun = trigger_dag.create_dagrun(
-            run_id=self.run_id,
-            state=State.RUNNING,
-            execution_date=execution_time,
-            conf=self.dag_run_conf,
-            external_trigger=True)
-        self.log.info("Created DagRun %s \nConfig: %s" % (dagrun, str(self.dag_run_conf)))
+        self.log.info("Creating DagRun %s \nConfig: %s" % (self.run_id, str(self.dag_run_conf)))
+        try:
+            dagrun = trigger_dag.create_dagrun(
+                run_id=self.run_id,
+                state=State.RUNNING,
+                execution_date=execution_time,
+                conf=self.dag_run_conf,
+                external_trigger=True)
+        except Exception as e:
+            raise CurwDagRunOperatorException(
+                'Unable to create DagRun %s_%s' % (self.trigger_dag_id, self.run_id)) from e
 
-        while self.wait_for_completion and dagrun.get_state() is State.RUNNING:
-            self.log.info('Waiting for DagRun completion')
-            dagrun.update_state()
+        attempt = 1
+        while self.wait_for_completion and (dagrun.get_state() == State.RUNNING):
+            self.log.info('Waiting %d s for DagRun completion. Attempt %d' % (self.poll_interval.seconds, attempt))
+            dagrun.refresh_from_db()
+            attempt += 1
             time.sleep(self.poll_interval.seconds)
 
-        #
-        # dbag = DagBag(settings.DAGS_FOLDER)
-        # trigger_dag = dbag.get_dag(self.trigger_dag_id)
-        # ed = context['execution_date']
-        # trigger_dag.run(
-        #     start_date=ed, end_date=ed, donot_pickle=True,
-        #     executor=GetDefaultExecutor())
+
+class CurwDagRunOperatorException(Exception):
+    pass

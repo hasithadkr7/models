@@ -61,10 +61,18 @@ wf2 = CurwDagRunOperator(
     dag=dag
 )
 
+wf3_config = {
+    'a': 'test',
+    'b': '100',
+}
+
 wf3 = CurwDagRunOperator(
     task_id='run-wf3',
     trigger_dag_id='wf3',
-    dag=dag
+    dag_run_conf=wf3_config,
+    dag=dag,
+    # run_id='wf3-run',
+    wait_for_completion=True,
 )
 
 wf1 >> wf2 >> wf3

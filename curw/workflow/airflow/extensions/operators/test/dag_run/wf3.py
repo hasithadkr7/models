@@ -22,9 +22,10 @@ from airflow import DAG
 from airflow.operators.bash_operator import BashOperator
 from datetime import timedelta
 
-
 # these args will get passed on to each operator
 # you can override them on a per-task basis during operator initialization
+from airflow.operators.python_operator import PythonOperator
+
 default_args = {
     'owner': 'airflow',
     'depends_on_past': False,
@@ -63,7 +64,7 @@ t1 = BashOperator(
 t2 = BashOperator(
     task_id='sleep',
     depends_on_past=False,
-    bash_command='sleep 5',
+    bash_command='sleep 30',
     dag=dag)
 
 templated_command = """
@@ -83,3 +84,20 @@ t3 = BashOperator(
 
 t2.set_upstream(t1)
 t3.set_upstream(t1)
+
+
+def print_conf(**kwargs):
+    if kwargs['dag_run']:
+        print('dagrun %s' % kwargs['dag_run'])
+        if kwargs['dag_run'].conf:
+            print('dagrun conf %s' % kwargs['dag_run'].conf)
+
+
+t4 = PythonOperator(
+    task_id='print_dag_conf',
+    python_callable=print_conf,
+    provide_context=True,
+    dag=dag,
+)
+
+t4 << [t2, t3]
