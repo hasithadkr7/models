@@ -63,7 +63,7 @@ wf2 = CurwDagRunOperator(
 
 wf3_config = {
     'a': 'test',
-    'b': '100',
+    'b': '{{ts}}',
 }
 
 wf3 = CurwDagRunOperator(

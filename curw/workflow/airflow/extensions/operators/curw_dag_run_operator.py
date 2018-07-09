@@ -97,6 +97,8 @@ class CurwDagRunOperator(BaseOperator):
             attempt += 1
             time.sleep(self.poll_interval.seconds)
 
+        return self.run_id
+
 
 class CurwDagRunOperatorException(Exception):
     pass
