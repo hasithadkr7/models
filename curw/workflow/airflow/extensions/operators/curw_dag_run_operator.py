@@ -11,7 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+import collections
 import datetime as dt
 import json
 import time
@@ -37,7 +37,7 @@ class CurwDagRunOperator(BaseOperator):
     :param wait_for_completion::
     :type bool
     """
-    template_fields = ('dag_run_conf', 'run_id', 'trigger_dag_id')
+    template_fields = ('dag_run_conf_templates_dict', 'run_id', 'trigger_dag_id')
     template_ext = tuple()
     ui_color = '#ffefeb'
 
@@ -47,6 +47,7 @@ class CurwDagRunOperator(BaseOperator):
             trigger_dag_id,
             run_id=None,
             dag_run_conf=None,
+            dag_run_conf_templates_dict=None,
             poll_interval=dt.timedelta(seconds=1),
             wait_for_completion=False,
             *args, **kwargs):
@@ -65,6 +66,7 @@ class CurwDagRunOperator(BaseOperator):
         self.poll_interval = poll_interval
         self.wait_for_completion = wait_for_completion
         self.run_id = run_id
+        self.dag_run_conf_templates_dict = dag_run_conf_templates_dict
 
     def execute(self, context):
         execution_time = datetime.utcnow()
@@ -74,6 +76,11 @@ class CurwDagRunOperator(BaseOperator):
             self.log.warning('Run ID not set. Auto-generating...')
             self.run_id = 'curw_trig__' + execution_time.isoformat()
         self.log.info("DagRun Run ID %s", self.run_id)
+
+        if self.dag_run_conf_templates_dict:
+            self.log.info('Using the templates_dict for dag_run_conf...')
+            self.dag_run_conf = self._dict_merge(self.dag_run_conf, self.dag_run_conf_templates_dict)
+            self.log.info('Templated dag_run_conf:\n%s' % str(self.dag_run_conf))
 
         dbag = DagBag(settings.DAGS_FOLDER)
         trigger_dag = dbag.get_dag(self.trigger_dag_id)
@@ -98,6 +105,43 @@ class CurwDagRunOperator(BaseOperator):
             time.sleep(self.poll_interval.seconds)
 
         return self.run_id
+
+    def _dict_merge(self, dct, merge_dct, add_keys=True):
+        """ Recursive dict merge. Inspired by :meth:``dict.update()``, instead of
+        updating only top-level keys, dict_merge recurses down into dicts nested
+        to an arbitrary depth, updating keys. The ``merge_dct`` is merged into
+        ``dct``.
+
+        This version will return a copy of the dictionary and leave the original
+        arguments untouched.
+
+        The optional argument ``add_keys``, determines whether keys which are
+        present in ``merge_dict`` but not ``dct`` should be included in the
+        new dict.
+
+        Args:
+            dct (dict) onto which the merge is executed
+            merge_dct (dict): dct merged into dct
+            add_keys (bool): whether to add new keys
+
+        Returns:
+            dict: updated dict
+        """
+        dct = dct.copy()
+        if not add_keys:
+            merge_dct = {
+                k: merge_dct[k]
+                for k in set(dct).intersection(set(merge_dct))
+            }
+
+        for k, v in merge_dct.items():
+            if (k in dct and isinstance(dct[k], dict)
+                    and isinstance(merge_dct[k], collections.Mapping)):
+                dct[k] = self._dict_merge(dct[k], merge_dct[k], add_keys=add_keys)
+            else:
+                dct[k] = merge_dct[k]
+
+        return dct
 
 
 class CurwDagRunOperatorException(Exception):

@@ -42,6 +42,16 @@ array[str]
 
 """
 
+wrf_config = {
+    "wrf_home": "/wrf",
+    "gfs_dir": "/wrf/gfs",
+    "nfs_dir": "/wrf/output",
+    "geog_dir": "/wrf/geog",
+    "archive_dir": "/wrf/archive",
+    "procs": 4,
+    "period": 3,
+}
+
 
 def generate_random_run_id(prefix, random_str_len=4, **context):
     run_id = '_'.join(
@@ -67,7 +77,3 @@ dag = DAG(
     'wrf-dag-v1',
     default_args=default_args,
     schedule_interval=None)
-
-
-
-
