@@ -188,7 +188,7 @@ def run_wps(wrf_config):
 
 def replace_namelist_wps(wrf_config, start_date=None, end_date=None):
     logging.info('Replacing namelist.wps...')
-    if os.path.exists(wrf_config.get('namelist_wps')):
+    if wrf_config.is_set('namelist_wps'):
         f = wrf_config.get('namelist_wps')
     else:
         f = res_mgr.get_resource_path(os.path.join('execution', constants.DEFAULT_NAMELIST_WPS_TEMPLATE))
@@ -199,7 +199,7 @@ def replace_namelist_wps(wrf_config, start_date=None, end_date=None):
 
 def replace_namelist_input(wrf_config, start_date=None, end_date=None):
     logging.info('Replacing namelist.input ...')
-    if os.path.exists(wrf_config.get('namelist_input')):
+    if wrf_config.is_set('namelist_input'):
         f = wrf_config.get('namelist_input')
     else:
         f = res_mgr.get_resource_path(os.path.join('execution', constants.DEFAULT_NAMELIST_INPUT_TEMPLATE))
@@ -431,9 +431,9 @@ def get_default_wrf_config(wrf_home=constants.DEFAULT_WRF_HOME):
                 'gfs_dir': utils.get_gfs_dir(constants.DEFAULT_WRF_HOME, False),
                 'period': constants.DEFAULT_PERIOD,
                 'offset': constants.DEFAULT_OFFSET,
-                'namelist_input': constants.DEFAULT_NAMELIST_INPUT_TEMPLATE,
+                # 'namelist_input': constants.DEFAULT_NAMELIST_INPUT_TEMPLATE,
                 # 'namelist_input_dict': constants.DEFAULT_NAMELIST_INPUT_TEMPLATE_DICT,
-                'namelist_wps': constants.DEFAULT_NAMELIST_WPS_TEMPLATE,
+                # 'namelist_wps': constants.DEFAULT_NAMELIST_WPS_TEMPLATE,
                 # 'namelist_wps_dict': constants.DEFAULT_NAMELIST_WPS_TEMPLATE_DICT,
                 'procs': constants.DEFAULT_PROCS,
                 'gfs_clean': True,
