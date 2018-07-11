@@ -62,7 +62,8 @@ wf2 = CurwDagRunOperator(
 )
 
 wf3_config = {
-    'a': 'test',
+    'a': '{{ execution_date.strftime(\'%Y-%m-%d_%H:%M\')}}',
+    'n': '{{ next_execution_date }}',
     'b': {'c': '{{ts}}',
           'd': 'ddddd',
           'e': {'f': '{{ds}}'}},
@@ -71,7 +72,7 @@ wf3_config = {
 wf3 = CurwDagRunOperator(
     task_id='run-wf3',
     trigger_dag_id='wf3',
-    dag_run_conf=wf3_config,
+    dag_run_conf_templates_dict=wf3_config,
     dag=dag,
     # run_id='wf3-run',
     wait_for_completion=True,

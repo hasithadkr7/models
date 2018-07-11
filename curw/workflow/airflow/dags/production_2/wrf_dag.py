@@ -52,13 +52,16 @@ wrf_config = {
     "period": 3,
 }
 
+wrf_config_templates = {
+    "start_date": "{{ execution_date.strftime(\'%Y-%m-%d_%H:%M\')}}",
+}
 
-def generate_random_run_id(prefix, random_str_len=4, **context):
-    run_id = '_'.join(
-        [prefix, airflow_docker_utils.get_start_date_from_context(context).strftime('%Y-%m-%d_%H:%M'),
-         airflow_docker_utils.id_generator(size=random_str_len)])
-    logging.info('Generated run_id: ' + run_id)
-    return run_id
+#
+# def generate_run_id(prefix, **context):
+#     run_id = prefix + '_' + context['next_execution_date'] if context['next_execution_date'] else context[
+#         'execution_date']
+#     logging.info('Generated run_id: ' + run_id)
+#     return run_id
 
 
 default_args = {
@@ -77,3 +80,18 @@ dag = DAG(
     'wrf-dag-v1',
     default_args=default_args,
     schedule_interval=None)
+
+
+def print_conf(**kwargs):
+    if kwargs['dag_run']:
+        print('dagrun %s' % kwargs['dag_run'])
+        if kwargs['dag_run'].conf:
+            print('dagrun conf %s' % kwargs['dag_run'].conf)
+
+
+t4 = PythonOperator(
+    task_id='print_dag_conf',
+    python_callable=print_conf,
+    provide_context=True,
+    dag=dag,
+)

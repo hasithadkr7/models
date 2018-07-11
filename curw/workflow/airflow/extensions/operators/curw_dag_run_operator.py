@@ -54,7 +54,7 @@ class CurwDagRunOperator(BaseOperator):
         super(CurwDagRunOperator, self).__init__(*args, **kwargs)
         self.trigger_dag_id = trigger_dag_id
 
-        self.dag_run_conf = None
+        self.dag_run_conf = {}
         if dag_run_conf:
             if isinstance(dag_run_conf, str):
                 self.dag_run_conf = json.loads(dag_run_conf)
