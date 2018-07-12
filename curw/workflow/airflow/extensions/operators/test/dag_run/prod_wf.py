@@ -62,7 +62,7 @@ wf2 = CurwDagRunOperator(
 )
 
 wf3_config = {
-    'a': '{{ execution_date.strftime(\'%Y-%m-%d_%H:%M\')}}',
+    'a': '{{ execution_date.strftime(\"%Y-%m-%d_%H:%M\")}}',
     'n': '{{ next_execution_date }}',
     'b': {'c': '{{ts}}',
           'd': 'ddddd',

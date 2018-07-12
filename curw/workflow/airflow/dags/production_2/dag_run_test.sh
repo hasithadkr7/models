@@ -1,6 +1,15 @@
 #!/usr/bin/env bash
 
-CURW_nl_wps=$(cat << EOM
+encode_base64 () {
+    [ -z "$1" ] && echo "" || echo "$1" | base64  --wrap=0
+}
+
+check_empty () {
+        [ -z "$1" ] && echo "" || echo "-$2 $1"
+}
+
+
+namelist_wps=$(cat << EOM
 &share
  wrf_core = 'ARW',
  max_dom = 3,
@@ -42,7 +51,7 @@ CURW_nl_wps=$(cat << EOM
 EOM
 )
 
-CURW_nl_input=$(cat << EOM
+namelist_input=$(cat << EOM
   &time_control
  run_days                            = RD0,
  run_hours                           = RH0,
@@ -154,7 +163,7 @@ CURW_nl_input=$(cat << EOM
 EOM
 )
 
-wrf_config=$(cat << EOM
+wrf_config=$(cat << 'EOM'
 {
     "wrf_home": "/wrf",
     "gfs_dir": "/wrf/gfs",
@@ -167,39 +176,43 @@ wrf_config=$(cat << EOM
 EOM
 )
 
-run_id=test_run1
-
-encode_base64 () {
-    [ -z "$1" ] && echo "" || echo "$1" | base64  --wrap=0
-}
-
-check_empty () {
-        [ -z "$1" ] && echo "" || echo "-$2=$1"
-}
-
-
-#python3 ../run_wrf.py $( check_empty "$CURW_run_id" run_id ) \
-#                      $( encode_base64 "$wrf_config" wrf_config ) \
-#                      $( check_empty "$CURW_mode" mode ) \
-#                      $( encode_base64 "$CURW_nl_wps" nl_wps ) \
-#                      $( encode_base64 "$CURW_nl_input" nl_input )
-
-dag_config=$(cat << EOM
+wrf_tamplates=$(cat << 'EOM'
 {
-    "wrf_config_b64": "$( encode_base64 "$wrf_config")",
-    "mode": "wps",
-    "namelist_wps_b64": "$( encode_base64 "$CURW_nl_wps")"
+    "start_date": "{{ execution_date.strftime(\\'%Y-%m-%d_%H:%M\\') }}"
 }
 EOM
 )
 
+gcs_key=$(cat << EOM
+EOM
+)
 
+execution_date=$(date -uIseconds)
+
+run_id=test_run1_"$execution_date"
+
+vol_mounts="/nfs/general/wrf-static-data/geog:/wrf/geog"
+
+dag_config=$(cat << EOM
+{
+    "run_id": "${run_id}",
+    "wrf_config_b64":  ${wrf_config},
+    "wrf_templates_b64": ${wrf_tamplates},
+    "mode": "wps",
+    "namelist_wps_b64": "$( encode_base64 "$namelist_wps")",
+    "namelist_input_b64": "$( encode_base64 "$namelist_input")",
+    "gcs_key_b64" : "$( encode_base64 "$gcs_key")",
+    "gcs_vol_mounts": [],
+    "vol_mounts":["${vol_mounts}"]
+}
+EOM
+)
+
+echo $dag_config
+
+pkill airflow
 export AIRFLOW__CORE__DAGS_FOLDER=/home/curw/git/models/curw/workflow/airflow/dags/production_2
-airflow trigger_dag wrf-dag-v1 -r "$run_id" -c "$dag_config" -e "$(date -uIseconds)"
+airflow trigger_dag wrf-dag-v1 -r "$run_id" -c "$dag_config" -e "$execution_date"
 airflow unpause wrf-dag-v1
 nohup airflow webserver &
 nohup airflow scheduler &
-
-
-
-

@@ -1,16 +1,11 @@
 import datetime as dt
 import json
 import logging
-import os
 
 import airflow
 from airflow import DAG
-from airflow.operators.dummy_operator import DummyOperator
-from airflow.operators.python_operator import PythonOperator, BranchPythonOperator
-from curw.rainfall.wrf import utils
-from curw.container.docker.rainfall import utils as docker_rf_utils
-from curw.workflow.airflow.dags.docker_impl import utils as airflow_docker_utils
-from curw.workflow.airflow.extensions.operators.curw_docker_operator import CurwDockerOperator
+from airflow.operators.python_operator import PythonOperator
+from curw.workflow.airflow.dags.production_2 import WrfDefaults
 
 """
 Configurations
@@ -19,8 +14,11 @@ Configurations
 run_id
 model run ID.  Format: [model tag]_[execution timestamp]_[random chars] Ex: wrf0_2017-05-26_00:00_0000/
 
-wrf_config_b64
-WRF config json object. BASE64 encoded str. Refer [1]
+wrf_config
+WRF config json object. dict. Refer [1]
+
+wrf_templates
+WRF templates json object. dict. Refer [1]
 
 mode 
 Mode. [wps/wrf/all] str Default:all 
@@ -34,35 +32,17 @@ namelist.input content. Can use place-holders for templating. Check the namelist
 BASE64 encoded str 
 
 gcs_key_b64
-GCS service account key file path. str/ key content.  BASE64 encoded str 
+GCS service account key file path. str/ key content.  dict 
 
 gcs_vol_mounts
 GCS bucket volume mounts. bucket_name:mount_path Ex: ["curwsl_nfs_1:/wrf/output", "curwsl_archive_1:/wrf/archive"]. 
 array[str] 
 
+vol_mounts
+File system volume mounts. source_dir:mount_path Ex: ["/mnt/disks/curwsl_nfs_1:/wrf/output"]. 
+array[str] 
+
 """
-
-wrf_config = {
-    "wrf_home": "/wrf",
-    "gfs_dir": "/wrf/gfs",
-    "nfs_dir": "/wrf/output",
-    "geog_dir": "/wrf/geog",
-    "archive_dir": "/wrf/archive",
-    "procs": 4,
-    "period": 3,
-}
-
-wrf_config_templates = {
-    "start_date": "{{ execution_date.strftime(\'%Y-%m-%d_%H:%M\')}}",
-}
-
-#
-# def generate_run_id(prefix, **context):
-#     run_id = prefix + '_' + context['next_execution_date'] if context['next_execution_date'] else context[
-#         'execution_date']
-#     logging.info('Generated run_id: ' + run_id)
-#     return run_id
-
 
 default_args = {
     'owner': 'curwsl admin',
@@ -82,16 +62,21 @@ dag = DAG(
     schedule_interval=None)
 
 
-def print_conf(**kwargs):
+def get_dag_run_conf(**kwargs):
+    dr_conf = WrfDefaults.DAG_RUN_CONFIG
     if kwargs['dag_run']:
-        print('dagrun %s' % kwargs['dag_run'])
+        logging.info('dagrun: %s' % kwargs['dag_run'])
         if kwargs['dag_run'].conf:
-            print('dagrun conf %s' % kwargs['dag_run'].conf)
+            logging.info('dagrun conf %s' % kwargs['dag_run'].conf)
+            dr_conf.update(kwargs['dag_run'].conf)
+    logging.info('dag_run_conf returned: %s' % json.dumps(dr_conf))
+    return dr_conf
 
 
-t4 = PythonOperator(
-    task_id='print_dag_conf',
-    python_callable=print_conf,
+dag_run_conf = PythonOperator(
+    task_id='get_dag_conf',
+    python_callable=get_dag_run_conf,
     provide_context=True,
     dag=dag,
 )
+
