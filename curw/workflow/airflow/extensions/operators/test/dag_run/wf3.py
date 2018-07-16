@@ -64,7 +64,7 @@ t1 = BashOperator(
 t2 = BashOperator(
     task_id='sleep',
     depends_on_past=False,
-    bash_command='sleep 30',
+    bash_command='sleep 5',
     dag=dag)
 
 templated_command = """
@@ -101,3 +101,12 @@ t4 = PythonOperator(
 )
 
 t4 << [t2, t3]
+
+t5 = BashOperator(
+    task_id='run-flo2d',
+    depends_on_past=False,
+    bash_command='cd /mnt/c/temp/2018-07-16_Kelani ; ./FLOPRO.exe',
+    queue='windows_q1',
+    dag=dag)
+
+t4 >> t5
