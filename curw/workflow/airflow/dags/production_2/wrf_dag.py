@@ -17,9 +17,6 @@ model run ID.  Format: [model tag]_[execution timestamp]_[random chars] Ex: wrf0
 wrf_config
 WRF config json object. dict. Refer [1]
 
-wrf_templates
-WRF templates json object. dict. Refer [1]
-
 mode 
 Mode. [wps/wrf/all] str Default:all 
 
@@ -56,6 +53,13 @@ default_args = {
     'catchup': False,
 }
 
+#
+# def generate_run_id(prefix, **context):
+#     run_id = prefix + '_' + context['next_execution_date'] if context['next_execution_date'] else context[
+#         'execution_date']
+#     logging.info('Generated run_id: ' + run_id)
+#     return run_id
+
 dag = DAG(
     'wrf-dag-v1',
     default_args=default_args,
@@ -64,12 +68,16 @@ dag = DAG(
 
 def get_dag_run_conf(**kwargs):
     dr_conf = WrfDefaults.DAG_RUN_CONFIG
-    if kwargs['dag_run']:
+    if kwargs and kwargs['dag_run']:
         logging.info('dagrun: %s' % kwargs['dag_run'])
         if kwargs['dag_run'].conf:
             logging.info('dagrun conf %s' % kwargs['dag_run'].conf)
             dr_conf.update(kwargs['dag_run'].conf)
-    logging.info('dag_run_conf returned: %s' % json.dumps(dr_conf))
+        else:
+            logging.warning('dag_run.conf is missing. Using the default dag_run.config')
+        logging.info('dag_run_conf returned: %s' % json.dumps(dr_conf))
+    else:
+        logging.error('context was not passed to the method or dag_run is missing in the context')
     return dr_conf
 
 
@@ -79,4 +87,3 @@ dag_run_conf = PythonOperator(
     provide_context=True,
     dag=dag,
 )
-

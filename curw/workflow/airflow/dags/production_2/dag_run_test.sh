@@ -176,13 +176,6 @@ wrf_config=$(cat << 'EOM'
 EOM
 )
 
-wrf_tamplates=$(cat << 'EOM'
-{
-    "start_date": "{{ execution_date.strftime(\\'%Y-%m-%d_%H:%M\\') }}"
-}
-EOM
-)
-
 gcs_key=$(cat << EOM
 EOM
 )
@@ -196,8 +189,7 @@ vol_mounts="/nfs/general/wrf-static-data/geog:/wrf/geog"
 dag_config=$(cat << EOM
 {
     "run_id": "${run_id}",
-    "wrf_config_b64":  ${wrf_config},
-    "wrf_templates_b64": ${wrf_tamplates},
+    "wrf_config":  ${wrf_config},
     "mode": "wps",
     "namelist_wps_b64": "$( encode_base64 "$namelist_wps")",
     "namelist_input_b64": "$( encode_base64 "$namelist_input")",
@@ -207,8 +199,6 @@ dag_config=$(cat << EOM
 }
 EOM
 )
-
-echo $dag_config
 
 pkill airflow
 export AIRFLOW__CORE__DAGS_FOLDER=/home/curw/git/models/curw/workflow/airflow/dags/production_2

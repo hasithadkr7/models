@@ -35,7 +35,6 @@ class WrfDefaults:
     DAG_RUN_CONFIG = {
         'run_id': RUN_ID,
         'wrf_config': json.dumps(WRF_CONFIG),
-        'wrf_templates': json.dumps(WRF_CONFIG_TEMPLATES),
         'mode': 'all',
         'namelist_wps_b64': af_utils.get_base64_encoded_str(NAMELIST_WPS),
         'namelist_input_b64': af_utils.get_base64_encoded_str(NAMELIST_INPUT),
