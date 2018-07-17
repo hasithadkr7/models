@@ -184,7 +184,7 @@ execution_date=$(date -uIseconds)
 
 run_id=test_run1_"$execution_date"
 
-vol_mounts="/nfs/general/wrf-static-data/geog:/wrf/geog"
+vol_mounts="/samba/wrf-static-data/geog:/wrf/geog"
 
 dag_config=$(cat << EOM
 {
