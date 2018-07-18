@@ -171,7 +171,7 @@ wrf_config=$(cat << 'EOM'
     "geog_dir": "/wrf/geog",
     "archive_dir": "/wrf/archive",
     "procs": 4,
-    "period": 3
+    "period": 0.25
 }
 EOM
 )
@@ -180,7 +180,8 @@ gcs_key=$(cat << EOM
 EOM
 )
 
-execution_date=$(date -uIseconds)
+#execution_date=$(date -uIseconds)
+execution_date="2018-07-17T18:00:00+00:00"
 
 run_id=test_run1_"$execution_date"
 
@@ -201,7 +202,9 @@ EOM
 )
 
 pkill airflow
+export AIRFLOW_HOME=/home/curw/airflow
 export AIRFLOW__CORE__DAGS_FOLDER=/home/curw/git/models/curw/workflow/airflow/dags/production_2
+airflow resetdb -y
 airflow trigger_dag wrf-dag-v1 -r "$run_id" -c "$dag_config" -e "$execution_date"
 airflow unpause wrf-dag-v1
 nohup airflow webserver &

@@ -9,6 +9,7 @@ from curw.workflow.airflow.dags.docker_impl import utils as airflow_docker_utils
 from curw.container.docker.rainfall import utils as docker_rf_utils
 from curw.workflow.airflow.dags.production_2 import WrfDefaults
 from curw.workflow.airflow.extensions.operators.curw_docker_operator import CurwDockerOperator
+from curw.workflow.airflow.extensions.operators.curw_dag_run_operator import dict_merge
 from curw.workflow.airflow import utils as af_utils
 
 """
@@ -48,12 +49,6 @@ array[str]
 DOCKER_URL = 'tcp://192.168.2.100:2375'
 WRF_DOCKER_IMAGE = 'nirandaperera/curw-wrf-391'
 
-VOL_MOUNTS = [
-    "/samba/wrf-static-data/geog:/wrf/geog",
-    "/samba/archive:/wrf/output",
-    "/samba/archive:/wrf/archive"
-]
-
 WRF_POOL = 'parallel_wrf_runs'
 
 
@@ -92,7 +87,7 @@ def get_dag_run_conf(**context):
         logging.info('dagrun: %s' % context['dag_run'])
         if context['dag_run'].conf:
             logging.info('dagrun conf %s' % context['dag_run'].conf)
-            dr_conf.update(context['dag_run'].conf)
+            dr_conf = dict_merge(dr_conf.update, context['dag_run'].conf)
         else:
             logging.warning('dag_run.conf is missing. Using the default dag_run.config')
         logging.info('dag_run_conf returned: %s' % json.dumps(dr_conf))
@@ -101,7 +96,7 @@ def get_dag_run_conf(**context):
             'context was not passed to the method or dag_run is missing in the context. '
             'Using the default dag_run.config..;')
 
-    if not dr_conf['wrf_config']['start_date']:
+    if 'start_date' not in dr_conf['wrf_config']:
         sd = context['next_execution_date'] if context['next_execution_date'] else context['execution_date']
         dr_conf['wrf_config']['start_date'] = sd.strftime('%Y-%m-%d_%H:%M')
         logging.info('Added dag_run.config.wrf_config.start_date: %s' % dr_conf['wrf_config']['start_date'])
@@ -126,25 +121,25 @@ dag_run_conf = PythonOperator(
 run_wrf = CurwDockerOperator(
     task_id='run_wrf',
     image=WRF_DOCKER_IMAGE,
-    docker_url=DOCKER_URL,
+    # docker_url=DOCKER_URL,
     command=airflow_docker_utils.get_docker_cmd(
         run_id='{{ run_id }}',
         wrf_config='{{ ti.xcom_pull(task_ids=\'dag_run_conf\').wrf_config_b64 }}',
-        mode='{{ti.xcom_pull(task_ids=\'dag_run_conf\').mode',
-        nl_wps='{{ti.xcom_pull(task_ids=\'dag_run_conf\').namelist_wps_b64 }}',
+        mode='{{ ti.xcom_pull(task_ids=\'dag_run_conf\').mode }}',
+        nl_wps='{{ ti.xcom_pull(task_ids=\'dag_run_conf\').namelist_wps_b64 }}',
         nl_input='{{ ti.xcom_pull(task_ids=\'dag_run_conf\').namelist_input_b64 }}'
     ),
     cpus=1,
-    volumes=VOL_MOUNTS,
+    volumes='{{ ti.xcom_pull(task_ids=\'dag_run_conf\').vol_mounts }}',
     auto_remove=True,
     privileged=True,
     dag=dag,
-    pool=WRF_POOL,
+    # pool=WRF_POOL,
     retries=3,
     retry_delay=dt.timedelta(minutes=10),
 )
 
-dag_run_conf >> dag_run_conf
+dag_run_conf >> run_wrf
 
 # def get_mode(**context):
 #     if context and context['templates_dict'] and context['templates_dict']['mode']:

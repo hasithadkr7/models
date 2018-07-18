@@ -26,6 +26,12 @@ class WrfDefaults:
 
     NAMELIST_INPUT = af_utils.read_file(res_manager.get_resource_path('execution/namelist.input_SIDAT'))
 
+    VOL_MOUNTS = [
+        "/samba/wrf-static-data/geog:/wrf/geog",
+        "/samba/data:/wrf/output",
+        "/samba/archive:/wrf/archive"
+    ]
+
     DAG_RUN_CONFIG = {
         'run_id': RUN_ID,
         'wrf_config': json.dumps(WRF_CONFIG),
@@ -33,7 +39,6 @@ class WrfDefaults:
         'namelist_wps_b64': af_utils.get_base64_encoded_str(NAMELIST_WPS),
         'namelist_input_b64': af_utils.get_base64_encoded_str(NAMELIST_INPUT),
         'gcs_key_b64': '',
-        'gcs_vol_mounts': []
+        'gcs_vol_mounts': [],
+        'vol_mounts': VOL_MOUNTS,
     }
-
-

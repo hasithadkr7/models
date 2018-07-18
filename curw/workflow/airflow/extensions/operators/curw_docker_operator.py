@@ -66,7 +66,7 @@ class CurwDockerOperator(BaseOperator):
     :param xcom_all: Push all the stdout or just the last line. The default is False (last line).
     :type xcom_all: bool
     """
-    template_fields = ('command',)
+    template_fields = ('command', 'volumes')
     template_ext = ('.sh', '.bash',)
 
     @apply_defaults
