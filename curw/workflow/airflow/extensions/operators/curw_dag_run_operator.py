@@ -91,19 +91,10 @@ class CurwDagRunOperator(BaseOperator):
             *args, **kwargs):
         super(CurwDagRunOperator, self).__init__(*args, **kwargs)
         self.trigger_dag_id = trigger_dag_id
-
-        self.dag_run_conf = {}
-        if dag_run_conf:
-            if isinstance(dag_run_conf, str):
-                self.dag_run_conf = json.loads(dag_run_conf)
-            elif isinstance(dag_run_conf, dict):
-                self.dag_run_conf = dag_run_conf
-            else:
-                raise CurwDagRunOperatorException('Unsupported dag_run_conf type %s' % type(dag_run_conf))
-
+        self.run_id = run_id
+        self.dag_run_conf = dag_run_conf or {}
         self.poll_interval = poll_interval
         self.wait_for_completion = wait_for_completion
-        self.run_id = run_id
         self.dag_run_conf_templates_dict = dag_run_conf_templates_dict
 
     def execute(self, context):
@@ -114,6 +105,19 @@ class CurwDagRunOperator(BaseOperator):
             self.log.warning('Run ID not set. Auto-generating...')
             self.run_id = 'curw_trig__' + execution_time.isoformat()
         self.log.info("DagRun Run ID %s", self.run_id)
+
+        if self.dag_run_conf:
+            if isinstance(self.dag_run_conf, str):
+                self.log.info('Using dag_run_conf str')
+                self.dag_run_conf = json.loads(self.dag_run_conf)
+            else:
+                raise CurwDagRunOperatorException('Unsupported dag_run_conf type %s' % type(self.dag_run_conf))
+
+            if 'run_id' in self.dag_run_conf and self.dag_run_conf['run_id'] != self.run_id:
+                raise CurwDagRunOperatorException(
+                    'dag_run_conf.run_id mismatch %s %s ' % (self.dag_run_conf['run_id'], self.run_id))
+            else:
+                self.dag_run_conf['run_id'] = self.run_id  # if run_id not in dag_run_conf, set it
 
         if self.dag_run_conf_templates_dict:
             self.log.info('Using the templates_dict for dag_run_conf...')

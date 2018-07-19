@@ -2,15 +2,14 @@ import datetime as dt
 import json
 import logging
 
+from curw.workflow.airflow import utils as af_utils
+from curw.workflow.airflow.dags.docker_impl import utils as airflow_docker_utils
+from curw.workflow.airflow.dags.production_2 import utils
+from curw.workflow.airflow.extensions.operators.curw_docker_operator import CurwDockerOperator
+
 import airflow
 from airflow import DAG
-from airflow.operators.python_operator import PythonOperator, BranchPythonOperator
-from curw.workflow.airflow.dags.docker_impl import utils as airflow_docker_utils
-from curw.container.docker.rainfall import utils as docker_rf_utils
-from curw.workflow.airflow.dags.production_2 import WrfDefaults
-from curw.workflow.airflow.extensions.operators.curw_docker_operator import CurwDockerOperator
-from curw.workflow.airflow.extensions.operators.curw_dag_run_operator import dict_merge
-from curw.workflow.airflow import utils as af_utils
+from airflow.operators.python_operator import PythonOperator
 
 """
 Configurations
@@ -82,12 +81,12 @@ dag = DAG(
 
 
 def get_dag_run_conf(**context):
-    dr_conf = WrfDefaults.DAG_RUN_CONFIG
+    dr_conf = None
     if context and context['dag_run']:
         logging.info('dagrun: %s' % context['dag_run'])
         if context['dag_run'].conf:
             logging.info('dagrun conf %s' % context['dag_run'].conf)
-            dr_conf = dict_merge(dr_conf.update, context['dag_run'].conf)
+            dr_conf = utils.get_dag_run_config(**context['dag_run'].conf)
         else:
             logging.warning('dag_run.conf is missing. Using the default dag_run.config')
         logging.info('dag_run_conf returned: %s' % json.dumps(dr_conf))

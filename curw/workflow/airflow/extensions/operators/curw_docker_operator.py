@@ -125,6 +125,9 @@ class CurwDockerOperator(BaseOperator):
     def execute(self, context):
         logging.info('Starting docker container from image ' + self.image)
 
+        if self.volumes and isinstance(self.volumes, str):
+            self.volumes = ast.literal_eval(self.volumes)
+
         tls_config = None
         if self.tls_ca_cert and self.tls_client_cert and self.tls_client_key:
             tls_config = tls.TLSConfig(

@@ -191,12 +191,11 @@ dag_config=$(cat << EOM
 {
     "run_id": "${run_id}",
     "wrf_config":  ${wrf_config},
-    "mode": "wps",
+    "mode": "all",
     "namelist_wps_b64": "$( encode_base64 "$namelist_wps")",
     "namelist_input_b64": "$( encode_base64 "$namelist_input")",
     "gcs_key_b64" : "$( encode_base64 "$gcs_key")",
-    "gcs_vol_mounts": [],
-    "vol_mounts":["${vol_mounts}"]
+    "gcs_vol_mounts": []
 }
 EOM
 )
